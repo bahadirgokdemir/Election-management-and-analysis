@@ -1,0 +1,1 @@
+REQUIRED_COLS = ["sicilno", "ad", "soyad"]

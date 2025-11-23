@@ -1,0 +1,338 @@
+{% extends 'app/base.html' %}
+{% block title %}Seçim Yönetimi{% endblock %}
+{% block content %}
+
+<style>
+  .election-card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .election-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .election-card.active {
+    border-left: 4px solid var(--success);
+    background: var(--bg-card);
+  }
+
+  .election-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 16px;
+  }
+
+  .election-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .action-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-hover);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 14px;
+  }
+
+  .action-icon-btn:hover {
+    border-color: var(--primary);
+    background: var(--bg-active);
+    transform: scale(1.05);
+  }
+
+  .action-icon-btn.delete:hover {
+    border-color: var(--error);
+    background: rgba(239, 68, 68, 0.2);
+  }
+
+  .stats-grid-compact {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 16px 0;
+    padding: 16px;
+    background: var(--bg-content);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+  }
+
+  .stat-compact {
+    text-align: center;
+  }
+
+  .stat-compact-value {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    line-height: 1;
+  }
+
+  .stat-compact-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .progress-bar-mini {
+    height: 8px;
+    background: var(--bg-content);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 12px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--success), var(--primary));
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .status-indicator.active {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid var(--success);
+    color: var(--success);
+  }
+
+  .status-indicator.inactive {
+    background: rgba(148, 163, 184, 0.15);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+  }
+
+  .modal-form-group {
+    margin-bottom: 20px;
+  }
+
+  .modal-form-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+
+  .modal-form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--bg-content);
+    color: var(--text-primary);
+    transition: all 0.2s;
+  }
+
+  .modal-form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+
+  .modal-form-textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+  }
+
+</style>
+
+<div class="page-header">
+  <div>
+    <h1>🗳️ Seçim Yönetimi</h1>
+    <p>Seçim günü oluşturun, yönetin ve oy durumlarını takip edin</p>
+  </div>
+  <button class="btn primary" onclick="openCreateElectionModal()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 4v16m8-8H4"/>
+    </svg>
+    Yeni Seçim Oluştur
+  </button>
+</div>
+
+<!-- Seçim Kartları -->
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 24px;">
+  {% for stat in election_stats %}
+  <div class="election-card {% if stat.election.is_active %}active{% endif %}" onclick="window.location.href='{% url 'ui_election_dashboard' stat.election.id %}'">
+    <div class="election-header">
+      <div>
+        <h3 style="margin: 0 0 8px 0; font-size: 18px; font-weight: 700; color: var(--text-primary);">
+          {{ stat.election.name }}
+        </h3>
+        <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 13px; color: var(--text-muted);">
+            📅 {{ stat.election.election_date|date:"d F Y" }}
+          </span>
+          <span class="status-indicator {% if stat.election.is_active %}active{% else %}inactive{% endif %}">
+            {% if stat.election.is_active %}● AKTİF{% else %}○ PASİF{% endif %}
+          </span>
+        </div>
+      </div>
+      <div class="election-actions" onclick="event.stopPropagation();">
+        <form method="post" action="{% url 'ui_election_activate' stat.election.id %}" style="display: inline;">
+          {% csrf_token %}
+          <button type="submit" class="action-icon-btn" title="{% if stat.election.is_active %}Pasif Et{% else %}Aktif Et{% endif %}">
+            {% if stat.election.is_active %}⏸{% else %}▶{% endif %}
+          </button>
+        </form>
+        {% if not stat.election.is_active %}
+        <form method="post" action="{% url 'ui_election_delete' stat.election.id %}" style="display: inline;" onsubmit="return confirm('{{ stat.election.name }} seçimini silmek istediğinize emin misiniz?');">
+          {% csrf_token %}
+          <button type="submit" class="action-icon-btn delete" title="Sil">🗑</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if stat.election.description %}
+    <p style="font-size: 13px; color: var(--text-secondary); margin: 0 0 16px 0; line-height: 1.5;">
+      {{ stat.election.description }}
+    </p>
+    {% endif %}
+
+    <!-- İstatistikler -->
+    <div class="stats-grid-compact">
+      <div class="stat-compact">
+        <div class="stat-compact-value" style="color: var(--primary);">{{ stat.total_people }}</div>
+        <div class="stat-compact-label">Toplam</div>
+      </div>
+      <div class="stat-compact">
+        <div class="stat-compact-value" style="color: var(--success);">{{ stat.voted_count }}</div>
+        <div class="stat-compact-label">Oy Verdi</div>
+      </div>
+      <div class="stat-compact">
+        <div class="stat-compact-value" style="color: var(--text-muted);">{{ stat.not_voted_count }}</div>
+        <div class="stat-compact-label">Oy Vermedi</div>
+      </div>
+    </div>
+
+    <!-- Katılım Oranı -->
+    <div style="margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">Katılım Oranı</span>
+        <span style="font-size: 14px; font-weight: 700; color: var(--primary);">{{ stat.participation_rate }}%</span>
+      </div>
+      <div class="progress-bar-mini">
+        <div class="progress-bar-fill" style="width: {{ stat.participation_rate }}%;"></div>
+      </div>
+    </div>
+
+  </div>
+  {% empty %}
+  <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 80px 40px;">
+    <div style="font-size: 64px; margin-bottom: 24px;">🗳️</div>
+    <h3 style="margin: 0 0 12px 0; color: var(--text-primary); font-size: 24px;">Henüz Seçim Oluşturulmadı</h3>
+    <p style="margin: 0 0 24px 0; color: var(--text-muted); font-size: 15px;">
+      Yeni bir seçim oluşturmak için yukarıdaki butona tıklayın
+    </p>
+    <button class="btn primary" onclick="openCreateElectionModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 4v16m8-8H4"/>
+      </svg>
+      İlk Seçimi Oluştur
+    </button>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function openCreateElectionModal() {
+  const content = `
+    <form method="post" action="{% url 'ui_election_create' %}" style="padding: 8px;">
+      {% csrf_token %}
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        <div class="modal-form-group">
+          <label class="modal-form-label">
+            Seçim Adı *
+          </label>
+          <input
+            type="text"
+            name="name"
+            required
+            placeholder="örn: Ön Seçim 2025, Ana Seçim 2025"
+            class="modal-form-input"
+            autofocus
+          />
+          <p style="margin: 6px 0 0 0; font-size: 12px; color: var(--text-muted);">
+            Seçimi tanımlayan açıklayıcı bir isim girin
+          </p>
+        </div>
+
+        <div class="modal-form-group">
+          <label class="modal-form-label">
+            Seçim Tarihi *
+          </label>
+          <input
+            type="date"
+            name="election_date"
+            required
+            class="modal-form-input"
+          />
+          <p style="margin: 6px 0 0 0; font-size: 12px; color: var(--text-muted);">
+            Seçimin gerçekleşeceği tarih
+          </p>
+        </div>
+
+        <div class="modal-form-group">
+          <label class="modal-form-label">
+            Açıklama <span style="font-weight: normal; color: var(--text-muted);">(İsteğe bağlı)</span>
+          </label>
+          <textarea
+            name="description"
+            rows="4"
+            placeholder="Seçim hakkında kısa açıklama yazabilirsiniz..."
+            class="modal-form-input modal-form-textarea"
+          ></textarea>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; padding-top: 16px; border-top: 1px solid var(--border);">
+          <button type="button" onclick="closeModal()" class="btn" style="min-width: 100px;">
+            İptal
+          </button>
+          <button type="submit" class="btn primary" style="min-width: 140px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+              <path d="M12 4v16m8-8H4"/>
+            </svg>
+            Seçim Oluştur
+          </button>
+        </div>
+      </div>
+    </form>
+  `;
+
+  openModal('🗳️ Yeni Seçim Oluştur', content);
+}
+</script>
+
+{% endblock %}

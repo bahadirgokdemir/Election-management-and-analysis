@@ -1,0 +1,481 @@
+{% load static %}
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ election.name }}{% endblock %}</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Ana Uygulama Renkleri */
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --primary-light: #60a5fa;
+      --secondary: #8b5cf6;
+      --accent: #f59e0b;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+
+      /* Backgrounds */
+      --bg-app: #0a0f1a;
+      --bg-sidebar: #0f1623;
+      --bg-content: #0f172a;
+      --bg-card: #1e293b;
+      --bg-hover: #334155;
+      --bg-active: #475569;
+
+      /* Text */
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --text-disabled: #64748b;
+
+      /* Borders */
+      --border: #334155;
+      --border-light: #475569;
+
+      --sidebar-width: 260px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-app);
+      color: var(--text-primary);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-sidebar);
+      color: var(--text-primary);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+      border-right: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-primary);
+    }
+
+    .sidebar-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .sidebar-stats {
+      padding: 16px 20px;
+      background: var(--bg-content);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 13px;
+    }
+
+    .sidebar-stat-label {
+      color: var(--text-muted);
+    }
+
+    .sidebar-stat-value {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .sidebar-stat-value.total { color: var(--primary); }
+    .sidebar-stat-value.voted { color: var(--success); }
+    .sidebar-stat-value.not-voted { color: var(--warning); }
+    .sidebar-stat-value.rate { color: #8b5cf6; }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 0;
+      overflow-y: auto;
+    }
+
+    .nav-section {
+      margin-bottom: 24px;
+    }
+
+    .nav-section-title {
+      padding: 0 20px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--bg-active);
+      color: var(--primary-light);
+      border-left-color: var(--primary);
+    }
+
+    .nav-icon {
+      font-size: 18px;
+      width: 24px;
+      text-align: center;
+    }
+
+    .nav-label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .sidebar-footer-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .sidebar-footer-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--primary);
+      color: var(--primary-light);
+    }
+
+    /* Main Content */
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Bar */
+    .topbar {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .topbar-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .status-badge {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-badge.active {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+
+    .status-badge.inactive {
+      background: rgba(148, 163, 184, 0.2);
+      color: var(--text-muted);
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .btn.primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn.danger {
+      background: var(--error);
+      color: white;
+      border-color: var(--error);
+    }
+
+    .btn.danger:hover {
+      background: #dc2626;
+    }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 2px solid var(--success);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transform: translateY(150%);
+      transition: transform 0.3s;
+      z-index: 1000;
+      min-width: 300px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    .toast.error {
+      border-color: var(--error);
+    }
+
+    .toast-icon {
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .toast-message {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: -100%;
+        height: 100vh;
+        transition: left 0.3s;
+      }
+
+      .sidebar.show {
+        left: 0;
+      }
+
+      .content-area {
+        padding: 20px;
+      }
+    }
+  </style>
+  {% block extra_style %}{% endblock %}
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">
+        🗳️ {{ election.name }}
+      </div>
+      <div class="sidebar-subtitle">
+        {{ election.election_date|date:"d F Y" }}
+      </div>
+    </div>
+
+    <div class="sidebar-stats">
+      <div class="sidebar-stat">
+        <span class="sidebar-stat-label">Toplam</span>
+        <span class="sidebar-stat-value total" id="sidebarTotal">{{ total_people|default:0 }}</span>
+      </div>
+      <div class="sidebar-stat">
+        <span class="sidebar-stat-label">Oy Verdi</span>
+        <span class="sidebar-stat-value voted" id="sidebarVoted">{{ voted_count|default:0 }}</span>
+      </div>
+      <div class="sidebar-stat">
+        <span class="sidebar-stat-label">Oy Vermedi</span>
+        <span class="sidebar-stat-value not-voted" id="sidebarNotVoted">{{ not_voted_count|default:0 }}</span>
+      </div>
+      <div class="sidebar-stat">
+        <span class="sidebar-stat-label">Katılım</span>
+        <span class="sidebar-stat-value rate" id="sidebarRate">{{ participation_rate|default:0 }}%</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section">
+        <div class="nav-section-title">Seçim Günü</div>
+        <a href="{% url 'ui_election_dashboard' election.id %}" class="nav-item {% if request.resolver_match.url_name == 'ui_election_dashboard' %}active{% endif %}">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">Anasayfa</span>
+        </a>
+        <a href="{% url 'ui_election_list' election.id %}" class="nav-item {% if request.resolver_match.url_name == 'ui_election_list' %}active{% endif %}">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Oy Durumu Listesi</span>
+        </a>
+        <a href="{% url 'ui_election_quick_mark' election.id %}" class="nav-item {% if request.resolver_match.url_name == 'ui_election_quick_mark' %}active{% endif %}">
+          <span class="nav-icon">✓</span>
+          <span class="nav-label">Oy Yönetimi</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Raporlar</div>
+        <a href="{% url 'ui_election_stats' election.id %}" class="nav-item {% if request.resolver_match.url_name == 'ui_election_stats' %}active{% endif %}">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Detaylı İstatistikler</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="{% url 'ui_elections' %}" class="sidebar-footer-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Seçim Yönetimine Dön
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Top Bar -->
+    <div class="topbar">
+      <h1 class="topbar-title">{% block page_title %}Anasayfa{% endblock %}</h1>
+      <div class="topbar-actions">
+        <span class="status-badge {% if election.is_active %}active{% else %}inactive{% endif %}">
+          {% if election.is_active %}● Aktif{% else %}○ Pasif{% endif %}
+        </span>
+        {% block topbar_actions %}{% endblock %}
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast">
+    <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <span class="toast-message" id="toastMessage"></span>
+  </div>
+
+  <script>
+    // Toast notification
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toastMessage');
+
+      toast.className = isError ? 'toast error show' : 'toast show';
+      toastMessage.textContent = message;
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Auto-refresh stats every 30 seconds
+    setInterval(() => {
+      fetch(`{% url 'ui_election_voting_data' election.id %}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.stats) {
+            document.getElementById('sidebarTotal').textContent = data.stats.total_people;
+            document.getElementById('sidebarVoted').textContent = data.stats.voted_count;
+            document.getElementById('sidebarNotVoted').textContent = data.stats.not_voted_count;
+            document.getElementById('sidebarRate').textContent = data.stats.participation_rate + '%';
+          }
+        })
+        .catch(() => {});
+    }, 30000);
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

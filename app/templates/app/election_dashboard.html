@@ -1,0 +1,413 @@
+{% extends 'app/election_app_base.html' %}
+{% load l10n %}
+{% block title %}{{ election.name }} - Anasayfa{% endblock %}
+{% block page_title %}Anasayfa{% endblock %}
+
+{% block extra_style %}
+<style>
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 18px 20px;
+    border: 1px solid var(--border-color);
+    transition: all 0.2s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary);
+  }
+
+  .stat-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .stat-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-card.total .stat-card-value { color: var(--primary); }
+  .stat-card.voted .stat-card-value { color: var(--success); }
+  .stat-card.not-voted .stat-card-value { color: var(--warning); }
+  .stat-card.rate .stat-card-value { color: #a78bfa; }
+
+  .progress-bar {
+    height: 8px;
+    background: var(--bg-content);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 12px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--success), var(--primary));
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .quick-links {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .quick-link {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 18px 20px;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .quick-link:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .quick-link-label {
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .lawyer-table {
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+  }
+
+  .lawyer-table-header {
+    background: var(--bg-content);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .lawyer-table-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--text-primary);
+  }
+
+  .lawyer-table-subtitle {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .lawyer-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr;
+    gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-color);
+    align-items: center;
+    transition: background 0.2s;
+  }
+
+  .lawyer-row:last-child {
+    border-bottom: none;
+  }
+
+  .lawyer-row:hover {
+    background: var(--bg-hover);
+  }
+
+  .lawyer-row.header {
+    background: var(--bg-content);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+
+  .lawyer-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .lawyer-sicil {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .stat-number {
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .stat-number.total { color: var(--primary); }
+  .stat-number.voted { color: var(--success); }
+  .stat-number.not-voted { color: var(--text-muted); }
+
+  .rate-cell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .rate-number {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--primary);
+    min-width: 45px;
+  }
+
+  .mini-progress {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-content);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .mini-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--success), var(--primary));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+
+  @media (max-width: 768px) {
+    .lawyer-row {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .lawyer-row.header {
+      display: none;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="stats-grid">
+  <div class="stat-card total">
+    <div class="stat-card-label">Toplam Kişi</div>
+    <div class="stat-card-value">{{ total_people }}</div>
+  </div>
+
+  <div class="stat-card voted">
+    <div class="stat-card-label">Oy Verdi</div>
+    <div class="stat-card-value">{{ voted_count }}</div>
+  </div>
+
+  <div class="stat-card not-voted">
+    <div class="stat-card-label">Oy Vermedi</div>
+    <div class="stat-card-value">{{ not_voted_count }}</div>
+  </div>
+
+  <div class="stat-card rate">
+    <div class="stat-card-label">Katılım Oranı</div>
+    <div class="stat-card-value">{{ participation_rate }}%</div>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: {{ participation_rate }}%;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Links -->
+<div class="quick-links">
+  <a href="{% url 'ui_election_list' election.id %}" class="quick-link">
+    <div class="quick-link-label">Oy Durumu Listesi</div>
+  </a>
+
+  <a href="{% url 'ui_election_quick_mark' election.id %}" class="quick-link">
+    <div class="quick-link-label">Oy Yönetimi</div>
+  </a>
+
+  <a href="{% url 'ui_election_stats' election.id %}" class="quick-link">
+    <div class="quick-link-label">Detaylı İstatistikler</div>
+  </a>
+</div>
+
+<!-- Katılım Grafiği -->
+<div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; margin-bottom: 32px;">
+  <h3 style="margin: 0 0 20px 0; font-size: 14px; font-weight: 700; color: var(--text-primary);">
+    Avukat Bazlı Katılım Grafiği
+  </h3>
+  <div style="position: relative; height: 300px;">
+    <canvas id="lawyerParticipationChart"></canvas>
+  </div>
+</div>
+
+<!-- Lawyer Stats Table -->
+<div class="lawyer-table">
+  <div class="lawyer-table-header">
+    <div class="lawyer-table-title">Avukat Bazlı Katılım</div>
+    <div class="lawyer-table-subtitle">Her avukatın kişilerinin oy verme durumu</div>
+  </div>
+
+  <div class="lawyer-row header">
+    <div>Avukat</div>
+    <div style="text-align: center;">Toplam</div>
+    <div style="text-align: center;">Oy Verdi</div>
+    <div style="text-align: center;">Oy Vermedi</div>
+    <div style="text-align: center;">Katılım Oranı</div>
+  </div>
+
+  {% for stat in lawyer_stats %}
+  <div class="lawyer-row">
+    <div>
+      <div class="lawyer-name">{{ stat.lawyer.ad }} {{ stat.lawyer.soyad }}</div>
+      <div class="lawyer-sicil">Sicil: {{ stat.lawyer.sicil_no }}</div>
+    </div>
+    <div style="text-align: center;">
+      <span class="stat-number total">{{ stat.total }}</span>
+    </div>
+    <div style="text-align: center;">
+      <span class="stat-number voted">{{ stat.voted }}</span>
+    </div>
+    <div style="text-align: center;">
+      <span class="stat-number not-voted">{{ stat.not_voted }}</span>
+    </div>
+    <div>
+      <div class="rate-cell">
+        <span class="rate-number">{{ stat.rate }}%</span>
+        <div class="mini-progress">
+          <div class="mini-progress-fill" style="width: {{ stat.rate }}%;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+    Henüz avukat bulunmuyor
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+// Avukat bazlı katılım grafiği
+const lawyerData = [
+  {% for stat in lawyer_stats %}
+  {
+    name: '{{ stat.lawyer.ad|escapejs }} {{ stat.lawyer.soyad|escapejs }}',
+    total: {{ stat.total|default:0 }},
+    voted: {{ stat.voted|default:0 }},
+    notVoted: {{ stat.not_voted|default:0 }},
+    rate: {{ stat.rate|default:0|unlocalize }}
+  }{% if not forloop.last %},{% endif %}
+  {% endfor %}
+];
+
+const ctx = document.getElementById('lawyerParticipationChart');
+if (ctx && lawyerData.length > 0) {
+  const lawyerChart = new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: lawyerData.map(d => d.name),
+      datasets: [
+        {
+          label: 'Oy Verdi',
+          data: lawyerData.map(d => d.voted),
+          backgroundColor: 'rgba(16, 185, 129, 0.8)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'Oy Vermedi',
+          data: lawyerData.map(d => d.notVoted),
+          backgroundColor: 'rgba(245, 158, 11, 0.8)',
+          borderColor: 'rgba(245, 158, 11, 1)',
+          borderWidth: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#f1f5f9',
+            font: {
+              size: 12,
+              weight: 600
+            },
+            padding: 15
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(30, 41, 59, 0.95)',
+          titleColor: '#f1f5f9',
+          bodyColor: '#cbd5e1',
+          borderColor: '#334155',
+          borderWidth: 1,
+          padding: 12,
+          displayColors: true,
+          callbacks: {
+            afterBody: function(context) {
+              const index = context[0].dataIndex;
+              const rate = lawyerData[index].rate;
+              return '\nKatılım Oranı: ' + rate + '%';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#94a3b8',
+            font: {
+              size: 11
+            }
+          }
+        },
+        y: {
+          stacked: true,
+          grid: {
+            color: 'rgba(51, 65, 85, 0.5)',
+            drawBorder: false
+          },
+          ticks: {
+            color: '#94a3b8',
+            font: {
+              size: 11
+            },
+            precision: 0
+          }
+        }
+      }
+    }
+  });
+} else if (ctx) {
+  // Veri yoksa mesaj göster
+  ctx.parentElement.innerHTML = '<div style="text-align: center; padding: 60px; color: var(--text-muted);"><div style="font-size: 48px; margin-bottom: 16px;">📊</div><div>Henüz veri bulunmuyor</div></div>';
+}
+</script>
+{% endblock %}

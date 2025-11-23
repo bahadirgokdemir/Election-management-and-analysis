@@ -1,0 +1,192 @@
+{% extends 'app/base.html' %}
+{% block title %}Liste Veren Avukatlar{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Avukat Yönetimi</h1>
+    <p>Tüm avukatları görüntüleyin ve yönetin</p>
+  </div>
+</div>
+
+<!-- Filters & Search -->
+<div class="filter-panel">
+  <form method="get" class="filter-grid">
+    <div class="form-group">
+      <label class="form-label">Ara</label>
+      <input type="text" name="q" placeholder="Sicil No, Ad veya Soyad..." value="{{ q }}" />
+    </div>
+    <div class="form-group" style="display: flex; align-items: end;">
+      <button class="btn primary" type="submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        Ara
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Add New Lawyer -->
+<details style="margin-bottom: 20px;">
+  <summary>➕ Yeni Avukat Ekle</summary>
+  <div style="padding: 20px;">
+    <form method="post" class="filter-grid">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Sicil No</label>
+        <input type="text" name="sicil" placeholder="Sicil No" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ad</label>
+        <input type="text" name="ad" placeholder="Ad" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Soyad</label>
+        <input type="text" name="soyad" placeholder="Soyad" required>
+      </div>
+      <div class="form-group" style="display: flex; align-items: end;">
+        <button class="btn primary" type="submit">Kaydet</button>
+      </div>
+    </form>
+  </div>
+</details>
+
+<!-- Lawyers Table -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Sicil No</th>
+        <th>Ad Soyad</th>
+        <th>Kayıt Tarihi</th>
+        <th style="text-align: right;">İşlemler</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for l in page.object_list %}
+      <tr>
+        <td><strong>{{ l.sicil_no }}</strong></td>
+        <td>{{ l.ad }} {{ l.soyad }}</td>
+        <td style="color: var(--text-muted); font-size: 12px;">{{ l.created_at|date:"d.m.Y H:i" }}</td>
+        <td style="text-align: right;">
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button class="btn" onclick="loadLawyerPeople({{ l.id }}, '{{ l.sicil_no }}', '{{ l.ad }} {{ l.soyad }}')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              Kişileri Görüntüle
+            </button>
+            <button class="icon-btn danger" onclick="deleteLawyer({{ l.id }}, '{{ l.ad }} {{ l.soyad }}')" title="Avukatı Sil">
+              <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">
+          Kayıt bulunamadı.
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if page.paginator.num_pages > 1 %}
+<div class="pager">
+  {% if page.has_previous %}
+    <a class="btn" href="?q={{ q }}&page={{ page.previous_page_number }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+      Önceki
+    </a>
+  {% endif %}
+  <span>Sayfa {{ page.number }} / {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}
+    <a class="btn" href="?q={{ q }}&page={{ page.next_page_number }}">
+      Sonraki
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+function loadLawyerPeople(lawyerId, sicilNo, fullName) {
+  // AJAX call to fetch lawyer's people
+  fetch(`/lawyers/${lawyerId}/`)
+    .then(response => response.text())
+    .then(html => {
+      // Parse the HTML to extract the table content
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const tableContainer = doc.querySelector('.table-container');
+
+      if (tableContainer) {
+        openModal(
+          `${fullName} (${sicilNo}) - Kişi Listesi`,
+          tableContainer.outerHTML
+        );
+      } else {
+        openModal(
+          `${fullName} (${sicilNo}) - Kişi Listesi`,
+          '<p style="text-align: center; padding: 40px; color: var(--text-muted);">Bu avukata ait kişi bulunamadı.</p>'
+        );
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      openModal(
+        'Hata',
+        '<p style="text-align: center; padding: 40px; color: var(--error);">Veriler yüklenirken bir hata oluştu.</p>'
+      );
+    });
+}
+
+function deleteLawyer(lawyerId, fullName) {
+  confirmAction({
+    title: 'Avukat Sil',
+    message: `<strong>${fullName}</strong> adlı avukatı ve bu avukata ait <strong>tüm kayıtları</strong> silmek istediğinizden emin misiniz?<br><br>Bu işlem geri alınamaz!`,
+    confirmText: 'Evet, Sil',
+    cancelText: 'İptal',
+    isDanger: true,
+    onConfirm: () => {
+      fetch(`/lawyers/${lawyerId}/delete/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          window.location.reload();
+        } else {
+          openModal(
+            'Hata',
+            '<p style="text-align: center; padding: 40px; color: var(--error);">' + (data.error || 'Silme işlemi başarısız oldu.') + '</p>'
+          );
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        openModal(
+          'Hata',
+          '<p style="text-align: center; padding: 40px; color: var(--error);">Silme işlemi sırasında bir hata oluştu.</p>'
+        );
+      });
+    }
+  });
+}
+</script>
+
+{% endblock %}

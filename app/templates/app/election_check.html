@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ election.name }} - Hızlı İşaretleme</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+    }
+
+    .card {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 32px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .stats-mini {
+      display: flex;
+      justify-content: space-around;
+      padding: 20px;
+      background: #f9fafb;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .stat-mini {
+      text-align: center;
+    }
+
+    .stat-mini-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: #1a202c;
+    }
+
+    .stat-mini-label {
+      font-size: 11px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    .content {
+      padding: 32px;
+    }
+
+    .search-box {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 20px 24px;
+      font-size: 20px;
+      border: 3px solid #e5e7eb;
+      border-radius: 16px;
+      outline: none;
+      transition: all 0.3s;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .search-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    .result {
+      background: #f9fafb;
+      border: 2px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .result.show {
+      display: block;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result.voted {
+      background: #ecfdf5;
+      border-color: #10b981;
+    }
+
+    .person-name {
+      font-size: 24px;
+      font-weight: 800;
+      color: #1a202c;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .person-details {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      color: #6b7280;
+      flex-wrap: wrap;
+    }
+
+    .vote-status {
+      text-align: center;
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .vote-status.voted {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .vote-status.not-voted {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 18px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-yes {
+      background: #10b981;
+      color: white;
+    }
+
+    .btn-yes:hover {
+      background: #059669;
+    }
+
+    .btn-no {
+      background: #ef4444;
+      color: white;
+    }
+
+    .btn-no:hover {
+      background: #dc2626;
+    }
+
+    .btn-back {
+      grid-column: 1 / -1;
+      background: #f3f4f6;
+      color: #1a202c;
+      margin-top: 12px;
+    }
+
+    .btn-back:hover {
+      background: #e5e7eb;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #1a202c;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      transform: translateY(-200%);
+      transition: transform 0.3s;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 400px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    .toast.success {
+      background: #10b981;
+    }
+
+    .toast.error {
+      background: #ef4444;
+    }
+
+    .shortcuts {
+      text-align: center;
+      padding: 16px;
+      background: #f9fafb;
+      border-radius: 0 0 24px 24px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .shortcuts kbd {
+      background: white;
+      border: 1px solid #e5e7eb;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      margin: 0 2px;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <!-- Header -->
+      <div class="header">
+        <h1>🗳️ {{ election.name }}</h1>
+        <p>Hızlı İşaretleme Modu</p>
+      </div>
+
+      <!-- Mini Stats -->
+      <div class="stats-mini">
+        <div class="stat-mini">
+          <div class="stat-mini-value" id="votedCount">{{ voted_count|default:0 }}</div>
+          <div class="stat-mini-label">Oy Verdi</div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-value" id="notVotedCount">{{ not_voted_count|default:0 }}</div>
+          <div class="stat-mini-label">Oy Vermedi</div>
+        </div>
+        <div class="stat-mini">
+          <div class="stat-mini-value" id="participationRate">{{ participation_rate|default:0 }}%</div>
+          <div class="stat-mini-label">Katılım</div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="content">
+        <!-- Search Box -->
+        <div class="search-box">
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Sicil No Girin"
+            autofocus
+          />
+        </div>
+
+        <!-- Result -->
+        <div id="result" class="result">
+          <!-- Dinamik içerik buraya gelecek -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">👆</div>
+          <h3 style="font-size: 18px; margin-bottom: 8px; color: #1a202c;">Sicil numarasını girin</h3>
+          <p style="font-size: 14px;">Kişiyi aramak için yukarıdaki kutuu kullanın</p>
+        </div>
+      </div>
+
+      <!-- Shortcuts -->
+      <div class="shortcuts">
+        <kbd>Enter</kbd> Ara &nbsp;•&nbsp;
+        <kbd>Y</kbd> Oy Verdi &nbsp;•&nbsp;
+        <kbd>N</kbd> Oy Vermedi &nbsp;•&nbsp;
+        <kbd>ESC</kbd> Temizle
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast">
+    <span id="toastMessage"></span>
+  </div>
+
+  <script>
+    let currentPerson = null;
+    let allPeople = [];
+
+    // Sayfa yüklendiğinde
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPeople();
+      setupEventListeners();
+    });
+
+    // Event listeners
+    function setupEventListeners() {
+      const searchInput = document.getElementById('searchInput');
+
+      searchInput.addEventListener('input', (e) => {
+        const value = e.target.value.trim();
+        if (value.length >= 3) {
+          searchPerson(value);
+        } else {
+          hideResult();
+        }
+      });
+
+      // Klavye kısayolları
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          clearSearch();
+        }
+        if ((e.key === 'y' || e.key === 'Y') && currentPerson && document.activeElement.tagName !== 'INPUT') {
+          e.preventDefault();
+          markVote(currentPerson.id, true);
+        }
+        if ((e.key === 'n' || e.key === 'N') && currentPerson && document.activeElement.tagName !== 'INPUT') {
+          e.preventDefault();
+          markVote(currentPerson.id, false);
+        }
+      });
+    }
+
+    // Kişileri yükle
+    function loadPeople() {
+      fetch(`/ui/elections/{{ election.id }}/voting-data/`)
+        .then(response => response.json())
+        .then(data => {
+          allPeople = data.people || [];
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+    }
+
+    // Kişi ara
+    function searchPerson(query) {
+      const person = allPeople.find(p =>
+        p.kisi_sicilno.toLowerCase() === query.toLowerCase() ||
+        `${p.ad} ${p.soyad}`.toLowerCase().includes(query.toLowerCase())
+      );
+
+      if (person) {
+        showPerson(person);
+      } else {
+        showNotFound();
+      }
+    }
+
+    // Kişiyi göster
+    function showPerson(person) {
+      currentPerson = person;
+      const result = document.getElementById('result');
+      const emptyState = document.getElementById('emptyState');
+
+      result.className = `result show ${person.has_voted ? 'voted' : ''}`;
+      result.innerHTML = `
+        <div class="person-name">${person.ad} ${person.soyad}</div>
+        <div class="person-details">
+          <span>📋 ${person.kisi_sicilno}</span>
+          <span>👤 ${person.lawyer_sicil}</span>
+        </div>
+
+        <div class="vote-status ${person.has_voted ? 'voted' : 'not-voted'}">
+          ${person.has_voted ? '✅ OY VERDİ' : '⏳ OY VERMEDİ'}
+          ${person.voted_at ? `<br><small>Saat: ${person.voted_at}</small>` : ''}
+        </div>
+
+        <div class="action-buttons">
+          <button class="btn btn-yes" onclick="markVote(${person.id}, true)">
+            ✓ Oy Verdi
+          </button>
+          <button class="btn btn-no" onclick="markVote(${person.id}, false)">
+            ✗ Oy Vermedi
+          </button>
+          <button class="btn btn-back" onclick="clearSearch()">
+            ← Temizle
+          </button>
+        </div>
+      `;
+
+      emptyState.style.display = 'none';
+    }
+
+    // Bulunamadı
+    function showNotFound() {
+      const result = document.getElementById('result');
+      const emptyState = document.getElementById('emptyState');
+
+      result.className = 'result show';
+      result.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">❌</div>
+          <h3 style="font-size: 18px; margin-bottom: 8px; color: #1a202c;">Kişi bulunamadı</h3>
+          <p style="font-size: 14px;">Sicil numarasını kontrol edin</p>
+        </div>
+      `;
+
+      emptyState.style.display = 'none';
+    }
+
+    // Sonucu gizle
+    function hideResult() {
+      document.getElementById('result').classList.remove('show');
+      document.getElementById('emptyState').style.display = 'block';
+      currentPerson = null;
+    }
+
+    // Aramayı temizle
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      hideResult();
+      document.getElementById('searchInput').focus();
+    }
+
+    // Oy işaretle
+    function markVote(personId, hasVoted) {
+      const formData = new FormData();
+      formData.append('lawyerperson_id', personId);
+      formData.append('has_voted', hasVoted);
+      formData.append('recorded_by', 'Hızlı İşaretleme');
+
+      fetch(`/ui/elections/{{ election.id }}/mark-vote/`, {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Kişiyi güncelle
+          const person = allPeople.find(p => p.id === personId);
+          if (person) {
+            person.has_voted = hasVoted;
+            person.voted_at = data.voted_at;
+          }
+
+          // UI'ı güncelle
+          showPerson(person);
+          updateStats();
+          showToast(`${hasVoted ? '✅ Oy verdi olarak işaretlendi' : '❌ Oy vermedi olarak işaretlendi'}`, hasVoted ? 'success' : 'error');
+          playSound(hasVoted);
+
+          // 1 saniye sonra temizle
+          setTimeout(clearSearch, 1500);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showToast('Bir hata oluştu', 'error');
+      });
+    }
+
+    // İstatistikleri güncelle
+    function updateStats() {
+      const voted = allPeople.filter(p => p.has_voted).length;
+      const notVoted = allPeople.filter(p => !p.has_voted).length;
+      const total = allPeople.length;
+      const rate = total > 0 ? Math.round((voted / total) * 100) : 0;
+
+      document.getElementById('votedCount').textContent = voted;
+      document.getElementById('notVotedCount').textContent = notVoted;
+      document.getElementById('participationRate').textContent = rate + '%';
+    }
+
+    // Toast
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toastMessage');
+      toast.className = `toast ${type}`;
+      toastMessage.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // Ses efekti
+    function playSound(success) {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.value = success ? 1000 : 400;
+      gainNode.gain.value = 0.1;
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+    }
+  </script>
+</body>
+</html>

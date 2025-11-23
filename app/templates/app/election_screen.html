@@ -1,0 +1,760 @@
+{% load static %}
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ election.name }} - Seçim Ekranı</title>
+  <link rel="stylesheet" href="{% static 'app/app.css' %}" />
+  <style>
+    body {
+      padding: 0;
+      margin: 0;
+    }
+
+    .election-container {
+      max-width: 100%;
+      margin: 0;
+      padding: 32px 48px;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .election-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+    }
+
+    .election-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .election-date {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .back-btn {
+      padding: 10px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .back-btn:hover {
+      border-color: var(--primary);
+      color: var(--text-primary);
+    }
+
+    /* Navigation Tabs */
+    .nav-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .nav-tab {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--text-muted);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: -2px;
+    }
+
+    .nav-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .nav-tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    /* Content Panels */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* İstatistikler Panel */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 24px;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-card-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-card-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .stat-card-change {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .progress-bar-container {
+      background: var(--bg-content);
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), var(--primary));
+      border-radius: 5px;
+      transition: width 0.3s;
+    }
+
+    /* Lawyer Stats */
+    .lawyer-stats-section {
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 24px;
+      border: 1px solid var(--border-color);
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    }
+
+    .lawyer-stat-item {
+      padding: 20px;
+      background: var(--bg-content);
+      border-radius: 6px;
+      margin-bottom: 12px;
+      display: grid;
+      grid-template-columns: 250px 1fr 120px;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .lawyer-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .lawyer-progress {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .lawyer-progress-bar {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-app);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .lawyer-progress-fill {
+      height: 100%;
+      background: var(--success);
+      border-radius: 4px;
+    }
+
+    .lawyer-count {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-align: right;
+    }
+
+    /* Oy Verme Panel */
+    .voting-controls {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .search-box {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 12px 16px 12px 44px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .filter-btn {
+      padding: 12px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover {
+      border-color: var(--primary);
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: white;
+    }
+
+    /* People List */
+    .people-list {
+      background: var(--bg-card);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    .list-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 200px;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--bg-content);
+      border-bottom: 1px solid var(--border-color);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
+    .person-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 200px;
+      gap: 16px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .person-row:hover {
+      background: var(--bg-hover);
+    }
+
+    .person-row.voted {
+      background: rgba(16, 185, 129, 0.05);
+    }
+
+    .person-row:last-child {
+      border-bottom: none;
+    }
+
+    .person-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+
+    .person-sicil {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .person-lawyer {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .person-status {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .person-status.voted {
+      color: var(--success);
+    }
+
+    .person-status.pending {
+      color: var(--text-muted);
+    }
+
+    .vote-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .vote-btn {
+      flex: 1;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .vote-btn-yes {
+      background: transparent;
+      border-color: var(--success);
+      color: var(--success);
+    }
+
+    .vote-btn-yes:hover,
+    .vote-btn-yes.active {
+      background: var(--success);
+      color: white;
+    }
+
+    .vote-btn-no {
+      background: transparent;
+      border-color: var(--error);
+      color: var(--error);
+    }
+
+    .vote-btn-no:hover {
+      background: var(--error);
+      color: white;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    @media (max-width: 1200px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .list-header,
+      .person-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .list-header {
+        display: none;
+      }
+
+      .lawyer-stat-item {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="election-container">
+    <!-- Header -->
+    <div class="election-header">
+      <div>
+        <div class="election-title">{{ election.name }}</div>
+        <div class="election-date">{{ election.election_date|date:"d F Y" }}</div>
+      </div>
+      <a href="{% url 'ui_elections' %}" class="back-btn">← Seçim Listesi</a>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('stats')">İstatistikler</button>
+      <button class="nav-tab" onclick="switchTab('voting')">Oy Verme</button>
+    </div>
+
+    <!-- İstatistikler Panel -->
+    <div id="stats-panel" class="tab-content active">
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-card-label">Toplam Seçmen</div>
+          <div class="stat-card-value" id="stat-total">{{ total_people }}</div>
+          <div class="stat-card-change">Kayıtlı kişi</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-label">Oy Kullanan</div>
+          <div class="stat-card-value" id="stat-voted" style="color: var(--success);">{{ voted_count }}</div>
+          <div class="stat-card-change">Oy verdi</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-label">Bekleyen</div>
+          <div class="stat-card-value" id="stat-pending" style="color: var(--warning);">{{ not_voted_count }}</div>
+          <div class="stat-card-change">Henüz oy vermedi</div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-card-label">Katılım Oranı</div>
+          <div class="stat-card-value" id="stat-rate" style="color: var(--primary);">{{ participation_rate }}%</div>
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="stat-progress" style="width: {{ participation_rate }}%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lawyer Stats -->
+      <div class="lawyer-stats-section">
+        <div class="section-title">Avukat Bazında İstatistikler</div>
+        <div id="lawyerStatsContainer">
+          <!-- Dinamik içerik -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Oy Verme Panel -->
+    <div id="voting-panel" class="tab-content">
+      <!-- Controls -->
+      <div class="voting-controls">
+        <div class="search-box">
+          <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Sicil No, Ad veya Soyad ile ara..."
+          />
+        </div>
+
+        <div class="filter-group">
+          <button class="filter-btn active" onclick="filterVoteStatus('all')" id="filter-all">
+            Tümü (<span id="count-all">0</span>)
+          </button>
+          <button class="filter-btn" onclick="filterVoteStatus('not_voted')" id="filter-not-voted">
+            Bekleyen (<span id="count-not-voted">0</span>)
+          </button>
+          <button class="filter-btn" onclick="filterVoteStatus('voted')" id="filter-voted">
+            Oy Verdi (<span id="count-voted">0</span>)
+          </button>
+        </div>
+      </div>
+
+      <!-- People List -->
+      <div class="people-list">
+        <div class="list-header">
+          <div>Kişi Bilgileri</div>
+          <div>Avukat</div>
+          <div>Durum</div>
+          <div>İşlemler</div>
+        </div>
+        <div id="peopleContainer">
+          <!-- Dinamik içerik -->
+        </div>
+      </div>
+
+      <div id="loadingState" class="loading" style="display: none;">
+        Yükleniyor...
+      </div>
+
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <p>Kişi bulunamadı</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  let allPeople = [];
+  let currentFilter = 'all';
+  let refreshInterval;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadPeople();
+    setupEventListeners();
+    startAutoRefresh();
+  });
+
+  function setupEventListeners() {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', renderPeople);
+    }
+  }
+
+  function switchTab(tab) {
+    // Tab butonlarını güncelle
+    document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // Panelleri göster/gizle
+    document.querySelectorAll('.tab-content').forEach(panel => panel.classList.remove('active'));
+    document.getElementById(tab + '-panel').classList.add('active');
+  }
+
+  function loadPeople() {
+    showLoading();
+    fetch(`{% url 'ui_election_voting_data' election.id %}`)
+      .then(response => response.json())
+      .then(data => {
+        allPeople = data.people || [];
+        renderPeople();
+        updateStats();
+        updateLawyerStats();
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        hideLoading();
+      });
+  }
+
+  function renderPeople() {
+    const searchInput = document.getElementById('searchInput');
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    let filteredPeople = allPeople;
+
+    // Filtrele
+    if (currentFilter === 'voted') {
+      filteredPeople = filteredPeople.filter(p => p.has_voted);
+    } else if (currentFilter === 'not_voted') {
+      filteredPeople = filteredPeople.filter(p => !p.has_voted);
+    }
+
+    // Ara
+    if (searchTerm) {
+      filteredPeople = filteredPeople.filter(p => {
+        const fullName = `${p.ad} ${p.soyad}`.toLowerCase();
+        const sicilNo = (p.kisi_sicilno || '').toLowerCase();
+        return fullName.includes(searchTerm) || sicilNo.includes(searchTerm);
+      });
+    }
+
+    // Sayaçları güncelle
+    updateCounts();
+
+    // Empty state
+    if (filteredPeople.length === 0) {
+      hideLoading();
+      showEmpty();
+      return;
+    }
+
+    hideEmpty();
+    hideLoading();
+
+    // Render
+    const container = document.getElementById('peopleContainer');
+    container.innerHTML = filteredPeople.map(person => `
+      <div class="person-row ${person.has_voted ? 'voted' : ''}">
+        <div>
+          <div class="person-name">${person.ad} ${person.soyad}</div>
+          <div class="person-sicil">Sicil: ${person.kisi_sicilno}</div>
+        </div>
+        <div class="person-lawyer">${person.lawyer_sicil}</div>
+        <div class="person-status ${person.has_voted ? 'voted' : 'pending'}">
+          ${person.has_voted ? '✓ Oy Verdi' : '○ Bekliyor'}
+          ${person.voted_at ? `<div style="font-size: 11px; color: var(--text-muted);">${person.voted_at}</div>` : ''}
+        </div>
+        <div class="vote-actions">
+          <button class="vote-btn vote-btn-yes ${person.has_voted ? 'active' : ''}" onclick="markVote(${person.id}, true)">
+            ✓ Verdi
+          </button>
+          <button class="vote-btn vote-btn-no" onclick="markVote(${person.id}, false)">
+            ✗ İptal
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function markVote(personId, hasVoted) {
+    const formData = new FormData();
+    formData.append('lawyerperson_id', personId);
+    formData.append('has_voted', hasVoted);
+    formData.append('recorded_by', 'Seçim Görevlisi');
+
+    fetch(`{% url 'ui_election_mark_vote' election.id %}`, {
+      method: 'POST',
+      body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        const person = allPeople.find(p => p.id === personId);
+        if (person) {
+          person.has_voted = hasVoted;
+          person.voted_at = data.voted_at;
+        }
+        renderPeople();
+        updateStats();
+        updateLawyerStats();
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+    });
+  }
+
+  function updateCounts() {
+    const votedCount = allPeople.filter(p => p.has_voted).length;
+    const notVotedCount = allPeople.filter(p => !p.has_voted).length;
+
+    document.getElementById('count-all').textContent = allPeople.length;
+    document.getElementById('count-voted').textContent = votedCount;
+    document.getElementById('count-not-voted').textContent = notVotedCount;
+  }
+
+  function updateStats() {
+    const total = allPeople.length;
+    const voted = allPeople.filter(p => p.has_voted).length;
+    const notVoted = total - voted;
+    const rate = total > 0 ? Math.round((voted / total) * 100) : 0;
+
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-voted').textContent = voted;
+    document.getElementById('stat-pending').textContent = notVoted;
+    document.getElementById('stat-rate').textContent = rate + '%';
+    document.getElementById('stat-progress').style.width = rate + '%';
+  }
+
+  function updateLawyerStats() {
+    const lawyerGroups = {};
+
+    allPeople.forEach(person => {
+      if (!lawyerGroups[person.lawyer_sicil]) {
+        lawyerGroups[person.lawyer_sicil] = { total: 0, voted: 0 };
+      }
+      lawyerGroups[person.lawyer_sicil].total++;
+      if (person.has_voted) {
+        lawyerGroups[person.lawyer_sicil].voted++;
+      }
+    });
+
+    const container = document.getElementById('lawyerStatsContainer');
+    container.innerHTML = Object.entries(lawyerGroups).map(([lawyer, stats]) => {
+      const rate = Math.round((stats.voted / stats.total) * 100);
+      return `
+        <div class="lawyer-stat-item">
+          <div class="lawyer-name">${lawyer}</div>
+          <div class="lawyer-progress">
+            <div class="lawyer-progress-bar">
+              <div class="lawyer-progress-fill" style="width: ${rate}%"></div>
+            </div>
+            <span style="font-size: 13px; color: var(--text-secondary);">${rate}%</span>
+          </div>
+          <div class="lawyer-count">${stats.voted} / ${stats.total}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function filterVoteStatus(status) {
+    currentFilter = status;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById(`filter-${status}`).classList.add('active');
+    renderPeople();
+  }
+
+  function startAutoRefresh() {
+    refreshInterval = setInterval(() => {
+      loadPeople();
+    }, 30000);
+  }
+
+  function showLoading() {
+    const loadingState = document.getElementById('loadingState');
+    const peopleContainer = document.getElementById('peopleContainer');
+    const emptyState = document.getElementById('emptyState');
+
+    if (loadingState) loadingState.style.display = 'block';
+    if (peopleContainer) peopleContainer.style.display = 'none';
+    if (emptyState) emptyState.style.display = 'none';
+  }
+
+  function hideLoading() {
+    const loadingState = document.getElementById('loadingState');
+    const peopleContainer = document.getElementById('peopleContainer');
+
+    if (loadingState) loadingState.style.display = 'none';
+    if (peopleContainer) peopleContainer.style.display = 'block';
+  }
+
+  function showEmpty() {
+    const emptyState = document.getElementById('emptyState');
+    const peopleContainer = document.getElementById('peopleContainer');
+
+    if (emptyState) emptyState.style.display = 'block';
+    if (peopleContainer) peopleContainer.style.display = 'none';
+  }
+
+  function hideEmpty() {
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.style.display = 'none';
+  }
+
+  window.addEventListener('beforeunload', () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
+  });
+  </script>
+</body>
+</html>

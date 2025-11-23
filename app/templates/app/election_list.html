@@ -1,0 +1,312 @@
+{% extends 'app/election_app_base.html' %}
+{% block title %}{{ election.name }} - Oy Durumu Listesi{% endblock %}
+{% block page_title %}Oy Durumu Listesi{% endblock %}
+
+{% block extra_style %}
+<style>
+  .filters-card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .filter-form {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto auto;
+    gap: 12px;
+    align-items: end;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .form-input, .form-select {
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--bg-content);
+    color: var(--text-primary);
+    transition: all 0.2s;
+  }
+
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+
+  .list-card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+  }
+
+  .list-header {
+    display: grid;
+    grid-template-columns: 60px 150px 2fr 180px 150px;
+    gap: 16px;
+    padding: 14px 20px;
+    background: var(--bg-content);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+  }
+
+  .list-item {
+    display: grid;
+    grid-template-columns: 60px 150px 2fr 180px 150px;
+    gap: 16px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-color);
+    align-items: center;
+    transition: background 0.2s;
+  }
+
+  .list-item:last-child {
+    border-bottom: none;
+  }
+
+  .list-item:hover {
+    background: var(--bg-hover);
+  }
+
+  .list-item.voted {
+    background: rgba(16, 185, 129, 0.05);
+  }
+
+  .item-index {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .item-sicil {
+    font-family: monospace;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--primary);
+  }
+
+  .item-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .item-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .item-lawyer {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .status-badge.voted {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid var(--success);
+    color: var(--success);
+  }
+
+  .status-badge.not-voted {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--error);
+    color: var(--error);
+  }
+
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 24px;
+  }
+
+  .page-link {
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    text-decoration: none;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .page-link:hover {
+    border-color: var(--primary);
+    background: var(--bg-hover);
+    color: var(--primary-light);
+  }
+
+  .page-link.current {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+
+  .page-link.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  @media (max-width: 768px) {
+    .filter-form {
+      grid-template-columns: 1fr;
+    }
+
+    .list-header {
+      display: none;
+    }
+
+    .list-item {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="filters-card">
+  <form method="get" class="filter-form">
+    <div class="form-group">
+      <label class="form-label">Ara</label>
+      <input
+        type="text"
+        name="q"
+        value="{{ search }}"
+        placeholder="Sicil No veya Ad Soyad..."
+        class="form-input"
+      />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Oy Durumu</label>
+      <select name="vote_status" class="form-select">
+        <option value="all" {% if vote_filter == 'all' %}selected{% endif %}>Tümü</option>
+        <option value="voted" {% if vote_filter == 'voted' %}selected{% endif %}>Oy Verdi</option>
+        <option value="not_voted" {% if vote_filter == 'not_voted' %}selected{% endif %}>Oy Vermedi</option>
+      </select>
+    </div>
+
+    <button type="submit" class="btn primary" style="align-self: end;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      Ara
+    </button>
+
+    {% if search or vote_filter != 'all' %}
+    <a href="{% url 'ui_election_list' election.id %}" class="btn" style="align-self: end;">
+      Temizle
+    </a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- List -->
+<div class="list-card">
+  <div class="list-header">
+    <div>#</div>
+    <div>Sicil No</div>
+    <div>Ad Soyad</div>
+    <div>Avukat</div>
+    <div style="text-align: center;">Durum</div>
+  </div>
+
+  {% for item in page_obj %}
+  <div class="list-item {% if item.has_voted %}voted{% endif %}">
+    <div class="item-index">{{ forloop.counter|add:page_obj.start_index|add:"-1" }}</div>
+    <div class="item-sicil">{{ item.person.kisi_sicilno }}</div>
+    <div>
+      <div class="item-name">{{ item.person.ad }} {{ item.person.soyad }}</div>
+      {% if item.voted_at %}
+      <div class="item-meta">Oy verme saati: {{ item.voted_at|date:"H:i" }}</div>
+      {% endif %}
+    </div>
+    <div class="item-lawyer">
+      {{ item.person.lawyer.ad }} {{ item.person.lawyer.soyad }}
+    </div>
+    <div style="text-align: center;">
+      {% if item.has_voted %}
+      <span class="status-badge voted">✓ Oy Verdi</span>
+      {% else %}
+      <span class="status-badge not-voted">✗ Oy Vermedi</span>
+      {% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: var(--text-primary);">Kişi bulunamadı</h3>
+    <p style="margin: 0; font-size: 14px;">Farklı bir arama terimi veya filtre deneyin</p>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="pagination">
+  {% if page_obj.has_previous %}
+  <a href="?page=1{% if search %}&q={{ search }}{% endif %}{% if vote_filter != 'all' %}&vote_status={{ vote_filter }}{% endif %}" class="page-link">İlk</a>
+  <a href="?page={{ page_obj.previous_page_number }}{% if search %}&q={{ search }}{% endif %}{% if vote_filter != 'all' %}&vote_status={{ vote_filter }}{% endif %}" class="page-link">Önceki</a>
+  {% else %}
+  <span class="page-link disabled">İlk</span>
+  <span class="page-link disabled">Önceki</span>
+  {% endif %}
+
+  <span class="page-link current">Sayfa {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+
+  {% if page_obj.has_next %}
+  <a href="?page={{ page_obj.next_page_number }}{% if search %}&q={{ search }}{% endif %}{% if vote_filter != 'all' %}&vote_status={{ vote_filter }}{% endif %}" class="page-link">Sonraki</a>
+  <a href="?page={{ page_obj.paginator.num_pages }}{% if search %}&q={{ search }}{% endif %}{% if vote_filter != 'all' %}&vote_status={{ vote_filter }}{% endif %}" class="page-link">Son</a>
+  {% else %}
+  <span class="page-link disabled">Sonraki</span>
+  <span class="page-link disabled">Son</span>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

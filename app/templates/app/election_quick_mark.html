@@ -1,0 +1,579 @@
+{% extends 'app/election_app_base.html' %}
+{% block title %}{{ election.name }} - Oy Yönetimi{% endblock %}
+{% block page_title %}Oy Yönetimi{% endblock %}
+
+{% block extra_style %}
+<style>
+  /* Sicil Arama Paneli - Üstte Küçük Alan */
+  .sicil-panel {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+
+  .sicil-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .sicil-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .sicil-input {
+    flex: 1;
+    max-width: 300px;
+    padding: 10px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-content);
+    color: var(--text-primary);
+    font-family: monospace;
+    transition: all 0.2s;
+  }
+
+  .sicil-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+
+  .sicil-result {
+    display: none;
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--bg-hover);
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+  }
+
+  .sicil-result.show {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sicil-result-info {
+    flex: 1;
+  }
+
+  .sicil-result-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .sicil-result-sicil {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: monospace;
+  }
+
+  .sicil-result-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  /* Liste Alanı - Ana Görünüm */
+  .list-header {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+  }
+
+  .list-filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .filter-input {
+    flex: 1;
+    min-width: 250px;
+    padding: 10px 16px;
+    font-size: 14px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-content);
+    color: var(--text-primary);
+    transition: all 0.2s;
+  }
+
+  .filter-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+
+  .filter-select {
+    padding: 10px 16px;
+    font-size: 14px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg-content);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .filter-select:focus {
+    outline: none;
+    border-color: var(--primary);
+  }
+
+  .filter-stats {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  /* Liste Tablosu */
+  .people-table {
+    background: var(--bg-card);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+
+  .table-row {
+    display: grid;
+    grid-template-columns: 3fr 2fr 1fr 200px;
+    gap: 16px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    transition: background 0.2s;
+  }
+
+  .table-row:hover {
+    background: var(--bg-hover);
+  }
+
+  .table-row.header {
+    background: var(--bg-content);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .table-row:last-child {
+    border-bottom: none;
+  }
+
+  .person-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .person-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .person-lawyer {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .person-sicil {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-family: monospace;
+  }
+
+  .vote-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .vote-badge.voted {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+  }
+
+  .vote-badge.not-voted {
+    background: rgba(148, 163, 184, 0.2);
+    color: var(--text-muted);
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  .action-btn {
+    flex: 1;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+  }
+
+  .action-btn.mark-voted {
+    background: var(--success);
+    color: white;
+  }
+
+  .action-btn.mark-voted:hover {
+    background: #0d9668;
+    transform: scale(1.05);
+  }
+
+  .action-btn.mark-not-voted {
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+  }
+
+  .action-btn.mark-not-voted:hover {
+    background: var(--bg-active);
+    color: var(--text-primary);
+  }
+
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+
+  .empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .table-row {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .table-row.header {
+      display: none;
+    }
+
+    .sicil-form {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .sicil-input {
+      max-width: none;
+    }
+
+    .filter-input {
+      min-width: 100%;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Sicil ile Arama Paneli (Üstte Küçük) -->
+<div class="sicil-panel">
+  <div class="sicil-form">
+    <label class="sicil-label">Sicil No ile Ara:</label>
+    <input
+      type="text"
+      id="sicilInput"
+      class="sicil-input"
+      placeholder="Sicil numarasını girin..."
+      autocomplete="off"
+    />
+  </div>
+
+  <div id="sicilResult" class="sicil-result">
+    <div class="sicil-result-info">
+      <div class="sicil-result-name" id="sicilPersonName"></div>
+      <div class="sicil-result-sicil" id="sicilPersonSicil"></div>
+    </div>
+    <div class="sicil-result-actions">
+      <button class="action-btn mark-voted" onclick="markFromSicil(true)">
+        ✓ Oy Verdi
+      </button>
+      <button class="action-btn mark-not-voted" onclick="markFromSicil(false)">
+        ✗ Oy Vermedi
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Liste Filtreler -->
+<div class="list-header">
+  <div class="list-filters">
+    <input
+      type="text"
+      id="listSearch"
+      class="filter-input"
+      placeholder="İsim, soyisim veya sicil ile ara..."
+    />
+    <select id="listFilter" class="filter-select">
+      <option value="all">Tümü</option>
+      <option value="voted">Oy Verdi</option>
+      <option value="not_voted">Oy Vermedi</option>
+    </select>
+    <div class="filter-stats">
+      <span id="listCount">0</span> kişi
+    </div>
+  </div>
+</div>
+
+<!-- Kişi Listesi -->
+<div class="people-table">
+  <div class="table-row header">
+    <div>Kişi Bilgileri</div>
+    <div>Sicil No</div>
+    <div>Durum</div>
+    <div style="text-align: center;">İşlemler</div>
+  </div>
+  <div id="peopleList"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let allPeople = [];
+  let currentSicilPerson = null;
+
+  // Sayfa yüklendiğinde tüm kişileri yükle
+  document.addEventListener('DOMContentLoaded', function() {
+    loadAllPeople();
+    setupEventListeners();
+  });
+
+  function setupEventListeners() {
+    // Sicil input
+    const sicilInput = document.getElementById('sicilInput');
+    sicilInput.addEventListener('input', debounce(searchBySicil, 300));
+    sicilInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchBySicil();
+      }
+    });
+
+    // Liste filtreler
+    const listSearch = document.getElementById('listSearch');
+    const listFilter = document.getElementById('listFilter');
+
+    listSearch.addEventListener('input', debounce(renderPeopleList, 300));
+    listFilter.addEventListener('change', renderPeopleList);
+  }
+
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
+  // Tüm kişileri yükle
+  function loadAllPeople() {
+    fetch(`{% url 'ui_election_voting_data' election.id %}`)
+      .then(response => response.json())
+      .then(data => {
+        allPeople = data.people || [];
+        renderPeopleList();
+      })
+      .catch(error => {
+        console.error('Veri yükleme hatası:', error);
+        showToast('Veriler yüklenirken hata oluştu', true);
+      });
+  }
+
+  // Sicil ile arama
+  function searchBySicil() {
+    const sicilNo = document.getElementById('sicilInput').value.trim();
+    const sicilResult = document.getElementById('sicilResult');
+
+    if (!sicilNo) {
+      sicilResult.classList.remove('show');
+      currentSicilPerson = null;
+      return;
+    }
+
+    const person = allPeople.find(p =>
+      (p.kisi_sicilno || '').toLowerCase() === sicilNo.toLowerCase()
+    );
+
+    if (person) {
+      currentSicilPerson = person;
+      document.getElementById('sicilPersonName').textContent = `${person.ad} ${person.soyad}`;
+      document.getElementById('sicilPersonSicil').textContent = `Sicil: ${person.kisi_sicilno || '-'}`;
+      sicilResult.classList.add('show');
+    } else {
+      sicilResult.classList.remove('show');
+      currentSicilPerson = null;
+      if (sicilNo.length >= 3) {
+        showToast('Bu sicil numarasına ait kişi bulunamadı', true);
+      }
+    }
+  }
+
+  // Sicil ile işaretleme
+  function markFromSicil(hasVoted) {
+    if (!currentSicilPerson) return;
+
+    markVote(currentSicilPerson.kisi_sicilno, hasVoted, () => {
+      // Sicil inputu temizle
+      document.getElementById('sicilInput').value = '';
+      document.getElementById('sicilResult').classList.remove('show');
+      currentSicilPerson = null;
+
+      // Listeyi güncelle
+      loadAllPeople();
+
+      // Inputa fokusla
+      document.getElementById('sicilInput').focus();
+    });
+  }
+
+  // Liste render
+  function renderPeopleList() {
+    const search = document.getElementById('listSearch').value.toLowerCase().trim();
+    const filter = document.getElementById('listFilter').value;
+
+    let filtered = allPeople;
+
+    // Arama filtresi
+    if (search) {
+      filtered = filtered.filter(p => {
+        const fullName = `${p.ad} ${p.soyad}`.toLowerCase();
+        const sicil = (p.kisi_sicilno || '').toLowerCase();
+        return fullName.includes(search) || sicil.includes(search);
+      });
+    }
+
+    // Oy durumu filtresi
+    if (filter === 'voted') {
+      filtered = filtered.filter(p => p.has_voted);
+    } else if (filter === 'not_voted') {
+      filtered = filtered.filter(p => !p.has_voted);
+    }
+
+    // İstatistik güncelle
+    document.getElementById('listCount').textContent = filtered.length;
+
+    // Liste render
+    const listContainer = document.getElementById('peopleList');
+
+    if (filtered.length === 0) {
+      listContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🔍</div>
+          <div>Kişi bulunamadı</div>
+        </div>
+      `;
+      return;
+    }
+
+    listContainer.innerHTML = filtered.map(person => `
+      <div class="table-row">
+        <div class="person-info">
+          <div class="person-name">${person.ad} ${person.soyad}</div>
+          <div class="person-lawyer">${person.lawyer_name || '-'}</div>
+        </div>
+        <div class="person-sicil">${person.kisi_sicilno || '-'}</div>
+        <div>
+          <span class="vote-badge ${person.has_voted ? 'voted' : 'not-voted'}">
+            ${person.has_voted ? '✓ Oy Verdi' : '○ Oy Vermedi'}
+          </span>
+        </div>
+        <div class="action-buttons">
+          <button
+            class="action-btn mark-voted"
+            onclick="markVote('${person.kisi_sicilno}', true)"
+            ${person.has_voted ? 'disabled' : ''}
+          >
+            ✓ Oy Verdi
+          </button>
+          <button
+            class="action-btn mark-not-voted"
+            onclick="markVote('${person.kisi_sicilno}', false)"
+            ${!person.has_voted ? 'disabled' : ''}
+          >
+            ✗ Oy Vermedi
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // Oy işaretleme
+  function markVote(sicilNo, hasVoted, callback) {
+    fetch(`{% url 'ui_election_mark_vote' election.id %}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: `sicil_no=${encodeURIComponent(sicilNo)}&has_voted=${hasVoted}`
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        showToast(data.message);
+
+        // Sidebar istatistiklerini güncelle
+        if (data.stats) {
+          document.getElementById('sidebarTotal').textContent = data.stats.total_people;
+          document.getElementById('sidebarVoted').textContent = data.stats.voted_count;
+          document.getElementById('sidebarNotVoted').textContent = data.stats.not_voted_count;
+          document.getElementById('sidebarRate').textContent = data.stats.participation_rate + '%';
+        }
+
+        // Kişi listesini güncelle
+        const person = allPeople.find(p => p.kisi_sicilno === sicilNo);
+        if (person) {
+          person.has_voted = hasVoted;
+        }
+
+        renderPeopleList();
+
+        if (callback) callback();
+      } else {
+        showToast(data.message || 'İşlem başarısız', true);
+      }
+    })
+    .catch(error => {
+      console.error('İşaretleme hatası:', error);
+      showToast('İşlem sırasında hata oluştu', true);
+    });
+  }
+</script>
+{% endblock %}

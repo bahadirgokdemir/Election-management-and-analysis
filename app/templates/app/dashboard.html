@@ -1,0 +1,594 @@
+{% extends 'app/base.html' %}
+{% block title %}Ana Sayfa{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Analiz Dashboard'u</h1>
+    <p>Seçmen listesi genel görünümü ve istatistikleri</p>
+  </div>
+  <a class="btn primary" href="{% url 'ui_upload' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+    </svg>
+    Yeni Liste Yükle
+  </a>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="label">BRÜT AVUKAT SAYISI</div>
+    <div class="value">{{ data.total|default:0 }}</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+      Avukat-Kişi bağlantıları
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="label">NET AVUKAT SAYISI</div>
+    <div class="value">{{ data.unique_people|default:0 }}</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+      Farklı kişi sayısı
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="label">LİSTE Veren Avukat</div>
+    <div class="value">{{ data.lawyer_stats|length|default:0 }}</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+      Sistemdeki avukat sayısı
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Farklı Durum</div>
+    <div class="value">{{ data.byStatus|length|default:0 }}</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+      Cevap durumu çeşitleri
+    </div>
+  </div>
+</div>
+
+
+<!-- Charts -->
+<div class="cards">
+  <div class="card">
+    <h3>📊 Durum Dağılımı (Tüm Kayıtlar)</h3>
+    <div class="chart-container">
+      <canvas id="pieStatus"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📈 Kişi Sayıları (Tüm Kayıtlar)</h3>
+    <div class="chart-container">
+      <canvas id="barStatus"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Benzersiz Kişi Analizi Grafikleri -->
+{% if data.unique_stats %}
+<div class="cards mt">
+  <div class="card">
+    <h3>🎯 Benzersiz Kişi Durum Dağılımı</h3>
+    <div class="chart-container">
+      <canvas id="pieUniqueStatus"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🏆 Avukat Performans Karşılaştırması</h3>
+    <div class="chart-container">
+      <canvas id="barLawyerPerformance"></canvas>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- İlçe ve Detay Analizi -->
+{% if data.district_stats %}
+<div class="cards mt">
+  <div class="card">
+    <h3>🗺️ En Çok Kişi Olan İlçeler</h3>
+    <div class="chart-container">
+      <canvas id="barDistricts"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📍 Benzersiz Kişi Bazlı İlçeler</h3>
+    <div class="chart-container">
+      <canvas id="barUniqueDistricts"></canvas>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Details Table -->
+<div class="card mt">
+  <h3>📋 Detaylı Durum Analizi</h3>
+  <div class="table-container" style="margin-top: 16px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Durum</th>
+          <th style="text-align: right;">Kişi Sayısı</th>
+          <th style="text-align: right;">Yüzde</th>
+          <th>Dağılım</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for k, v in data.byStatus.items %}
+        <tr>
+          <td><strong style="color: var(--primary);">{{ k|title }}</strong></td>
+          <td style="text-align: right; font-weight: 700; font-size: 16px; color: var(--primary);">{{ v }}</td>
+          <td style="text-align: right; font-weight: 600;">
+            {% widthratio v data.total 100 %}%
+          </td>
+          <td>
+            <div style="background: var(--bg-content); border-radius: 6px; height: 20px; overflow: hidden; position: relative;">
+              <div style="background: linear-gradient(90deg, var(--primary), var(--secondary)); height: 100%; width: {% widthratio v data.total 100 %}%; border-radius: 6px; transition: width 0.4s;"></div>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            Henüz veri bulunmamaktadır.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Avukat İstatistikleri -->
+<div class="card mt">
+  <h3>👥 Avukat Bazında İstatistikler</h3>
+  <div class="table-container" style="margin-top: 16px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Avukat</th>
+          <th>Sicil No</th>
+          <th style="text-align: right;">Kişi Sayısı</th>
+          <th>İşlemler</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lawyer in data.lawyer_stats %}
+        <tr>
+          <td>
+            <strong style="color: var(--primary);">{{ lawyer.ad }} {{ lawyer.soyad }}</strong>
+          </td>
+          <td>
+            <span style="font-family: monospace; font-size: 12px; color: var(--text-secondary);">{{ lawyer.sicil_no }}</span>
+          </td>
+          <td style="text-align: right;">
+            <span style="padding: 4px 12px; background: var(--bg-content); border-radius: 6px; font-weight: 700; font-size: 14px; color: var(--primary);">
+              {{ lawyer.person_count }}
+            </span>
+          </td>
+          <td>
+            <a href="{% url 'ui_lawyer_people' lawyer.id %}" class="btn" style="font-size: 12px; padding: 6px 12px;">
+              <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              Görüntüle
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">
+            Henüz avukat bulunmamaktadır.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+
+<!-- Recent Activity & Quick Links -->
+<div class="cards mt">
+  <div class="card">
+    <h3>🕒 Son Aktiviteler</h3>
+    <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto;">
+      {% if data.recent_logs %}
+        {% for log in data.recent_logs %}
+        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid {% if log.action == 'APPLY' %}var(--success){% else %}var(--info){% endif %};">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+            <span style="font-weight: 600; font-size: 12px; color: var(--text-primary);">{{ log.entity }}</span>
+            <span style="font-size: 10px; color: var(--text-muted);">{{ log.at|timesince }} önce</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">{{ log.action }}</div>
+          {% if log.actor %}
+          <div style="font-size: 10px; color: var(--text-muted);">
+            <svg style="width: 12px; height: 12px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            {{ log.actor }}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 12px;">
+          Henüz aktivite bulunmamaktadır.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🔗 Hızlı Erişim</h3>
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
+      <a href="{% url 'ui_people' %}" class="btn" style="justify-content: flex-start;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+        </svg>
+        Tüm Kişileri Görüntüle
+      </a>
+      <a href="{% url 'ui_lawyers' %}" class="btn" style="justify-content: flex-start;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        Avukat Listesi
+      </a>
+      <a href="{% url 'ui_people_export' %}" class="btn" style="justify-content: flex-start;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        Verileri Dışa Aktar
+      </a>
+    </div>
+
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+      <div style="padding: 14px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid var(--success);">
+        <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px; font-size: 12px;">Sistem Durumu</div>
+        <div style="color: var(--success); font-size: 12px; font-weight: 600;">
+          <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="12" cy="12" r="5"/>
+          </svg>
+          Aktif ve Çalışıyor
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ data.byStatus|json_script:"byStatusData" }}
+{{ data.unique_stats.status_distribution|json_script:"uniqueStatusData" }}
+{{ data.district_stats.top_districts|json_script:"districtData" }}
+{{ data.district_stats.top_unique_districts|json_script:"uniqueDistrictData" }}
+{{ data.lawyer_performance.lawyer_unique_counts|json_script:"lawyerPerformanceData" }}
+
+<script>
+(function(){
+  const raw = JSON.parse(document.getElementById('byStatusData').textContent || '{}');
+  const labels = Object.keys(raw);
+  const values = Object.values(raw);
+
+  const colors = [
+    '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
+    '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'
+  ];
+
+  const commonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          padding: 16,
+          font: { size: 12, weight: '600' },
+          color: '#cbd5e1',
+          usePointStyle: true,
+          pointStyle: 'circle'
+        }
+      },
+      tooltip: {
+        backgroundColor: '#1e293b',
+        padding: 14,
+        titleFont: { size: 13, weight: '700' },
+        bodyFont: { size: 12, weight: '600' },
+        borderColor: '#3b82f6',
+        borderWidth: 1,
+        displayColors: true,
+        boxPadding: 6
+      }
+    }
+  };
+
+  // Pie Chart
+  const pieCtx = document.getElementById('pieStatus');
+  if (pieCtx && labels.length > 0) {
+    new Chart(pieCtx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderWidth: 2,
+          borderColor: '#0f172a',
+          hoverBorderWidth: 3
+        }]
+      },
+      options: commonOptions
+    });
+  }
+
+  // Bar Chart
+  const barCtx = document.getElementById('barStatus');
+  if (barCtx && labels.length > 0) {
+    new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Kişi Sayısı',
+          data: values,
+          backgroundColor: colors,
+          borderRadius: 6,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        ...commonOptions,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              font: { size: 11, weight: '600' },
+              color: '#94a3b8',
+              padding: 8
+            },
+            grid: {
+              color: '#334155',
+              lineWidth: 1
+            }
+          },
+          x: {
+            ticks: {
+              font: { size: 11, weight: '600' },
+              color: '#94a3b8',
+              padding: 8
+            },
+            grid: {
+              display: false
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: commonOptions.plugins.tooltip
+        }
+      }
+    });
+  }
+
+  // === Benzersiz Kişi Durum Dağılımı (Pie Chart) ===
+  const uniqueStatusEl = document.getElementById('uniqueStatusData');
+  if (uniqueStatusEl) {
+    const uniqueStatusData = JSON.parse(uniqueStatusEl.textContent || '{}');
+    const uniqueLabels = Object.keys(uniqueStatusData);
+    const uniqueValues = Object.values(uniqueStatusData);
+
+    const pieUniqueCtx = document.getElementById('pieUniqueStatus');
+    if (pieUniqueCtx && uniqueLabels.length > 0) {
+      new Chart(pieUniqueCtx, {
+        type: 'pie',
+        data: {
+          labels: uniqueLabels,
+          datasets: [{
+            data: uniqueValues,
+            backgroundColor: colors,
+            borderWidth: 2,
+            borderColor: '#0f172a',
+            hoverBorderWidth: 3
+          }]
+        },
+        options: commonOptions
+      });
+    }
+  }
+
+  // === İlçe Dağılımı (Bar Chart - Toplam Kayıt) ===
+  const districtEl = document.getElementById('districtData');
+  if (districtEl) {
+    const districtData = JSON.parse(districtEl.textContent || '[]');
+    const districtLabels = districtData.map(d => d.ilce);
+    const districtValues = districtData.map(d => d.count);
+
+    const barDistrictCtx = document.getElementById('barDistricts');
+    if (barDistrictCtx && districtLabels.length > 0) {
+      new Chart(barDistrictCtx, {
+        type: 'bar',
+        data: {
+          labels: districtLabels,
+          datasets: [{
+            label: 'Toplam Kayıt',
+            data: districtValues,
+            backgroundColor: '#06b6d4',
+            borderRadius: 6,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          ...commonOptions,
+          indexAxis: 'y',
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                font: { size: 11, weight: '600' },
+                color: '#94a3b8',
+                padding: 8
+              },
+              grid: {
+                color: '#334155',
+                lineWidth: 1
+              }
+            },
+            y: {
+              ticks: {
+                font: { size: 11, weight: '600' },
+                color: '#94a3b8',
+                padding: 8
+              },
+              grid: {
+                display: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: commonOptions.plugins.tooltip
+          }
+        }
+      });
+    }
+  }
+
+  // === Benzersiz Kişi İlçe Dağılımı (Bar Chart) ===
+  const uniqueDistrictEl = document.getElementById('uniqueDistrictData');
+  if (uniqueDistrictEl) {
+    const uniqueDistrictData = JSON.parse(uniqueDistrictEl.textContent || '[]');
+    const uniqueDistrictLabels = uniqueDistrictData.map(d => d.ilce);
+    const uniqueDistrictValues = uniqueDistrictData.map(d => d.count);
+
+    const barUniqueDistrictCtx = document.getElementById('barUniqueDistricts');
+    if (barUniqueDistrictCtx && uniqueDistrictLabels.length > 0) {
+      new Chart(barUniqueDistrictCtx, {
+        type: 'bar',
+        data: {
+          labels: uniqueDistrictLabels,
+          datasets: [{
+            label: 'Benzersiz Kişi',
+            data: uniqueDistrictValues,
+            backgroundColor: '#8b5cf6',
+            borderRadius: 6,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          ...commonOptions,
+          indexAxis: 'y',
+          scales: {
+            x: {
+              beginAtZero: true,
+              ticks: {
+                font: { size: 11, weight: '600' },
+                color: '#94a3b8',
+                padding: 8
+              },
+              grid: {
+                color: '#334155',
+                lineWidth: 1
+              }
+            },
+            y: {
+              ticks: {
+                font: { size: 11, weight: '600' },
+                color: '#94a3b8',
+                padding: 8
+              },
+              grid: {
+                display: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: commonOptions.plugins.tooltip
+          }
+        }
+      });
+    }
+  }
+
+  // === Avukat Performans Karşılaştırması (Bar Chart) ===
+  const lawyerPerfEl = document.getElementById('lawyerPerformanceData');
+  if (lawyerPerfEl) {
+    const lawyerPerfData = JSON.parse(lawyerPerfEl.textContent || '{}');
+    const lawyerPerfArray = Object.values(lawyerPerfData);
+    const lawyerNames = lawyerPerfArray.map(d => d.lawyer_name);
+    const uniquePeopleCounts = lawyerPerfArray.map(d => d.unique_people);
+    const totalRecordsCounts = lawyerPerfArray.map(d => d.total_records);
+
+    const barLawyerPerfCtx = document.getElementById('barLawyerPerformance');
+    if (barLawyerPerfCtx && lawyerNames.length > 0) {
+      new Chart(barLawyerPerfCtx, {
+        type: 'bar',
+        data: {
+          labels: lawyerNames,
+          datasets: [
+            {
+              label: 'Benzersiz Kişi',
+              data: uniquePeopleCounts,
+              backgroundColor: '#10b981',
+              borderRadius: 6,
+              borderWidth: 0
+            },
+            {
+              label: 'Toplam Kayıt',
+              data: totalRecordsCounts,
+              backgroundColor: '#3b82f6',
+              borderRadius: 6,
+              borderWidth: 0
+            }
+          ]
+        },
+        options: {
+          ...commonOptions,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                font: { size: 11, weight: '600' },
+                color: '#94a3b8',
+                padding: 8
+              },
+              grid: {
+                color: '#334155',
+                lineWidth: 1
+              }
+            },
+            x: {
+              ticks: {
+                font: { size: 10, weight: '600' },
+                color: '#94a3b8',
+                padding: 8,
+                maxRotation: 45,
+                minRotation: 45
+              },
+              grid: {
+                display: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: commonOptions.plugins.tooltip
+          }
+        }
+      });
+    }
+  }
+})();
+</script>
+
+{% endblock %}

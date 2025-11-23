@@ -1,0 +1,272 @@
+{% extends 'app/base.html' %}
+{% block title %}{{ election.name }} - Oy Verme{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <a href="{% url 'ui_elections' %}" class="btn" style="padding: 6px 12px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px;">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </a>
+      <div>
+        <h1 style="margin: 0;">{{ election.name }}</h1>
+        <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-muted);">
+          📅 {{ election.election_date|date:"d F Y" }}
+          {% if election.is_active %}
+            <span style="margin-left: 8px; padding: 2px 8px; background: var(--success); color: white; border-radius: 4px; font-size: 10px; font-weight: 600;">AKTİF</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+  <div style="display: flex; gap: 12px;">
+    <a href="{% url 'ui_election_stats' election.id %}" class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      İstatistikler
+    </a>
+  </div>
+</div>
+
+<!-- İstatistik Kartları -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+  <div class="card" style="background: linear-gradient(135deg, var(--primary) 0%, #667eea 100%); color: white; border: none;">
+    <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">TOPLAM KİŞİ</div>
+    <div style="font-size: 32px; font-weight: 700;">{{ total_people }}</div>
+  </div>
+  <div class="card" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); color: white; border: none;">
+    <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">OY VERDİ</div>
+    <div style="font-size: 32px; font-weight: 700;">{{ voted_count }}</div>
+  </div>
+  <div class="card" style="background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: white; border: none;">
+    <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">OY VERMEDİ</div>
+    <div style="font-size: 32px; font-weight: 700;">{{ not_voted_count }}</div>
+  </div>
+  <div class="card" style="background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%); color: white; border: none;">
+    <div style="font-size: 11px; opacity: 0.9; margin-bottom: 4px;">KATILIM ORANI</div>
+    <div style="font-size: 32px; font-weight: 700;">{{ participation_rate }}%</div>
+  </div>
+</div>
+
+<!-- Filtreler -->
+<div class="card" style="margin-bottom: 20px;">
+  <form method="get" style="display: flex; flex-wrap: wrap; gap: 12px; align-items: end;">
+    <div class="form-group" style="margin: 0; flex: 1; min-width: 200px;">
+      <label class="form-label">Ara</label>
+      <input type="text" name="q" value="{{ q }}" placeholder="Sicil no, ad, soyad..." />
+    </div>
+
+    <div class="form-group" style="margin: 0; min-width: 150px;">
+      <label class="form-label">Oy Durumu</label>
+      <select name="vote_status">
+        <option value="all" {% if vote_status == 'all' %}selected{% endif %}>Tümü</option>
+        <option value="voted" {% if vote_status == 'voted' %}selected{% endif %}>Oy Verdi</option>
+        <option value="not_voted" {% if vote_status == 'not_voted' %}selected{% endif %}>Oy Vermedi</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin: 0; min-width: 150px;">
+      <label class="form-label">Durum</label>
+      <select name="status">
+        <option value="">Tümü</option>
+        {% for status in statuses %}
+          <option value="{{ status.key }}" {% if status_key == status.key %}selected{% endif %}>{{ status.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group" style="margin: 0; min-width: 150px;">
+      <label class="form-label">Avukat</label>
+      <select name="lawyer">
+        <option value="">Tümü</option>
+        {% for lawyer in lawyers %}
+          <option value="{{ lawyer.id }}" {% if lawyer_id|stringformat:"s" == lawyer.id|stringformat:"s" %}selected{% endif %}>{{ lawyer.sicil_no }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="btn primary" style="margin: 0;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      Filtrele
+    </button>
+
+    {% if q or status_key or lawyer_id or vote_status != 'all' %}
+    <a href="{% url 'ui_election_voting' election.id %}" class="btn" style="margin: 0;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+      Temizle
+    </a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- Kişi Listesi -->
+<div class="card">
+  <div style="overflow-x: auto;">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 100px;">Sicil No</th>
+          <th>Ad Soyad</th>
+          <th style="width: 150px;">Avukat</th>
+          <th style="width: 120px;">Durum</th>
+          <th style="width: 100px;">Telefon</th>
+          <th style="width: 150px; text-align: center;">Oy Durumu</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in people_with_votes %}
+        <tr id="person-{{ item.person.id }}" class="{% if item.has_voted %}voted-row{% endif %}">
+          <td>
+            <strong>{{ item.person.kisi_sicilno }}</strong>
+          </td>
+          <td>
+            {{ item.person.ad }} {{ item.person.soyad }}
+          </td>
+          <td>
+            <span style="font-size: 11px; color: var(--text-muted);">{{ item.person.lawyer.sicil_no }}</span>
+          </td>
+          <td>
+            {% if item.person.cevap_status %}
+              <span class="status-badge status-{{ item.person.cevap_status.key }}">
+                {{ item.person.cevap_status.label }}
+              </span>
+            {% else %}
+              <span style="color: var(--text-muted); font-size: 12px;">-</span>
+            {% endif %}
+          </td>
+          <td>
+            <span style="font-size: 12px;">{{ item.person.telno|default:"-" }}</span>
+          </td>
+          <td style="text-align: center;">
+            <div style="display: flex; gap: 8px; align-items: center; justify-content: center;">
+              <button
+                onclick="markVote({{ election.id }}, {{ item.person.id }}, true)"
+                class="vote-btn {% if item.has_voted %}active{% endif %}"
+                style="flex: 1; padding: 6px 12px; border: 2px solid var(--success); background: {% if item.has_voted %}var(--success){% else %}transparent{% endif %}; color: {% if item.has_voted %}white{% else %}var(--success){% endif %}; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; transition: all 0.2s;">
+                ✓ Verdi
+              </button>
+              <button
+                onclick="markVote({{ election.id }}, {{ item.person.id }}, false)"
+                class="vote-btn {% if not item.has_voted %}active{% endif %}"
+                style="flex: 1; padding: 6px 12px; border: 2px solid #ef4444; background: {% if not item.has_voted %}#ef4444{% else %}transparent{% endif %}; color: {% if not item.has_voted %}white{% else %}#ef4444{% endif %}; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; transition: all 0.2s;">
+                ✗ Vermedi
+              </button>
+            </div>
+            {% if item.voted_at %}
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
+                {{ item.voted_at|date:"H:i" }}
+              </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="text-align: center; padding: 60px; color: var(--text-muted);">
+            <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+            <div>Kişi bulunamadı</div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if page.has_other_pages %}
+  <div style="display: flex; justify-content: center; align-items: center; gap: 8px; padding: 20px 0; border-top: 1px solid var(--border-color);">
+    {% if page.has_previous %}
+      <a href="?page=1{% if q %}&q={{ q }}{% endif %}{% if status_key %}&status={{ status_key }}{% endif %}{% if lawyer_id %}&lawyer={{ lawyer_id }}{% endif %}{% if vote_status %}&vote_status={{ vote_status }}{% endif %}" class="btn">İlk</a>
+      <a href="?page={{ page.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_key %}&status={{ status_key }}{% endif %}{% if lawyer_id %}&lawyer={{ lawyer_id }}{% endif %}{% if vote_status %}&vote_status={{ vote_status }}{% endif %}" class="btn">Önceki</a>
+    {% endif %}
+
+    <span style="padding: 0 16px; color: var(--text-secondary); font-size: 13px;">
+      Sayfa {{ page.number }} / {{ page.paginator.num_pages }}
+    </span>
+
+    {% if page.has_next %}
+      <a href="?page={{ page.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_key %}&status={{ status_key }}{% endif %}{% if lawyer_id %}&lawyer={{ lawyer_id }}{% endif %}{% if vote_status %}&vote_status={{ vote_status }}{% endif %}" class="btn">Sonraki</a>
+      <a href="?page={{ page.paginator.num_pages }}{% if q %}&q={{ q }}{% endif %}{% if status_key %}&status={{ status_key }}{% endif %}{% if lawyer_id %}&lawyer={{ lawyer_id }}{% endif %}{% if vote_status %}&vote_status={{ vote_status }}{% endif %}" class="btn">Son</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<style>
+.voted-row {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.vote-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.vote-btn.active {
+  cursor: default;
+}
+</style>
+
+<script>
+function markVote(electionId, personId, hasVoted) {
+  const formData = new FormData();
+  formData.append('lawyerperson_id', personId);
+  formData.append('has_voted', hasVoted);
+  formData.append('recorded_by', 'Görevli');
+
+  fetch(`/ui/elections/${electionId}/mark-vote/`, {
+    method: 'POST',
+    body: formData,
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Satırı güncelle
+      const row = document.getElementById(`person-${personId}`);
+      if (hasVoted) {
+        row.classList.add('voted-row');
+      } else {
+        row.classList.remove('voted-row');
+      }
+
+      // Butonları güncelle
+      const buttons = row.querySelectorAll('.vote-btn');
+      buttons.forEach(btn => {
+        btn.classList.remove('active');
+        if (hasVoted && btn.textContent.includes('Verdi')) {
+          btn.classList.add('active');
+          btn.style.background = 'var(--success)';
+          btn.style.color = 'white';
+        } else if (!hasVoted && btn.textContent.includes('Vermedi')) {
+          btn.classList.add('active');
+          btn.style.background = '#ef4444';
+          btn.style.color = 'white';
+        } else if (hasVoted && btn.textContent.includes('Vermedi')) {
+          btn.style.background = 'transparent';
+          btn.style.color = '#ef4444';
+        } else if (!hasVoted && btn.textContent.includes('Verdi')) {
+          btn.style.background = 'transparent';
+          btn.style.color = 'var(--success)';
+        }
+      });
+
+      // Sayfayı yenile (istatistikleri güncellemek için)
+      setTimeout(() => {
+        location.reload();
+      }, 500);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Bir hata oluştu. Lütfen tekrar deneyin.');
+  });
+}
+</script>
+
+{% endblock %}

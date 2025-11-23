@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ election.name }} - Oy Verme</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f3f4f6;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: white;
+      border-bottom: 3px solid #667eea;
+      padding: 20px 30px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .election-info h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #1a202c;
+      margin-bottom: 4px;
+    }
+
+    .election-info p {
+      font-size: 13px;
+      color: #6b7280;
+    }
+
+    .back-btn {
+      background: #f3f4f6;
+      color: #1a202c;
+      padding: 10px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .back-btn:hover {
+      background: #e5e7eb;
+      transform: translateY(-2px);
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px 30px;
+    }
+
+    .stats-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-item {
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(10px);
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+      color: white;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.9;
+      margin-bottom: 6px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+    }
+
+    /* Main Content */
+    .main-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px;
+    }
+
+    /* Search & Filters */
+    .controls {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .search-box {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 16px 50px 16px 20px;
+      font-size: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    .search-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+    }
+
+    .filters {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      padding: 10px 20px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      background: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+
+    .filter-btn:hover {
+      border-color: #667eea;
+    }
+
+    .filter-btn.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .filter-btn.green.active {
+      background: #10b981;
+      border-color: #10b981;
+    }
+
+    .filter-btn.yellow.active {
+      background: #f59e0b;
+      border-color: #f59e0b;
+    }
+
+    .showing-count {
+      margin-left: auto;
+      padding: 10px 20px;
+      background: #f3f4f6;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #6b7280;
+    }
+
+    /* People List */
+    .people-container {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .people-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .person-card {
+      background: #f9fafb;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .person-card:hover {
+      border-color: #667eea;
+      transform: translateX(4px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+    }
+
+    .person-card.voted {
+      background: #ecfdf5;
+      border-color: #10b981;
+    }
+
+    .person-info h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a202c;
+      margin-bottom: 8px;
+    }
+
+    .person-meta {
+      display: flex;
+      gap: 16px;
+      font-size: 14px;
+      color: #6b7280;
+      flex-wrap: wrap;
+    }
+
+    .vote-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .vote-btn {
+      padding: 12px 24px;
+      border: 3px solid;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+      min-width: 110px;
+    }
+
+    .vote-btn-yes {
+      border-color: #10b981;
+      background: white;
+      color: #10b981;
+    }
+
+    .vote-btn-yes:hover {
+      background: #10b981;
+      color: white;
+      transform: scale(1.05);
+    }
+
+    .vote-btn-yes.active {
+      background: #10b981;
+      color: white;
+    }
+
+    .vote-btn-no {
+      border-color: #ef4444;
+      background: white;
+      color: #ef4444;
+    }
+
+    .vote-btn-no:hover {
+      background: #ef4444;
+      color: white;
+      transform: scale(1.05);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: #6b7280;
+    }
+
+    .empty-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 60px;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #e5e7eb;
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      background: #1a202c;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      transform: translateY(200%);
+      transition: transform 0.3s;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    .toast.success {
+      background: #10b981;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 2px solid #e5e7eb;
+    }
+
+    .page-btn {
+      padding: 8px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: #1a202c;
+    }
+
+    .page-btn:hover {
+      border-color: #667eea;
+      background: #667eea;
+      color: white;
+    }
+
+    .page-info {
+      padding: 8px 16px;
+      color: #6b7280;
+      font-weight: 600;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .person-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+
+      .vote-actions {
+        width: 100%;
+      }
+
+      .vote-btn {
+        flex: 1;
+      }
+
+      .showing-count {
+        margin-left: 0;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <div class="header-content">
+      <div class="election-info">
+        <h1>🗳️ {{ election.name }}</h1>
+        <p>📅 {{ election.election_date|date:"d F Y" }}</p>
+      </div>
+      <a href="{% url 'ui_elections' %}" class="back-btn">
+        ← Seçim Listesi
+      </a>
+    </div>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stats-container">
+      <div class="stat-item">
+        <div class="stat-label">Toplam Kişi</div>
+        <div class="stat-value" id="totalPeople">{{ total_people }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Oy Verdi</div>
+        <div class="stat-value" id="votedCount">{{ voted_count }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Oy Vermedi</div>
+        <div class="stat-value" id="notVotedCount">{{ not_voted_count }}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Katılım Oranı</div>
+        <div class="stat-value" id="participationRate">{{ participation_rate }}%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <!-- Controls -->
+    <div class="controls">
+      <!-- Search -->
+      <div class="search-box">
+        <input
+          type="text"
+          id="searchInput"
+          class="search-input"
+          placeholder="Sicil No, Ad veya Soyad ile ara..."
+          autofocus
+        />
+        <svg class="search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <button class="filter-btn active" onclick="filterVoteStatus('all')" id="filter-all">
+          📋 Tümü (<span id="count-all">0</span>)
+        </button>
+        <button class="filter-btn yellow" onclick="filterVoteStatus('not_voted')" id="filter-not-voted">
+          ⏳ Oy Vermedi (<span id="count-not-voted">0</span>)
+        </button>
+        <button class="filter-btn green" onclick="filterVoteStatus('voted')" id="filter-voted">
+          ✅ Oy Verdi (<span id="count-voted">0</span>)
+        </button>
+        <div class="showing-count">
+          <span id="filteredCount">0</span> kişi gösteriliyor
+        </div>
+      </div>
+    </div>
+
+    <!-- People Container -->
+    <div class="people-container">
+      <!-- People List -->
+      <div id="peopleList" class="people-grid"></div>
+
+      <!-- Loading -->
+      <div id="loadingState" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p style="font-weight: 600; color: #6b7280;">Yükleniyor...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="empty-state" style="display: none;">
+        <div class="empty-icon">🔍</div>
+        <h3 style="font-size: 20px; margin-bottom: 8px; color: #1a202c;">Kişi bulunamadı</h3>
+        <p>Farklı bir arama terimi veya filtre deneyin</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <span id="toastMessage"></span>
+  </div>
+
+  <script>
+    let allPeople = [];
+    let currentFilter = 'all';
+
+    // Sayfa yüklendiğinde
+    document.addEventListener('DOMContentLoaded', () => {
+      loadPeople();
+      setupEventListeners();
+      setInterval(updateStats, 30000); // Her 30 saniye güncelle
+    });
+
+    // Event listeners
+    function setupEventListeners() {
+      document.getElementById('searchInput').addEventListener('input', renderPeople);
+
+      // Klavye kısayolları
+      document.addEventListener('keydown', (e) => {
+        if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+          e.preventDefault();
+          document.getElementById('searchInput').focus();
+        }
+        if (e.key === 'Escape') {
+          document.getElementById('searchInput').value = '';
+          renderPeople();
+        }
+      });
+    }
+
+    // Kişileri yükle
+    function loadPeople() {
+      showLoading();
+      fetch(`/ui/elections/{{ election.id }}/voting-data/`)
+        .then(response => response.json())
+        .then(data => {
+          allPeople = data.people || [];
+          renderPeople();
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showToast('Kişiler yüklenirken hata oluştu', false);
+        });
+    }
+
+    // Kişileri render et
+    function renderPeople() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+      let filteredPeople = allPeople;
+
+      // Filtrele
+      if (currentFilter === 'voted') {
+        filteredPeople = filteredPeople.filter(p => p.has_voted);
+      } else if (currentFilter === 'not_voted') {
+        filteredPeople = filteredPeople.filter(p => !p.has_voted);
+      }
+
+      // Ara
+      if (searchTerm) {
+        filteredPeople = filteredPeople.filter(p => {
+          const fullName = `${p.ad} ${p.soyad}`.toLowerCase();
+          const sicilNo = (p.kisi_sicilno || '').toLowerCase();
+          return fullName.includes(searchTerm) || sicilNo.includes(searchTerm);
+        });
+      }
+
+      // Sayaçları güncelle
+      updateCounts();
+      document.getElementById('filteredCount').textContent = filteredPeople.length;
+
+      // Empty state
+      if (filteredPeople.length === 0) {
+        hideLoading();
+        showEmpty();
+        return;
+      }
+
+      hideEmpty();
+      hideLoading();
+
+      // Render
+      const peopleList = document.getElementById('peopleList');
+      peopleList.innerHTML = filteredPeople.map(person => `
+        <div class="person-card ${person.has_voted ? 'voted' : ''}" data-person-id="${person.id}">
+          <div class="person-info">
+            <h3>${person.ad} ${person.soyad}</h3>
+            <div class="person-meta">
+              <span>📋 ${person.kisi_sicilno}</span>
+              <span>👤 ${person.lawyer_sicil}</span>
+              ${person.voted_at ? `<span style="color: #10b981;">✓ ${person.voted_at}</span>` : ''}
+            </div>
+          </div>
+          <div class="vote-actions">
+            <button class="vote-btn vote-btn-yes ${person.has_voted ? 'active' : ''}" onclick="event.stopPropagation(); markVote(${person.id}, true)">
+              ✓ Verdi
+            </button>
+            <button class="vote-btn vote-btn-no" onclick="event.stopPropagation(); markVote(${person.id}, false)">
+              ✗ Vermedi
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Oy işaretle
+    function markVote(personId, hasVoted) {
+      const formData = new FormData();
+      formData.append('lawyerperson_id', personId);
+      formData.append('has_voted', hasVoted);
+      formData.append('recorded_by', 'Seçim Görevlisi');
+
+      fetch(`/ui/elections/{{ election.id }}/mark-vote/`, {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          const person = allPeople.find(p => p.id === personId);
+          if (person) {
+            person.has_voted = hasVoted;
+            person.voted_at = data.voted_at;
+          }
+          renderPeople();
+          updateStats();
+          const personName = person ? `${person.ad} ${person.soyad}` : 'Kişi';
+          showToast(`${personName} - ${hasVoted ? 'Oy verdi ✓' : 'Oy vermedi ✗'}`, hasVoted);
+          playSound(hasVoted);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        showToast('Bir hata oluştu', false);
+      });
+    }
+
+    // Sayaçları güncelle
+    function updateCounts() {
+      const votedCount = allPeople.filter(p => p.has_voted).length;
+      const notVotedCount = allPeople.filter(p => !p.has_voted).length;
+
+      document.getElementById('count-all').textContent = allPeople.length;
+      document.getElementById('count-voted').textContent = votedCount;
+      document.getElementById('count-not-voted').textContent = notVotedCount;
+    }
+
+    // İstatistikleri güncelle
+    function updateStats() {
+      const total = allPeople.length;
+      const voted = allPeople.filter(p => p.has_voted).length;
+      const notVoted = total - voted;
+      const rate = total > 0 ? Math.round((voted / total) * 100) : 0;
+
+      document.getElementById('totalPeople').textContent = total;
+      document.getElementById('votedCount').textContent = voted;
+      document.getElementById('notVotedCount').textContent = notVoted;
+      document.getElementById('participationRate').textContent = rate + '%';
+    }
+
+    // Filtre
+    function filterVoteStatus(status) {
+      currentFilter = status;
+      document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`filter-${status}`).classList.add('active');
+      renderPeople();
+    }
+
+    // Toast
+    function showToast(message, success = true) {
+      const toast = document.getElementById('toast');
+      toast.className = `toast ${success ? 'success' : ''}`;
+      toast.querySelector('span').textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    // Ses efekti
+    function playSound(success) {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.frequency.value = success ? 1000 : 400;
+      gainNode.gain.value = 0.1;
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+    }
+
+    // Loading
+    function showLoading() {
+      document.getElementById('loadingState').style.display = 'block';
+      document.getElementById('peopleList').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'none';
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('peopleList').style.display = 'grid';
+    }
+
+    function showEmpty() {
+      document.getElementById('emptyState').style.display = 'block';
+      document.getElementById('peopleList').style.display = 'none';
+    }
+
+    function hideEmpty() {
+      document.getElementById('emptyState').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

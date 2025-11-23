@@ -1,0 +1,386 @@
+{% extends 'app/election_app_base.html' %}
+{% load l10n %}
+{% block title %}{{ election.name }} - Detaylı İstatistikler{% endblock %}
+{% block page_title %}Detaylı İstatistikler{% endblock %}
+
+{% block extra_style %}
+<style>
+  .stat-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .gradient-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 18px 20px;
+    transition: all 0.2s;
+  }
+
+  .gradient-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary);
+  }
+
+  .gradient-card.total { border-left: 4px solid var(--primary); }
+  .gradient-card.voted { border-left: 4px solid var(--success); }
+  .gradient-card.not-voted { border-left: 4px solid var(--warning); }
+  .gradient-card.rate { border-left: 4px solid var(--secondary); }
+
+  .gradient-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .gradient-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .gradient-card.total .gradient-card-value { color: var(--primary); }
+  .gradient-card.voted .gradient-card-value { color: var(--success); }
+  .gradient-card.not-voted .gradient-card-value { color: var(--warning); }
+  .gradient-card.rate .gradient-card-value { color: var(--secondary); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Genel İstatistikler -->
+<div class="stat-card-grid">
+  <div class="gradient-card total">
+    <div class="gradient-card-label">Toplam Kişi</div>
+    <div class="gradient-card-value">{{ total_people }}</div>
+  </div>
+  <div class="gradient-card voted">
+    <div class="gradient-card-label">Oy Verdi</div>
+    <div class="gradient-card-value">{{ voted_count }}</div>
+  </div>
+  <div class="gradient-card not-voted">
+    <div class="gradient-card-label">Oy Vermedi</div>
+    <div class="gradient-card-value">{{ not_voted_count }}</div>
+  </div>
+  <div class="gradient-card rate">
+    <div class="gradient-card-label">Katılım Oranı</div>
+    <div class="gradient-card-value">{{ participation_rate }}%</div>
+  </div>
+</div>
+
+<!-- İki Kolon Layout -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px; margin-bottom: 24px;">
+
+  <!-- Avukat Bazında İstatistikler -->
+  <div class="card">
+    <h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+        <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+      </svg>
+      Avukat Bazında
+    </h3>
+    <div style="overflow-x: auto;">
+      <table style="font-size: 12px;">
+        <thead>
+          <tr>
+            <th style="text-align: left;">Avukat</th>
+            <th style="text-align: center; width: 80px;">Toplam</th>
+            <th style="text-align: center; width: 80px;">Oy Verdi</th>
+            <th style="text-align: center; width: 80px;">Oy Vermedi</th>
+            <th style="text-align: center; width: 80px;">Oran</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for stat in lawyer_stats %}
+          <tr>
+            <td>
+              <strong>{{ stat.lawyer.sicil_no }}</strong>
+              <div style="font-size: 10px; color: var(--text-muted);">{{ stat.lawyer.ad }} {{ stat.lawyer.soyad }}</div>
+            </td>
+            <td style="text-align: center;">{{ stat.total }}</td>
+            <td style="text-align: center; color: var(--success); font-weight: 600;">{{ stat.voted }}</td>
+            <td style="text-align: center; color: var(--text-muted);">{{ stat.not_voted }}</td>
+            <td style="text-align: center;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="flex: 1; background: var(--bg-content); border-radius: 4px; height: 6px; overflow: hidden;">
+                  <div style="background: var(--success); height: 100%; width: {{ stat.rate }}%; transition: width 0.3s;"></div>
+                </div>
+                <span style="font-weight: 600; min-width: 35px;">{{ stat.rate }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">
+              Veri bulunamadı
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Durum Bazında İstatistikler -->
+  <div class="card">
+    <h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+        <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+      </svg>
+      Durum Bazında
+    </h3>
+    <div style="overflow-x: auto;">
+      <table style="font-size: 12px;">
+        <thead>
+          <tr>
+            <th style="text-align: left;">Durum</th>
+            <th style="text-align: center; width: 80px;">Toplam</th>
+            <th style="text-align: center; width: 80px;">Oy Verdi</th>
+            <th style="text-align: center; width: 80px;">Oy Vermedi</th>
+            <th style="text-align: center; width: 80px;">Oran</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for stat in status_stats %}
+          <tr>
+            <td>
+              <span class="status-badge status-{{ stat.status.key }}">
+                {{ stat.status.label }}
+              </span>
+            </td>
+            <td style="text-align: center;">{{ stat.total }}</td>
+            <td style="text-align: center; color: var(--success); font-weight: 600;">{{ stat.voted }}</td>
+            <td style="text-align: center; color: var(--text-muted);">{{ stat.not_voted }}</td>
+            <td style="text-align: center;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="flex: 1; background: var(--bg-content); border-radius: 4px; height: 6px; overflow: hidden;">
+                  <div style="background: var(--success); height: 100%; width: {{ stat.rate }}%; transition: width 0.3s;"></div>
+                </div>
+                <span style="font-weight: 600; min-width: 35px;">{{ stat.rate }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">
+              Veri bulunamadı
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Saatlik Dağılım -->
+<div class="card">
+  <h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+      <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    Saatlik Oy Dağılımı
+  </h3>
+
+  <div style="padding: 20px;">
+    <canvas id="hourlyChart" style="max-height: 300px;"></canvas>
+  </div>
+
+  <script>
+  // Saatlik oy verme grafiği
+  const hourlyData = {{ hourly_votes|safe }};
+  const ctx = document.getElementById('hourlyChart');
+
+  if (ctx && hourlyData && hourlyData.length > 0) {
+    const labels = hourlyData.filter(h => h.count > 0).map(h => h.hour + ':00');
+    const data = hourlyData.filter(h => h.count > 0).map(h => h.count);
+
+    if (data.length > 0) {
+      new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Oy Sayısı',
+            data: data,
+            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+            borderColor: 'rgba(59, 130, 246, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1,
+                color: '#94a3b8'
+              },
+              grid: {
+                color: 'rgba(51, 65, 85, 0.5)'
+              }
+            },
+            x: {
+              ticks: {
+                color: '#94a3b8'
+              },
+              grid: {
+                display: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
+    } else {
+      // Veri yoksa mesaj göster
+      ctx.style.display = 'none';
+      ctx.parentElement.innerHTML = `
+        <div style="text-align: center; padding: 60px; color: var(--text-muted);">
+          <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+          <div>Henüz oy verilmemiş</div>
+        </div>
+      `;
+    }
+  } else if (ctx) {
+    ctx.style.display = 'none';
+    ctx.parentElement.innerHTML = `
+      <div style="text-align: center; padding: 60px; color: var(--text-muted);">
+        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+        <div>Henüz oy verilmemiş</div>
+      </div>
+    `;
+  }
+  </script>
+</div>
+
+<!-- Özet Tablo -->
+<div class="card" style="margin-top: 24px;">
+  <h3 style="margin: 0 0 16px 0; font-size: 16px; color: var(--text-primary);">Detaylı Özet</h3>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+
+    <div style="padding: 16px; background: var(--bg-content); border-radius: 8px;">
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: 600;">
+        Katılım Durumu
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px;">Oy Kullanan</span>
+          <span style="font-size: 14px; font-weight: 700; color: var(--success);">{{ voted_count }} / {{ total_people }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px;">Oy Kullanmayan</span>
+          <span style="font-size: 14px; font-weight: 700; color: var(--text-muted);">{{ not_voted_count }} / {{ total_people }}</span>
+        </div>
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; font-weight: 600;">Katılım Oranı</span>
+            <span style="font-size: 16px; font-weight: 700; color: var(--primary);">{{ participation_rate }}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding: 16px; background: var(--bg-content); border-radius: 8px;">
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: 600;">
+        En Yüksek Katılım (Avukat)
+      </div>
+      {% if lawyer_stats %}
+        {% with best_lawyer=lawyer_stats|dictsort:"rate"|last %}
+        <div style="padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 6px; border: 1px solid var(--success);">
+          <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
+            {{ best_lawyer.lawyer.sicil_no }}
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">
+            {{ best_lawyer.lawyer.ad }} {{ best_lawyer.lawyer.soyad }}
+          </div>
+          <div style="font-size: 24px; font-weight: 700; color: var(--success);">
+            {{ best_lawyer.rate }}%
+          </div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+            {{ best_lawyer.voted }} / {{ best_lawyer.total }} kişi
+          </div>
+        </div>
+        {% endwith %}
+      {% else %}
+        <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px;">
+          Veri yok
+        </div>
+      {% endif %}
+    </div>
+
+    <div style="padding: 16px; background: var(--bg-content); border-radius: 8px;">
+      <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: 600;">
+        En Yüksek Katılım (Durum)
+      </div>
+      {% if status_stats %}
+        {% with best_status=status_stats|dictsort:"rate"|last %}
+        <div style="padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 6px; border: 1px solid var(--success);">
+          <div style="margin-bottom: 8px;">
+            <span class="status-badge status-{{ best_status.status.key }}">
+              {{ best_status.status.label }}
+            </span>
+          </div>
+          <div style="font-size: 24px; font-weight: 700; color: var(--success);">
+            {{ best_status.rate }}%
+          </div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+            {{ best_status.voted }} / {{ best_status.total }} kişi
+          </div>
+        </div>
+        {% endwith %}
+      {% else %}
+        <div style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 12px;">
+          Veri yok
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<style>
+/* Status badge stilleri */
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-geliyor {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.status-gelmiyor {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+  border: 1px solid #EF4444;
+}
+
+.status-notr {
+  background: rgba(156, 163, 175, 0.15);
+  color: #6B7280;
+  border: 1px solid #9CA3AF;
+}
+</style>
+
+{% endblock %}

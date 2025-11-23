@@ -1,0 +1,126 @@
+{% extends 'app/base.html' %}
+{% load dict_extras %}
+{% block title %}Değişiklik Özeti{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Değişiklik Özeti</h1>
+    <p><strong>Avukat:</strong> {{ diff.lawyer.sicilNo }} — {{ diff.lawyer.ad }} {{ diff.lawyer.soyad }}</p>
+    <p style="margin-top: 8px; font-size: 13px; color: var(--text-light);">
+      Bu özette yeni eklenen ve güncellenen kayıtlar görüntülenmektedir.
+    </p>
+  </div>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 24px;">
+  <div class="stat-card">
+    <div class="label">Yeni Kayıt</div>
+    <div class="value">{{ diff.counts.added }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="label">Güncelleme</div>
+    <div class="value">{{ diff.counts.changed }}</div>
+  </div>
+</div>
+
+<div class="tabs">
+
+  <details open>
+    <summary>✨ Yeni Kayıtlar ({{ diff.counts.added }})</summary>
+    <form method="post" action="{% url 'ui_approve_selected' diff.batchId %}">
+      {% csrf_token %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width:32px;"><input type="checkbox" onclick="toggleAll(this, 'added')"></th>
+            <th>Sicil No</th><th>Ad</th><th>Soyad</th><th>Mail</th><th>İlçe</th><th>Durum</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in diff.added %}
+            <tr>
+              <td><input type="checkbox" name="added" value="{{ r.kisi_sicilno }}"></td>
+              <td>{{ r.kisi_sicilno }}</td><td>{{ r.ad }}</td><td>{{ r.soyad }}</td>
+              <td>{{ r.mail }}</td><td>{{ r.ilce }}</td><td>{{ r.cevap_status_key }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7">Yok</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="mt">
+        <button class="btn primary" type="submit">Seçili Kayıtları Ekle</button>
+      </div>
+    </form>
+  </details>
+
+  <details>
+    <summary>🔄 Güncellenecek Kayıtlar ({{ diff.counts.changed }})</summary>
+    <form method="post" action="{% url 'ui_approve_selected' diff.batchId %}">
+      {% csrf_token %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width:32px;"><input type="checkbox" onclick="toggleAll(this, 'changed')"></th>
+            <th>Sicil No</th><th>Alan</th><th>Eski</th><th>Yeni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in diff.changed %}
+            {% for f in c.fields %}
+              <tr>
+                {% if forloop.first %}
+                  <td rowspan="{{ c.fields|length }}">
+                    <input type="checkbox" name="changed" value="{{ c.kisi_sicilno }}">
+                  </td>
+                  <td rowspan="{{ c.fields|length }}">{{ c.kisi_sicilno }}</td>
+                {% endif %}
+                <td>{{ f }}</td>
+                <td>{% with key=f %}{{ c.before|get_item:key }}{% endwith %}</td>
+                <td>{% with key=f %}{{ c.after|get_item:key }}{% endwith %}</td>
+              </tr>
+            {% endfor %}
+          {% empty %}
+            <tr><td colspan="5">Yok</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="mt">
+        <button class="btn primary" type="submit">Seçili Güncellemeleri Kaydet</button>
+      </div>
+    </form>
+  </details>
+
+</div>
+
+<div class="hint" style="margin-top: 24px;">
+  <strong>ℹ️ Bilgi:</strong> Artık kayıtlar otomatik olarak uygulanmaktadır. Yukarıdaki değişiklikleri inceledikten sonra ana sayfaya dönebilirsiniz. Eğer belirli kayıtları seçerek uygulamak isterseniz yukarıdaki formları kullanabilirsiniz.
+</div>
+
+<div class="mt" style="display: flex; gap: 12px;">
+  <a class="btn primary" href="{% url 'ui_dashboard' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+    </svg>
+    Ana Sayfaya Dön
+  </a>
+  <a class="btn" href="{% url 'ui_people' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+    </svg>
+    Tüm Kişileri Görüntüle
+  </a>
+</div>
+
+<script>
+  function toggleAll(source, name) {
+    const form = source.closest('form');
+    if (!form) return;
+    const boxes = form.querySelectorAll('input[type="checkbox"][name="'+name+'"]');
+    boxes.forEach(b => b.checked = source.checked);
+  }
+</script>
+{% endblock %}

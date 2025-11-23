@@ -1,0 +1,907 @@
+{% extends 'app/base.html' %}
+{% block title %}Brüt Seçmen Listesi{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Brüt Seçmen Listesi</h1>
+    <p>Tüm kişileri görüntüleyin, filtreleyin ve analiz edin</p>
+  </div>
+  <div>
+    <button class="btn primary" onclick="openExportModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      Dışa Aktar
+    </button>
+  </div>
+</div>
+
+<!-- Advanced Filters -->
+<div class="filter-panel">
+  <form method="get" id="filter-form">
+    <!-- Ana Filtre Satırı -->
+    <div class="filter-grid">
+      <!-- Text Search -->
+      <div class="form-group">
+        <label class="form-label">
+          <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          Genel Arama
+        </label>
+        <input type="text" name="q" placeholder="Tüm alanlarda ara..." value="{{ q }}" />
+      </div>
+
+      <!-- İlçe Filter -->
+      <div class="form-group">
+        <label class="form-label">
+          <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          İlçe
+        </label>
+        <select name="ilce">
+          <option value="">Tüm İlçeler</option>
+          {% for ilce in districts %}
+            <option value="{{ ilce }}" {% if selected_ilce == ilce %}selected{% endif %}>{{ ilce }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Status Filter -->
+      <div class="form-group">
+        <label class="form-label">
+          <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+          </svg>
+          Cevap Durumu
+        </label>
+        <select name="status">
+          <option value="">Tümü</option>
+          {% for s in statuses %}
+            <option value="{{ s.key }}" {% if status_key == s.key %}selected{% endif %}>{{ s.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Lawyer Filter -->
+      <div class="form-group">
+        <label class="form-label">
+          <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+          Avukat
+        </label>
+        <select name="lawyer">
+          <option value="">Tüm Avukatlar</option>
+          {% for l in lawyers %}
+            <option value="{{ l.id }}" {% if lawyer_id == l.id|stringformat:"s" %}selected{% endif %}>{{ l.ad }} {{ l.soyad }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Action Buttons Row -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+      <button type="button" onclick="openAdvancedSearch()" class="btn" style="font-size: 12px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 14px; height: 14px;">
+          <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+        </svg>
+        Gelişmiş Arama
+      </button>
+
+      <div style="display: flex; gap: 8px;">
+        <button class="btn primary" type="submit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+          </svg>
+          Filtrele
+        </button>
+        {% if q or status_key or lawyer_id or selected_ilce %}
+        <a class="btn" href="{% url 'ui_people' %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          Temizle
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Filter Summary -->
+    {% if q or status_key or lawyer_id or selected_ilce %}
+    <div style="margin-top: 16px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; border-left: 3px solid var(--primary); font-size: 12px; color: var(--text-secondary);">
+      <strong style="color: var(--primary);">Aktif Filtreler:</strong>
+      {% if q %}<span style="margin-left: 8px; padding: 4px 8px; background: var(--bg-card); border-radius: 4px; border: 1px solid var(--border-color);">Arama: "{{ q }}"</span>{% endif %}
+      {% if selected_ilce %}<span style="margin-left: 8px; padding: 4px 8px; background: var(--bg-card); border-radius: 4px; border: 1px solid var(--border-color);">İlçe: {{ selected_ilce }}</span>{% endif %}
+      {% if status_key %}<span style="margin-left: 8px; padding: 4px 8px; background: var(--bg-card); border-radius: 4px; border: 1px solid var(--border-color);">Durum: {{ status_key }}</span>{% endif %}
+      {% if lawyer_id %}
+        {% for l in lawyers %}
+          {% if l.id|stringformat:"s" == lawyer_id %}
+            <span style="margin-left: 8px; padding: 4px 8px; background: var(--bg-card); border-radius: 4px; border: 1px solid var(--border-color);">Avukat: {{ l.ad }} {{ l.soyad }}</span>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% endif %}
+  </form>
+</div>
+
+<!-- Results Summary -->
+<div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+  <div style="font-size: 13px; color: var(--text-secondary);">
+    <strong style="color: var(--text-primary);">{{ page.paginator.count }}</strong> kayıt bulundu
+    {% if page.paginator.num_pages > 1 %}
+      (Sayfa {{ page.number }} / {{ page.paginator.num_pages }})
+    {% endif %}
+  </div>
+  <div style="font-size: 11px; color: var(--text-muted);">
+    Sayfa başına 25 kayıt gösteriliyor
+  </div>
+</div>
+
+<!-- Data Table -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th style="width: 120px;">Sicil No</th>
+        <th>Ad Soyad</th>
+        <th>E-posta</th>
+        <th style="width: 140px;">Telefon</th>
+        <th style="width: 120px;">İlçe</th>
+        <th style="width: 180px;">Avukat</th>
+        <th style="width: 120px;">Durum</th>
+        <th style="width: 80px;">İşlemler</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for lp in page.object_list %}
+        <tr>
+          <td><strong style="color: var(--primary); font-family: monospace;">{{ lp.kisi_sicilno }}</strong></td>
+          <td>
+            <div style="font-weight: 600;">{{ lp.ad }} {{ lp.soyad }}</div>
+            {% if lp.notlar %}
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">{{ lp.notlar|truncatewords:8 }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if lp.mail %}
+              <a href="mailto:{{ lp.mail }}" style="color: var(--primary); text-decoration: none; font-size: 12px;">
+                {{ lp.mail }}
+              </a>
+            {% else %}
+              <span style="color: var(--text-disabled); font-size: 12px;">-</span>
+            {% endif %}
+          </td>
+          <td style="font-family: monospace; font-size: 12px;">
+            {% if lp.telno %}
+              {{ lp.telno }}
+            {% else %}
+              <span style="color: var(--text-disabled);">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if lp.ilce %}
+              <span style="padding: 4px 8px; background: var(--bg-content); border-radius: 4px; font-size: 11px; font-weight: 600;">
+                {{ lp.ilce }}
+              </span>
+            {% else %}
+              <span style="color: var(--text-disabled); font-size: 12px;">-</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="padding: 2px 6px; background: var(--bg-content); border-radius: 4px; font-size: 11px; display: inline-block;">
+              {{ lp.lawyer.ad }} {{ lp.lawyer.soyad }}
+              <span style="color: var(--text-muted); font-family: monospace; font-size: 10px;">({{ lp.lawyer.sicil_no }})</span>
+            </div>
+          </td>
+          <td>
+            {% if lp.cevap_status %}
+              <span style="padding: 4px 10px; background: var(--primary); color: white; border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-block;">
+                {{ lp.cevap_status.label }}
+              </span>
+            {% else %}
+              <span style="padding: 4px 10px; background: var(--bg-content); color: var(--text-disabled); border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-block;">
+                Belirtilmemiş
+              </span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display: flex; gap: 4px;">
+              <button onclick="editPerson({{ lp.id }})" class="icon-btn" title="Düzenle">
+                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              <button onclick="deletePerson({{ lp.id }})" class="icon-btn danger" title="Sil">
+                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="8" style="text-align: center; padding: 60px 20px;">
+            <svg style="width: 48px; height: 48px; color: var(--text-disabled); margin-bottom: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+            </svg>
+            <div style="color: var(--text-muted); font-size: 14px;">
+              {% if q or status_key or lawyer_id %}
+                Filtrelere uygun kayıt bulunamadı.
+              {% else %}
+                Henüz kayıt bulunmamaktadır.
+              {% endif %}
+            </div>
+            {% if q or status_key or lawyer_id %}
+            <a href="{% url 'ui_people' %}" class="btn" style="margin-top: 16px;">
+              Filtreleri Temizle
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if page.paginator.num_pages > 1 %}
+<div class="pager">
+  {% if page.has_previous %}
+    <a class="btn" href="?{{ request.GET.urlencode }}&page=1">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+      </svg>
+    </a>
+    <a class="btn" href="?{{ request.GET.urlencode }}&page={{ page.previous_page_number }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+      Önceki
+    </a>
+  {% endif %}
+
+  <span style="padding: 0 16px;">
+    Sayfa <strong>{{ page.number }}</strong> / {{ page.paginator.num_pages }}
+  </span>
+
+  {% if page.has_next %}
+    <a class="btn" href="?{{ request.GET.urlencode }}&page={{ page.next_page_number }}">
+      Sonraki
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+    <a class="btn" href="?{{ request.GET.urlencode }}&page={{ page.paginator.num_pages }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M13 5l7 7-7 7M5 5l7 7-7 7"/>
+      </svg>
+    </a>
+  {% endif %}
+</div>
+{% endif %}
+
+<script>
+// Advanced Search Modal
+function openAdvancedSearch() {
+  const content = `
+    <div style="display: flex; flex-direction: column; gap: 16px; max-width: 600px;">
+      <div style="padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border-left: 3px solid var(--primary);">
+        <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">
+          <strong style="color: var(--primary);">Alan Bazında Arama:</strong> Her alan için ayrı arama kriteri girin. Boş bırakılan alanlar filtrelemede kullanılmaz.
+        </p>
+      </div>
+
+      <form id="advanced-search-form">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Sicil No</label>
+            <input type="text" id="adv-sicil" placeholder="Sicil No ara..." value="{{ request.GET.sicil|default:'' }}" />
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Ad</label>
+            <input type="text" id="adv-ad" placeholder="Ad ara..." value="{{ request.GET.ad|default:'' }}" />
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Soyad</label>
+            <input type="text" id="adv-soyad" placeholder="Soyad ara..." value="{{ request.GET.soyad|default:'' }}" />
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">E-posta</label>
+            <input type="text" id="adv-mail" placeholder="E-posta ara..." value="{{ request.GET.mail|default:'' }}" />
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Telefon</label>
+            <input type="text" id="adv-telno" placeholder="Telefon ara..." value="{{ request.GET.telno|default:'' }}" />
+          </div>
+
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">İlçe</label>
+            <input type="text" id="adv-ilce" placeholder="İlçe ara..." value="{{ request.GET.ilce_search|default:'' }}" />
+          </div>
+
+          <div class="form-group" style="margin: 0; grid-column: span 2;">
+            <label class="form-label">Adres Açıklama</label>
+            <input type="text" id="adv-adres" placeholder="Adres ara..." value="{{ request.GET.adres|default:'' }}" />
+          </div>
+
+          <div class="form-group" style="margin: 0; grid-column: span 2;">
+            <label class="form-label">Notlar</label>
+            <input type="text" id="adv-notlar" placeholder="Notlarda ara..." value="{{ request.GET.notlar|default:'' }}" />
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+          <button type="button" onclick="clearAdvancedSearch()" class="btn">
+            Temizle
+          </button>
+          <button type="button" onclick="closeModal()" class="btn">
+            İptal
+          </button>
+          <button type="submit" class="btn primary">
+            <svg style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            Ara
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  openModal('Gelişmiş Arama', content);
+
+  document.getElementById('advanced-search-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    applyAdvancedSearch();
+  });
+}
+
+function applyAdvancedSearch() {
+  const params = new URLSearchParams();
+
+  const sicil = document.getElementById('adv-sicil').value.trim();
+  const ad = document.getElementById('adv-ad').value.trim();
+  const soyad = document.getElementById('adv-soyad').value.trim();
+  const mail = document.getElementById('adv-mail').value.trim();
+  const telno = document.getElementById('adv-telno').value.trim();
+  const ilce = document.getElementById('adv-ilce').value.trim();
+  const adres = document.getElementById('adv-adres').value.trim();
+  const notlar = document.getElementById('adv-notlar').value.trim();
+
+  if (sicil) params.set('sicil', sicil);
+  if (ad) params.set('ad', ad);
+  if (soyad) params.set('soyad', soyad);
+  if (mail) params.set('mail', mail);
+  if (telno) params.set('telno', telno);
+  if (ilce) params.set('ilce_search', ilce);
+  if (adres) params.set('adres', adres);
+  if (notlar) params.set('notlar', notlar);
+
+  // Keep existing filters
+  const currentParams = new URLSearchParams(window.location.search);
+  if (currentParams.get('status')) params.set('status', currentParams.get('status'));
+  if (currentParams.get('lawyer')) params.set('lawyer', currentParams.get('lawyer'));
+
+  window.location.href = '?' + params.toString();
+}
+
+function clearAdvancedSearch() {
+  document.getElementById('adv-sicil').value = '';
+  document.getElementById('adv-ad').value = '';
+  document.getElementById('adv-soyad').value = '';
+  document.getElementById('adv-mail').value = '';
+  document.getElementById('adv-telno').value = '';
+  document.getElementById('adv-ilce').value = '';
+  document.getElementById('adv-adres').value = '';
+  document.getElementById('adv-notlar').value = '';
+}
+
+// Edit Person Modal
+async function editPerson(personId) {
+  try {
+    const response = await fetch(`/people/${personId}/edit/`);
+    const person = await response.json();
+
+    const content = `
+      <form id="edit-person-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Ad</label>
+          <input type="text" id="edit-ad" value="${person.ad || ''}" required />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Soyad</label>
+          <input type="text" id="edit-soyad" value="${person.soyad || ''}" required />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">E-posta</label>
+          <input type="email" id="edit-mail" value="${person.mail || ''}" />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Telefon</label>
+          <input type="text" id="edit-telno" value="${person.telno || ''}" />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">İlçe</label>
+          <input type="text" id="edit-ilce" value="${person.ilce || ''}" />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Adres Açıklama</label>
+          <textarea id="edit-adres" rows="2">${person.adres_aciklama || ''}</textarea>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Notlar</label>
+          <textarea id="edit-notlar" rows="3">${person.notlar || ''}</textarea>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Cevap Durumu</label>
+          <select id="edit-status">
+            <option value="">Belirtilmemiş</option>
+            ${person.available_statuses.map(s =>
+              `<option value="${s.key}" ${person.cevap_status_key === s.key ? 'selected' : ''}>${s.label}</option>`
+            ).join('')}
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+          <button type="button" onclick="closeModal()" class="btn">İptal</button>
+          <button type="submit" class="btn primary">Kaydet</button>
+        </div>
+      </form>
+    `;
+
+    openModal('Kişi Düzenle', content);
+
+    document.getElementById('edit-person-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = {
+        ad: document.getElementById('edit-ad').value,
+        soyad: document.getElementById('edit-soyad').value,
+        mail: document.getElementById('edit-mail').value,
+        telno: document.getElementById('edit-telno').value,
+        ilce: document.getElementById('edit-ilce').value,
+        adres_aciklama: document.getElementById('edit-adres').value,
+        notlar: document.getElementById('edit-notlar').value,
+        cevap_status_key: document.getElementById('edit-status').value
+      };
+
+      try {
+        const response = await fetch(`/people/${personId}/edit/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          closeModal();
+          location.reload();
+        } else {
+          alert('Kayıt güncellenirken bir hata oluştu.');
+        }
+      } catch (error) {
+        console.error('Edit error:', error);
+        alert('Kayıt güncellenirken bir hata oluştu.');
+      }
+    });
+  } catch (error) {
+    console.error('Fetch error:', error);
+    alert('Kişi bilgileri yüklenirken bir hata oluştu.');
+  }
+}
+
+// Delete Person
+function deletePerson(lawyerPersonId) {
+  confirmAction({
+    title: 'Kayıt Sil',
+    message: 'Bu kaydı silmek istediğinizden emin misiniz?<br><br>Bu işlem geri alınamaz!',
+    confirmText: 'Evet, Sil',
+    cancelText: 'İptal',
+    isDanger: true,
+    onConfirm: async () => {
+      try {
+        const response = await fetch(`/people/relation/${lawyerPersonId}/delete/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+          }
+        });
+
+        if (response.ok) {
+          location.reload();
+        } else {
+          openModal(
+            'Hata',
+            '<p style="text-align: center; padding: 40px; color: var(--error);">Kayıt silinirken bir hata oluştu.</p>'
+          );
+        }
+      } catch (error) {
+        console.error('Delete error:', error);
+        openModal(
+          'Hata',
+          '<p style="text-align: center; padding: 40px; color: var(--error);">Kayıt silinirken bir hata oluştu.</p>'
+        );
+      }
+    }
+  });
+}
+
+// Export Modal
+let exportData = null;
+let selectedColumns = new Set();
+let selectedFormat = 'excel';  // Default: Excel
+let includeStats = true;
+
+async function openExportModal() {
+  try {
+    // Fetch preview data with current filters
+    const params = new URLSearchParams({
+      q: '{{ q }}',
+      status: '{{ status_key }}',
+      lawyer: '{{ lawyer_id }}',
+      ilce: '{{ selected_ilce }}'
+    });
+
+    const response = await fetch(`/people/export/preview/?${params}`);
+    exportData = await response.json();
+
+    // Set default selected columns
+    selectedColumns = new Set(
+      exportData.columns.filter(col => col.default).map(col => col.key)
+    );
+
+    renderExportModal();
+  } catch (error) {
+    console.error('Export preview yüklenirken hata:', error);
+    alert('Önizleme yüklenirken bir hata oluştu.');
+  }
+}
+
+function renderExportModal() {
+  if (!exportData) return;
+
+  const formatIcons = {
+    csv: '📄',
+    excel: '📊',
+    pdf: '📑'
+  };
+
+  const formatLabels = {
+    csv: 'CSV',
+    excel: 'Excel (XLSX)',
+    pdf: 'PDF'
+  };
+
+  const content = `
+    <div style="display: grid; grid-template-columns: 280px 1fr; gap: 20px; min-height: 500px;">
+      <!-- Sol Panel: Ayarlar -->
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+
+        <!-- Format Seçimi -->
+        <div style="background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+          <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-primary); padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+            🎯 Export Format
+          </h4>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            ${['csv', 'excel', 'pdf'].map(format => `
+              <label style="
+                display: flex; align-items: center; gap: 10px; cursor: pointer;
+                padding: 10px 12px; border-radius: 6px;
+                background: ${selectedFormat === format ? 'rgba(59, 130, 246, 0.15)' : 'transparent'};
+                border: 2px solid ${selectedFormat === format ? 'var(--primary)' : 'transparent'};
+                transition: all 0.2s;
+              ">
+                <input
+                  type="radio"
+                  name="export-format"
+                  value="${format}"
+                  ${selectedFormat === format ? 'checked' : ''}
+                  onchange="selectFormat('${format}')"
+                  style="width: 16px; height: 16px; cursor: pointer;"
+                />
+                <span style="font-size: 18px;">${formatIcons[format]}</span>
+                <span style="font-size: 12px; font-weight: ${selectedFormat === format ? '600' : '400'}; color: var(--text-primary);">
+                  ${formatLabels[format]}
+                </span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- Sütun Seçimi -->
+        <div style="background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1;">
+          <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-primary); padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+            📋 Sütun Seçimi
+          </h4>
+          <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
+            ${exportData.columns.map(col => `
+              <label style="
+                display: flex; align-items: center; gap: 8px; cursor: pointer;
+                padding: 8px; border-radius: 6px;
+                background: ${selectedColumns.has(col.key) ? 'rgba(59, 130, 246, 0.1)' : 'transparent'};
+                transition: background 0.2s;
+              ">
+                <input
+                  type="checkbox"
+                  value="${col.key}"
+                  ${selectedColumns.has(col.key) ? 'checked' : ''}
+                  onchange="toggleColumn('${col.key}')"
+                  style="width: 16px; height: 16px; cursor: pointer;"
+                />
+                <span style="font-size: 12px; color: var(--text-primary); font-weight: ${selectedColumns.has(col.key) ? '600' : '400'};">
+                  ${col.label}
+                </span>
+              </label>
+            `).join('')}
+          </div>
+
+          <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; gap: 8px;">
+            <button onclick="selectAllColumns()" class="btn" style="flex: 1; font-size: 11px; padding: 6px;">
+              Tümünü Seç
+            </button>
+            <button onclick="clearAllColumns()" class="btn" style="flex: 1; font-size: 11px; padding: 6px;">
+              Temizle
+            </button>
+          </div>
+        </div>
+
+        <!-- Ekstra Seçenekler -->
+        <div style="background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+          <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-primary); padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+            ⚙️ Seçenekler
+          </h4>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input
+              type="checkbox"
+              ${includeStats ? 'checked' : ''}
+              onchange="toggleStats()"
+              style="width: 16px; height: 16px; cursor: pointer;"
+            />
+            <span style="font-size: 12px; color: var(--text-primary);">
+              İstatistik ve filtre bilgisi ekle
+            </span>
+          </label>
+          <div style="margin-top: 8px; font-size: 10px; color: var(--text-muted); padding-left: 24px;">
+            ${selectedFormat === 'csv' ? '(Sadece Excel ve PDF için)' : 'Başlık, tarih, filtreler ve özet bilgiler'}
+          </div>
+        </div>
+      </div>
+
+      <!-- Sağ Panel: Önizleme -->
+      <div style="display: flex; flex-direction: column;">
+        <!-- Bilgi Kartı -->
+        <div style="margin-bottom: 16px; padding: 16px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%); border-radius: 8px; border-left: 4px solid var(--primary);">
+          <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+              <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                📦 Export Özeti
+              </div>
+              <div style="font-size: 11px; color: var(--text-secondary);">
+                <strong style="color: var(--primary); font-size: 18px;">${exportData.total_count}</strong> kayıt
+                <span style="margin: 0 8px; color: var(--text-muted);">•</span>
+                <strong style="color: var(--primary);">${selectedColumns.size}</strong> sütun
+                <span style="margin: 0 8px; color: var(--text-muted);">•</span>
+                Format: <strong style="color: var(--primary);">${formatLabels[selectedFormat]}</strong>
+              </div>
+            </div>
+            <div style="font-size: 24px;">${formatIcons[selectedFormat]}</div>
+          </div>
+
+          ${selectedFormat === 'pdf' && exportData.total_count > 500 ? `
+            <div style="margin-top: 12px; padding: 10px; background: rgba(239, 68, 68, 0.1); border-radius: 6px; border-left: 3px solid #EF4444;">
+              <div style="font-size: 11px; color: #DC2626; display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 14px;">⚠️</span>
+                <span>PDF formatı performans nedeniyle ilk 500 kaydı içerir.</span>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+
+        <!-- Önizleme Tablosu -->
+        <div style="margin-bottom: 12px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
+          <span>📋 Önizleme (İlk 10 satır)</span>
+          <span>${selectedColumns.size === 0 ? 'Lütfen en az 1 sütun seçin' : 'Kaydırarak tüm sütunları görüntüleyin'}</span>
+        </div>
+
+        <div id="export-preview-table" style="overflow: auto; flex: 1; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); min-height: 300px;">
+          ${renderPreviewTable()}
+        </div>
+
+        <!-- Alt Butonlar -->
+        <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <div style="font-size: 10px; color: var(--text-muted);">
+            ${selectedFormat === 'excel' ? '💡 Excel dosyası otomatik filtreleme ve formatlanmış başlıklar içerir' : ''}
+            ${selectedFormat === 'pdf' ? '💡 PDF dosyası yazdırma için optimize edilmiştir' : ''}
+            ${selectedFormat === 'csv' ? '💡 CSV dosyası tüm programlarda açılabilir' : ''}
+          </div>
+          <div style="display: flex; gap: 12px;">
+            <button onclick="closeModal()" class="btn" style="padding: 10px 20px;">
+              İptal
+            </button>
+            <button onclick="downloadExport()" class="btn primary" style="padding: 12px 24px; font-weight: 600;">
+              <svg style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              ${formatIcons[selectedFormat]} ${formatLabels[selectedFormat]} İndir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  openModal('📊 Verileri Dışa Aktar', content);
+}
+
+function renderPreviewTable() {
+  if (!exportData || exportData.preview.length === 0) {
+    return '<div style="padding: 40px; text-align: center; color: var(--text-muted);">Önizleme verisi bulunamadı.</div>';
+  }
+
+  const selectedCols = Array.from(selectedColumns);
+  const columns = exportData.columns.filter(col => selectedCols.includes(col.key));
+
+  if (columns.length === 0) {
+    return '<div style="padding: 40px; text-align: center; color: var(--text-muted);">Lütfen en az bir sütun seçin.</div>';
+  }
+
+  return `
+    <table class="table" style="margin: 0;">
+      <thead>
+        <tr>
+          ${columns.map(col => `<th style="font-size: 11px;">${col.label}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+        ${exportData.preview.map(row => `
+          <tr>
+            ${columns.map(col => `
+              <td style="font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${row[col.key] || '-'}
+              </td>
+            `).join('')}
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+}
+
+function selectFormat(format) {
+  selectedFormat = format;
+  renderExportModal();
+}
+
+function toggleStats() {
+  includeStats = !includeStats;
+}
+
+function toggleColumn(key) {
+  if (selectedColumns.has(key)) {
+    selectedColumns.delete(key);
+  } else {
+    selectedColumns.add(key);
+  }
+
+  // Update preview
+  document.getElementById('export-preview-table').innerHTML = renderPreviewTable();
+
+  // Update checkbox styling
+  renderExportModal();
+}
+
+function selectAllColumns() {
+  selectedColumns = new Set(exportData.columns.map(col => col.key));
+  renderExportModal();
+}
+
+function clearAllColumns() {
+  selectedColumns.clear();
+  renderExportModal();
+}
+
+async function downloadExport() {
+  if (selectedColumns.size === 0) {
+    alert('Lütfen en az bir sütun seçin!');
+    return;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('q', '{{ q }}');
+    formData.append('status', '{{ status_key }}');
+    formData.append('lawyer', '{{ lawyer_id }}');
+    formData.append('ilce', '{{ selected_ilce }}');
+    formData.append('format', selectedFormat);
+    formData.append('include_stats', includeStats ? 'true' : 'false');
+
+    selectedColumns.forEach(col => {
+      formData.append('columns[]', col);
+    });
+
+    const response = await fetch('/people/export/download/', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Export başarısız oldu');
+    }
+
+    // Dosya ismini belirle
+    const extensions = {
+      'csv': 'csv',
+      'excel': 'xlsx',
+      'pdf': 'pdf'
+    };
+    const timestamp = new Date().toISOString().slice(0,19).replace(/:/g,'-').replace('T','_');
+    const filename = `kisiler_export_${timestamp}.${extensions[selectedFormat]}`;
+
+    // Download file
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    closeModal();
+
+    // Başarı mesajı
+    const formatNames = {
+      'csv': 'CSV',
+      'excel': 'Excel',
+      'pdf': 'PDF'
+    };
+    setTimeout(() => {
+      openModal('✅ Export Başarılı', `
+        <div style="text-align: center; padding: 40px;">
+          <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+          <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+            ${formatNames[selectedFormat]} dosyası başarıyla indirildi!
+          </div>
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px;">
+            ${exportData.total_count} kayıt, ${selectedColumns.size} sütun
+          </div>
+          <div style="font-size: 11px; color: var(--text-muted); padding: 12px; background: var(--bg-content); border-radius: 6px;">
+            <strong>Dosya:</strong> ${filename}
+          </div>
+          <button onclick="closeModal()" class="btn primary" style="margin-top: 24px; padding: 10px 24px;">
+            Tamam
+          </button>
+        </div>
+      `);
+    }, 500);
+
+  } catch (error) {
+    console.error('Export hatası:', error);
+    alert('Dosya indirirken bir hata oluştu.');
+  }
+}
+</script>
+
+{% endblock %}

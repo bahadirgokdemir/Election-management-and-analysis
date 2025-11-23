@@ -1,0 +1,231 @@
+{% extends 'app/base.html' %}
+{% block title %}Dosya Yükle{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Yeni Liste Yükle</h1>
+    <p>Excel veya CSV dosyanızı yükleyin ve kişilerinizi içe aktarın</p>
+  </div>
+</div>
+
+<!-- Main Upload Form -->
+<div style="max-width: 700px; margin: 0 auto;">
+  <form method="post" enctype="multipart/form-data" id="upload-form">
+    {% csrf_token %}
+
+    <div class="card" style="margin-bottom: 20px;">
+      <h3 style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); font-size: 15px;">
+        👨‍⚖️ Avukat Bilgileri
+      </h3>
+
+      <!-- Avukat Seçim Toggle -->
+      <div style="margin-bottom: 24px;">
+        <div style="display: flex; gap: 12px; background: var(--bg-content); padding: 4px; border-radius: 8px;">
+          <button type="button" id="btn-existing-lawyer" onclick="toggleLawyerMode('existing')"
+                  class="btn" style="flex: 1; padding: 10px; font-size: 13px; background: var(--primary); color: white;">
+            <svg style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+            Mevcut Avukat Seç
+          </button>
+          <button type="button" id="btn-new-lawyer" onclick="toggleLawyerMode('new')"
+                  class="btn" style="flex: 1; padding: 10px; font-size: 13px;">
+            <svg style="width: 16px; height: 16px; display: inline; vertical-align: middle; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 4v16m8-8H4"/>
+            </svg>
+            Yeni Avukat Ekle
+          </button>
+        </div>
+      </div>
+
+      <!-- Mevcut Avukat Seçimi -->
+      <div id="existing-lawyer-section">
+        <div class="form-group">
+          <label class="form-label">
+            <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            Avukat Seçin
+          </label>
+          <select name="existing_lawyer_id" id="existing-lawyer-select" style="width: 100%;">
+            <option value="">-- Avukat Seçin --</option>
+            {% for lawyer in lawyers %}
+              <option value="{{ lawyer.id }}">
+                {{ lawyer.ad }} {{ lawyer.soyad }} ({{ lawyer.sicil_no }})
+              </option>
+            {% endfor %}
+          </select>
+          <div style="margin-top: 8px; font-size: 11px; color: var(--text-muted);">
+            Sistemde kayıtlı {{ lawyers|length }} avukat bulunuyor
+          </div>
+        </div>
+      </div>
+
+      <!-- Yeni Avukat Ekleme -->
+      <div id="new-lawyer-section" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Sicil No</label>
+          <input type="text" name="lawyer_sicil" id="new-lawyer-sicil" placeholder="Örn: A-12345" />
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label">Ad</label>
+            <input type="text" name="lawyer_ad" id="new-lawyer-ad" placeholder="Örn: Ahmet" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Soyad</label>
+            <input type="text" name="lawyer_soyad" id="new-lawyer-soyad" placeholder="Örn: Yılmaz" />
+          </div>
+        </div>
+
+        <div style="padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border-left: 3px solid var(--primary); margin-top: 12px;">
+          <p style="font-size: 11px; color: var(--text-secondary); margin: 0;">
+            💡 <strong>Bilgi:</strong> Bu avukat sistemde yoksa yeni kayıt olarak eklenecektir.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 20px;">
+      <h3 style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-color); font-size: 15px;">
+        Dosya Seçimi
+      </h3>
+
+      <div class="form-group">
+        <label class="form-label">Excel veya CSV Dosyası</label>
+        <input type="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required />
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-muted);">
+          Desteklenen formatlar: .xlsx, .xlsm, .csv
+        </div>
+      </div>
+    </div>
+
+    <button class="btn primary" type="submit" style="width: 100%; padding: 12px; font-size: 14px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+      </svg>
+      Dosyayı Yükle ve İçe Aktar
+    </button>
+  </form>
+
+  <!-- Template Download - Collapsed -->
+  <details style="margin-top: 24px;">
+    <summary style="cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 12px; background: var(--bg-card); border-radius: 8px; border: 1px dashed var(--border-color);">
+      📄 Şablon dosya indir (opsiyonel)
+    </summary>
+    <div style="padding: 16px; background: var(--bg-card); border-radius: 0 0 8px 8px; border: 1px solid var(--border-color); border-top: none;">
+      <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+        Dosyanızı hazırlamak için şablon dosyalarını kullanabilirsiniz:
+      </p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a class="btn" href="{% url 'ui_download_template_xlsx' %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+          </svg>
+          Excel Şablon
+        </a>
+        <a class="btn" href="{% url 'ui_download_template_csv' %}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+          CSV Şablon
+        </a>
+      </div>
+      <div style="margin-top: 12px; padding: 12px; background: rgba(59, 130, 246, 0.1); border-radius: 6px; border-left: 3px solid var(--primary);">
+        <p style="font-size: 11px; color: var(--text-secondary); margin: 0;">
+          <strong style="color: var(--primary);">Gerekli kolonlar:</strong> sicilno, ad, soyad
+        </p>
+        <p style="font-size: 11px; color: var(--text-muted); margin: 4px 0 0 0;">
+          <strong>Opsiyonel kolonlar:</strong> cevapDurumu, telno, mail, ilce, adres_aciklama, notlar
+        </p>
+      </div>
+    </div>
+  </details>
+</div>
+
+<script>
+// Avukat seçim modu toggle
+let currentMode = 'existing'; // Default: mevcut avukat seç
+
+function toggleLawyerMode(mode) {
+  currentMode = mode;
+
+  const existingSection = document.getElementById('existing-lawyer-section');
+  const newSection = document.getElementById('new-lawyer-section');
+  const btnExisting = document.getElementById('btn-existing-lawyer');
+  const btnNew = document.getElementById('btn-new-lawyer');
+
+  // Sections
+  if (mode === 'existing') {
+    existingSection.style.display = 'block';
+    newSection.style.display = 'none';
+
+    // Button styles
+    btnExisting.style.background = 'var(--primary)';
+    btnExisting.style.color = 'white';
+    btnNew.style.background = 'transparent';
+    btnNew.style.color = 'var(--text-primary)';
+
+    // Required fields
+    document.getElementById('existing-lawyer-select').required = true;
+    document.getElementById('new-lawyer-sicil').required = false;
+    document.getElementById('new-lawyer-ad').required = false;
+    document.getElementById('new-lawyer-soyad').required = false;
+
+    // Clear new lawyer fields
+    document.getElementById('new-lawyer-sicil').value = '';
+    document.getElementById('new-lawyer-ad').value = '';
+    document.getElementById('new-lawyer-soyad').value = '';
+  } else {
+    existingSection.style.display = 'none';
+    newSection.style.display = 'block';
+
+    // Button styles
+    btnExisting.style.background = 'transparent';
+    btnExisting.style.color = 'var(--text-primary)';
+    btnNew.style.background = 'var(--primary)';
+    btnNew.style.color = 'white';
+
+    // Required fields
+    document.getElementById('existing-lawyer-select').required = false;
+    document.getElementById('new-lawyer-sicil').required = true;
+    document.getElementById('new-lawyer-ad').required = true;
+    document.getElementById('new-lawyer-soyad').required = true;
+
+    // Clear existing lawyer selection
+    document.getElementById('existing-lawyer-select').value = '';
+  }
+}
+
+// Form submit validation
+document.getElementById('upload-form').addEventListener('submit', function(e) {
+  if (currentMode === 'existing') {
+    const selectedLawyer = document.getElementById('existing-lawyer-select').value;
+    if (!selectedLawyer) {
+      e.preventDefault();
+      alert('Lütfen bir avukat seçin!');
+      return false;
+    }
+  } else {
+    const sicil = document.getElementById('new-lawyer-sicil').value.trim();
+    const ad = document.getElementById('new-lawyer-ad').value.trim();
+    const soyad = document.getElementById('new-lawyer-soyad').value.trim();
+
+    if (!sicil || !ad || !soyad) {
+      e.preventDefault();
+      alert('Lütfen avukat bilgilerini eksiksiz doldurun!');
+      return false;
+    }
+  }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  toggleLawyerMode('existing');
+});
+</script>
+
+{% endblock %}

@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16
+    container_name: avukat_pg
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-avukat_list}
+      POSTGRES_USER: ${POSTGRES_USER:-avukat_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-avukat_pass}
+    ports:
+    - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+    - pg_data:/var/lib/postgresql/data
+volumes:
+  pg_data:

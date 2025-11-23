@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(timeout 3 bash:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

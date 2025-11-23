@@ -1,0 +1,139 @@
+{% extends 'app/base.html' %}
+{% block title %}{{ lawyer.sicil_no }} — {{ lawyer.ad }} {{ lawyer.soyad }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>{{ lawyer.ad }} {{ lawyer.soyad }}</h1>
+    <p>Sicil No: <strong>{{ lawyer.sicil_no }}</strong></p>
+  </div>
+  <a class="btn" href="{% url 'ui_lawyers' %}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+    </svg>
+    Avukat Listesine Dön
+  </a>
+</div>
+
+<!-- Filter Panel -->
+<div class="filter-panel">
+  <form method="get" class="filter-grid">
+    <div class="form-group">
+      <label class="form-label">Ara</label>
+      <input type="text" name="q" placeholder="Sicil No, Ad, Soyad veya E-posta..." value="{{ q }}" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Durum</label>
+      <select name="status">
+        <option value="">Tümü</option>
+        {% for s in statuses %}
+          <option value="{{ s.key }}" {% if status_key == s.key %}selected{% endif %}>{{ s.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="display: flex; align-items: end;">
+      <button class="btn primary" type="submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        Ara
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Results Summary -->
+<div style="margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);">
+  <strong style="color: var(--text-primary);">{{ page.paginator.count }}</strong> kişi bulundu
+</div>
+
+<!-- Table Container - Modal için gerekli -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Sicil No</th>
+        <th>Ad Soyad</th>
+        <th>E-posta</th>
+        <th>Telefon</th>
+        <th>İlçe</th>
+        <th>Durum</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for p in page.object_list %}
+      <tr>
+        <td><strong style="color: var(--primary); font-family: monospace;">{{ p.kisi_sicilno }}</strong></td>
+        <td>{{ p.ad }} {{ p.soyad }}</td>
+        <td>
+          {% if p.mail %}
+            <a href="mailto:{{ p.mail }}" style="color: var(--primary); text-decoration: none; font-size: 12px;">
+              {{ p.mail }}
+            </a>
+          {% else %}
+            <span style="color: var(--text-disabled); font-size: 12px;">-</span>
+          {% endif %}
+        </td>
+        <td style="font-family: monospace; font-size: 12px;">
+          {% if p.telno %}
+            {{ p.telno }}
+          {% else %}
+            <span style="color: var(--text-disabled);">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.ilce %}
+            <span style="padding: 4px 8px; background: var(--bg-content); border-radius: 4px; font-size: 11px; font-weight: 600;">
+              {{ p.ilce }}
+            </span>
+          {% else %}
+            <span style="color: var(--text-disabled); font-size: 12px;">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.cevap_status %}
+            <span style="padding: 4px 10px; background: var(--primary); color: white; border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-block;">
+              {{ p.cevap_status.label }}
+            </span>
+          {% else %}
+            <span style="padding: 4px 10px; background: var(--bg-content); color: var(--text-disabled); border-radius: 6px; font-size: 11px; font-weight: 600; display: inline-block;">
+              -
+            </span>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+          Bu avukata ait kişi bulunamadı.
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if page.paginator.num_pages > 1 %}
+<div class="pager">
+  {% if page.has_previous %}
+    <a class="btn" href="?q={{ q }}&status={{ status_key }}&page={{ page.previous_page_number }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+      Önceki
+    </a>
+  {% endif %}
+  <span>Sayfa {{ page.number }} / {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}
+    <a class="btn" href="?q={{ q }}&status={{ status_key }}&page={{ page.next_page_number }}">
+      Sonraki
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

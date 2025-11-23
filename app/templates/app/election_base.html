@@ -1,0 +1,563 @@
+{% load static %}
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Seçim Modu{% endblock %}</title>
+  {% block extra_head %}{% endblock %}
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #3b82f6;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --bg: #0f172a;
+      --bg-light: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --border: #475569;
+    }
+
+    html, body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Header */
+    .election-header {
+      background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-card) 100%);
+      border-bottom: 2px solid var(--primary);
+      padding: 16px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      width: 100%;
+    }
+
+    .election-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .election-title h1 {
+      font-size: 24px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), var(--success));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .election-badge {
+      padding: 6px 12px;
+      background: var(--success);
+      color: white;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .election-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      text-decoration: none;
+      background: var(--bg-card);
+      color: var(--text-primary);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--primary), #667eea);
+      color: white;
+    }
+
+    .btn.success {
+      background: linear-gradient(135deg, var(--success), #34d399);
+      color: white;
+    }
+
+    .btn.danger {
+      background: linear-gradient(135deg, var(--error), #f87171);
+      color: white;
+    }
+
+    /* Stats Bar */
+    .stats-bar {
+      background: var(--bg-light);
+      padding: 20px 48px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      border-bottom: 1px solid var(--border);
+      width: 100%;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, var(--bg-card), var(--bg-light));
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stat-card.total .stat-value { color: var(--primary); }
+    .stat-card.voted .stat-value { color: var(--success); }
+    .stat-card.not-voted .stat-value { color: var(--warning); }
+    .stat-card.rate .stat-value { color: #a78bfa; }
+
+    /* Main Content */
+    .election-content {
+      padding: 24px 48px;
+      max-width: none;
+      width: 100%;
+      margin: 0;
+      min-height: calc(100vh - 200px);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Search Box */
+    .search-box {
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 20px 60px 20px 24px;
+      font-size: 24px;
+      font-weight: 600;
+      background: var(--bg-card);
+      border: 3px solid var(--border);
+      border-radius: 16px;
+      color: var(--text-primary);
+      transition: all 0.3s;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+
+    .search-icon {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      color: var(--text-muted);
+    }
+
+    /* Person Card */
+    .person-card {
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s;
+    }
+
+    .person-card:hover {
+      transform: translateX(4px);
+      border-color: var(--primary);
+    }
+
+    .person-card.voted {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: var(--success);
+    }
+
+    .person-info {
+      flex: 1;
+    }
+
+    .person-name {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .person-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 16px;
+    }
+
+    .vote-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    .vote-btn {
+      padding: 16px 32px;
+      font-size: 16px;
+      font-weight: 700;
+      border-radius: 10px;
+      border: 3px solid;
+      cursor: pointer;
+      transition: all 0.2s;
+      min-width: 140px;
+    }
+
+    .vote-btn-yes {
+      border-color: var(--success);
+      background: transparent;
+      color: var(--success);
+    }
+
+    .vote-btn-yes:hover,
+    .vote-btn-yes.active {
+      background: var(--success);
+      color: white;
+      transform: scale(1.05);
+    }
+
+    .vote-btn-no {
+      border-color: var(--error);
+      background: transparent;
+      color: var(--error);
+    }
+
+    .vote-btn-no:hover,
+    .vote-btn-no.active {
+      background: var(--error);
+      color: white;
+      transform: scale(1.05);
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 2px solid var(--success);
+      border-radius: 12px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      transform: translateY(120%);
+      transition: transform 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    .toast.error {
+      border-color: var(--error);
+    }
+
+    /* Loading */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Keyboard Shortcuts Info */
+    .shortcuts-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 16px;
+    }
+
+    .shortcut {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .key {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .search-input {
+        font-size: 18px;
+        padding: 16px 50px 16px 20px;
+      }
+
+      .person-card {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+
+      .vote-buttons {
+        width: 100%;
+      }
+
+      .vote-btn {
+        flex: 1;
+        padding: 12px;
+      }
+
+      .shortcuts-hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="election-header">
+    <div class="election-title">
+      <h1>🗳️ {{ election.name }}</h1>
+      {% if election.is_active %}
+        <span class="election-badge">Aktif</span>
+      {% endif %}
+    </div>
+    <div class="election-actions">
+      {% block header_actions %}
+      <a href="{% url 'ui_elections' %}" class="btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        Seçim Yönetimine Dön
+      </a>
+      {% endblock %}
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card total">
+      <div class="stat-label">Toplam Kişi</div>
+      <div class="stat-value" id="totalPeople">{{ total_people|default:0 }}</div>
+    </div>
+    <div class="stat-card voted">
+      <div class="stat-label">Oy Verdi</div>
+      <div class="stat-value" id="votedCount">{{ voted_count|default:0 }}</div>
+    </div>
+    <div class="stat-card not-voted">
+      <div class="stat-label">Oy Vermedi</div>
+      <div class="stat-value" id="notVotedCount">{{ not_voted_count|default:0 }}</div>
+    </div>
+    <div class="stat-card rate">
+      <div class="stat-label">Katılım Oranı</div>
+      <div class="stat-value" id="participationRate">{{ participation_rate|default:0 }}%</div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="election-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <span id="toastMessage"></span>
+  </div>
+
+  <!-- Keyboard Shortcuts Hint -->
+  <div class="shortcuts-hint">
+    <div class="shortcut">
+      <span class="key">/</span>
+      <span>Ara</span>
+    </div>
+    <div class="shortcut">
+      <span class="key">ESC</span>
+      <span>Temizle</span>
+    </div>
+    <div class="shortcut">
+      <span class="key">Y</span>
+      <span>Verdi</span>
+    </div>
+    <div class="shortcut">
+      <span class="key">N</span>
+      <span>Vermedi</span>
+    </div>
+  </div>
+
+  <script>
+    // Toast Notification
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toastMessage');
+
+      if (isError) {
+        toast.classList.add('error');
+      } else {
+        toast.classList.remove('error');
+      }
+
+      toastMessage.textContent = message;
+      toast.classList.add('show');
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Auto-refresh stats every 10 seconds
+    setInterval(() => {
+      fetch(window.location.href, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.stats) {
+          document.getElementById('totalPeople').textContent = data.stats.total_people;
+          document.getElementById('votedCount').textContent = data.stats.voted_count;
+          document.getElementById('notVotedCount').textContent = data.stats.not_voted_count;
+          document.getElementById('participationRate').textContent = data.stats.participation_rate + '%';
+        }
+      })
+      .catch(() => {});
+    }, 10000);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Focus search on '/'
+      if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+        e.preventDefault();
+        const searchInput = document.querySelector('.search-input');
+        if (searchInput) searchInput.focus();
+      }
+
+      // Clear search on ESC
+      if (e.key === 'Escape') {
+        const searchInput = document.querySelector('.search-input');
+        if (searchInput && searchInput.value) {
+          searchInput.value = '';
+          searchInput.dispatchEvent(new Event('input'));
+        }
+      }
+    });
+
+    {% block extra_js %}{% endblock %}
+  </script>
+</body>
+</html>
