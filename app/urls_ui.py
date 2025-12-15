@@ -7,7 +7,7 @@ from .views_ui import (
     ui_people_export_preview, ui_people_export_download,
     ui_person_edit, ui_person_relation_delete, ui_lawyer_delete,
     ui_unique_people, ui_unique_person_detail,
-    ui_person_analytics,
+    ui_person_analytics, ui_baro_lawyers,
 )
 from .views_election import (
     ui_elections, ui_election_create, ui_election_activate,
@@ -48,6 +48,9 @@ urlpatterns = [
     # Benzersiz kişiler
     path('unique-people/', ui_unique_people, name='ui_unique_people'),
     path('unique-people/<str:kisi_sicilno>/detail/', ui_unique_person_detail, name='ui_unique_person_detail'),
+
+    # Baro kayıtları
+    path('baro-lawyers/', ui_baro_lawyers, name='ui_baro_lawyers'),
 
     # Seçim günü yönetimi
     path('elections/', ui_elections, name='ui_elections'),

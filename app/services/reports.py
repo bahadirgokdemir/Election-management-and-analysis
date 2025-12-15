@@ -1,6 +1,6 @@
 from typing import Dict, List
 from django.db.models import Count, Q
-from app.models import Person, LawyerPerson, Lawyer, AuditLog
+from app.models import Person, LawyerPerson, Lawyer, AuditLog, BaroLawyer, StatusOption
 from collections import defaultdict
 
 
@@ -47,6 +47,12 @@ def report_overview() -> Dict:
     # Trend analizi (aylık büyüme)
     growth_trend = get_growth_trend()
 
+    # Baro ve ulaşım istatistikleri
+    baro_stats = get_baro_statistics()
+
+    # Cevap istatistikleri
+    response_stats = get_response_statistics()
+
     return {
         'total': total_relations,
         'unique_people': unique_people,
@@ -59,6 +65,10 @@ def report_overview() -> Dict:
         'district_stats': district_stats,
         'lawyer_performance': lawyer_performance,
         'growth_trend': growth_trend,
+
+        # Baro ve cevap istatistikleri
+        'baro_stats': baro_stats,
+        'response_stats': response_stats,
     }
 
 
@@ -225,4 +235,80 @@ def get_growth_trend() -> Dict:
         'total_relations': total_relations,
         'total_unique': total_unique,
         'average_relations_per_person': round(total_relations / total_unique, 2) if total_unique > 0 else 0,
+    }
+
+
+def get_baro_statistics() -> Dict:
+    """
+    Baro kayıtları ve ulaşım istatistikleri
+    """
+    # Toplam Baro avukat sayısı
+    total_baro_lawyers = BaroLawyer.objects.count()
+
+    # Sisteme eklenen avukat sayısı
+    system_lawyers = Lawyer.objects.count()
+
+    # Ulaşma oranı
+    reach_percentage = round((system_lawyers / total_baro_lawyers * 100) if total_baro_lawyers > 0 else 0, 1)
+
+    # Benzersiz kişi sayısı (sicil bazında)
+    unique_people_count = LawyerPerson.objects.filter(active=True).values('kisi_sicilno').distinct().count()
+
+    # Baro avukatlarına göre benzersiz kişi oranı
+    people_percentage = round((unique_people_count / total_baro_lawyers * 100) if total_baro_lawyers > 0 else 0, 1)
+
+    return {
+        'total_baro_lawyers': total_baro_lawyers,
+        'system_lawyers': system_lawyers,
+        'reach_percentage': reach_percentage,
+        'unique_people_count': unique_people_count,
+        'people_percentage': people_percentage,
+        'not_reached': total_baro_lawyers - system_lawyers,
+    }
+
+
+def get_response_statistics() -> Dict:
+    """
+    Cevap istatistikleri - Kişilerin verdiği cevaplar
+    """
+    # Benzersiz kişi sayısı
+    unique_people = LawyerPerson.objects.filter(active=True).values('kisi_sicilno').distinct().count()
+
+    # Cevap durumu olan kişiler (sicil bazında benzersiz)
+    # Her sicil için en son cevap durumunu al
+    sicil_statuses = {}
+    for lp in LawyerPerson.objects.filter(active=True).select_related('cevap_status').order_by('kisi_sicilno', '-id'):
+        if lp.kisi_sicilno not in sicil_statuses:
+            sicil_statuses[lp.kisi_sicilno] = lp.cevap_status
+
+    # Cevap verenleri say (status != None olanlar)
+    responded_count = sum(1 for status in sicil_statuses.values() if status is not None)
+
+    # Cevap oranı
+    response_percentage = round((responded_count / unique_people * 100) if unique_people > 0 else 0, 1)
+
+    # Durum bazında dağılım (benzersiz kişiler için)
+    status_distribution = defaultdict(int)
+    for status in sicil_statuses.values():
+        key = status.label if status else 'Cevap Yok'
+        status_distribution[key] += 1
+
+    # En çok verilen cevap
+    if status_distribution:
+        most_common_response = max(status_distribution.items(), key=lambda x: x[1])
+    else:
+        most_common_response = ('Belirtilmemiş', 0)
+
+    return {
+        'unique_people': unique_people,
+        'responded_count': responded_count,
+        'no_response_count': unique_people - responded_count,
+        'response_percentage': response_percentage,
+        'no_response_percentage': round(100 - response_percentage, 1),
+        'status_distribution': dict(status_distribution),
+        'most_common_response': {
+            'status': most_common_response[0],
+            'count': most_common_response[1],
+            'percentage': round((most_common_response[1] / unique_people * 100) if unique_people > 0 else 0, 1),
+        },
     }

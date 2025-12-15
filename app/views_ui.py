@@ -9,13 +9,14 @@ from django.db import transaction
 import csv
 from io import BytesIO
 
-from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election
+from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election, BaroLawyer
 from .services.importer import parse_and_stage
 from .services.diff_service import compute_diff
 from .services.apply_service import apply_diff
 from .services.reports import report_overview
 from .services.unique_people_service import UniquePeopleService
 from .services.person_analytics_service import PersonAnalyticsService
+from .services.baro_loader import BaroLoader
 
 from django.shortcuts import get_object_or_404
 
@@ -222,6 +223,11 @@ def ui_upload(request):
                     messages.warning(request, f'  • {detail}')
 
             return redirect('ui_upload')
+
+        # Batch notlarını kontrol et (Baro uyarıları için)
+        batch = UploadBatch.objects.get(id=batch_id)
+        if batch.notes:
+            messages.info(request, f'ℹ️ {batch.notes}')
 
         # 2) Otomatik olarak uygula
         actor = str(request.user) if request.user.is_authenticated else None
@@ -480,6 +486,8 @@ def ui_download_template_csv(request):
     """
     Excel/CSV şablonu (kolon başlıkları):
     sicilno,ad,soyad,cevapDurumu,telno,mail,ilce,adres_aciklama,notlar
+
+    NOT: Excel'de eksik olan bilgiler Baro kayıtlarından otomatik tamamlanır.
     """
     response = HttpResponse(content_type='text/csv; charset=utf-8')
     response['Content-Disposition'] = 'attachment; filename="liste_sablon.csv"'
@@ -492,22 +500,59 @@ def ui_download_template_csv(request):
 @require_http_methods(["GET"])
 def ui_download_template_xlsx(request):
     """
-    Aynı kolonları xlsx olarak üretir.
+    Excel şablonu: Tüm kolonlar mevcut
+    Excel'de eksik olan bilgiler Baro kayıtlarından otomatik tamamlanır.
     """
     try:
         from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
     except Exception:
-        # openpyxl yoksa içeriden uyarı verelim
+        # openpyxl yoksa CSV döndür
         return ui_download_template_csv(request)
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "Sablon"
+    ws.title = "Seçmen Listesi"
+
+    # Başlıklar
     headers = ['sicilno', 'ad', 'soyad', 'cevapDurumu', 'telno', 'mail', 'ilce', 'adres_aciklama', 'notlar']
     ws.append(headers)
 
-    # İsteğe bağlı: ilk satıra örnek satır (yorum satırı gibi)
-    # ws.append(['123', 'Ali', 'Kaya', 'geliyor', '535...', 'ali@example.com', 'Çankaya', 'Adres açıklaması', 'Not...'])
+    # Başlık stilini güzelleştir
+    for cell in ws[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Kolon genişliklerini ayarla
+    ws.column_dimensions['A'].width = 12  # sicilno
+    ws.column_dimensions['B'].width = 15  # ad
+    ws.column_dimensions['C'].width = 15  # soyad
+    ws.column_dimensions['D'].width = 15  # cevapDurumu
+    ws.column_dimensions['E'].width = 15  # telno
+    ws.column_dimensions['F'].width = 25  # mail
+    ws.column_dimensions['G'].width = 12  # ilce
+    ws.column_dimensions['H'].width = 30  # adres_aciklama
+    ws.column_dimensions['I'].width = 30  # notlar
+
+    # Örnek satır ekle
+    ws.append(['12345', 'Ahmet', 'Yılmaz', 'geliyor', '5551234567', 'ahmet@example.com', 'Çankaya', 'Kızılay Mah.', 'Örnek not'])
+
+    # Açıklama sayfası ekle
+    ws_info = wb.create_sheet("Bilgi")
+    ws_info.append(['ÖNEMLİ BİLGİLENDİRME'])
+    ws_info.append([])
+    ws_info.append(['Excel\'de eksik bıraktığınız bilgiler (telefon, e-posta, adres)'])
+    ws_info.append(['Baro kayıtlarından OTOMATIK olarak tamamlanacaktır.'])
+    ws_info.append([])
+    ws_info.append(['Gerekli Kolonlar: sicilno, ad, soyad'])
+    ws_info.append(['Opsiyonel Kolonlar: cevapDurumu, telno, mail, ilce, adres_aciklama, notlar'])
+    ws_info.append([])
+    ws_info.append(['Sicil numaraları Baro kayıtlarında kontrol edilir.'])
+    ws_info.append(['Baro\'da olmayan siciller için UYARI mesajı gösterilir.'])
+
+    # Bilgi sayfası başlığını stillendir
+    ws_info['A1'].font = Font(bold=True, size=14, color="C00000")
 
     bio = BytesIO()
     wb.save(bio)
@@ -756,31 +801,39 @@ def ui_person_relation_delete(request, lawyerperson_id):
 @require_http_methods(["POST"])
 def ui_lawyer_delete(request, lawyer_id):
     """Avukatı ve ona ait tüm ilişkileri sil"""
-    # Aktif seçim kontrolü
-    active_election = Election.objects.filter(is_active=True).first()
-    if active_election:
-        messages.error(request, f'Aktif seçim devam ediyor ({active_election.name}). Seçim bitene kadar silme işlemi yapamazsınız.')
-        return redirect('ui_lawyers')
+    try:
+        # Aktif seçim kontrolü
+        active_election = Election.objects.filter(is_active=True).first()
+        if active_election:
+            return JsonResponse({
+                'success': False,
+                'error': f'Aktif seçim devam ediyor ({active_election.name}). Seçim bitene kadar silme işlemi yapamazsınız.'
+            })
 
-    lawyer = get_object_or_404(Lawyer, id=lawyer_id)
+        lawyer = get_object_or_404(Lawyer, id=lawyer_id)
 
-    # Avukata ait kişi sayısını al
-    person_count = LawyerPerson.objects.filter(lawyer=lawyer, active=True).count()
+        # Avukata ait kişi sayısını al
+        person_count = LawyerPerson.objects.filter(lawyer=lawyer, active=True).count()
 
-    with transaction.atomic():
-        # Tüm ilişkileri sil
-        LawyerPerson.objects.filter(lawyer=lawyer).delete()
+        with transaction.atomic():
+            # Tüm ilişkileri sil
+            LawyerPerson.objects.filter(lawyer=lawyer).delete()
 
-        # Yükleme kayıtlarını sil
-        UploadBatch.objects.filter(lawyer=lawyer).delete()
+            # Yükleme kayıtlarını sil
+            UploadBatch.objects.filter(lawyer=lawyer).delete()
 
-        # Avukatı sil
-        lawyer.delete()
+            # Avukatı sil
+            lawyer.delete()
 
-    return JsonResponse({
-        'success': True,
-        'deleted_relations': person_count
-    })
+        return JsonResponse({
+            'success': True,
+            'deleted_relations': person_count
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Silme işlemi sırasında bir hata oluştu: {str(e)}'
+        })
 
 
 @require_http_methods(["GET"])
@@ -862,3 +915,102 @@ def ui_person_analytics(request, kisi_sicilno: str):
     analytics['comparison'] = comparison
 
     return JsonResponse(analytics)
+
+
+@require_http_methods(["GET"])
+def ui_baro_lawyers(request):
+    """
+    Database'deki tüm baro kayıtlarını listeler - Gelişmiş filtreleme ve sıralama ile
+    """
+    q = (request.GET.get('q') or '').strip()
+
+    # Gelişmiş arama parametreleri
+    adv_sicil = (request.GET.get('sicil') or '').strip()
+    adv_ad = (request.GET.get('ad') or '').strip()
+    adv_soyad = (request.GET.get('soyad') or '').strip()
+    adv_mail = (request.GET.get('mail') or '').strip()
+    adv_tel = (request.GET.get('tel') or '').strip()
+    adv_adres = (request.GET.get('adres') or '').strip()
+
+    # Sicil aralığı parametreleri
+    sicil_min = request.GET.get('sicil_min', '').strip()
+    sicil_max = request.GET.get('sicil_max', '').strip()
+
+    # Sıralama parametresi
+    order_by = request.GET.get('order_by', '').strip()
+
+    # Database'den kayıtları çek
+    qs = BaroLawyer.objects.all()
+
+    # Genel arama filtresi (tüm alanlarda)
+    if q:
+        qs = qs.filter(
+            Q(sicil_no__icontains=q) |
+            Q(ad__icontains=q) |
+            Q(soyad__icontains=q) |
+            Q(mail__icontains=q) |
+            Q(tel__icontains=q) |
+            Q(adres__icontains=q)
+        )
+
+    # Alan bazında gelişmiş aramalar
+    if adv_sicil:
+        qs = qs.filter(sicil_no__icontains=adv_sicil)
+    if adv_ad:
+        qs = qs.filter(ad__icontains=adv_ad)
+    if adv_soyad:
+        qs = qs.filter(soyad__icontains=adv_soyad)
+    if adv_mail:
+        qs = qs.filter(mail__icontains=adv_mail)
+    if adv_tel:
+        qs = qs.filter(tel__icontains=adv_tel)
+    if adv_adres:
+        qs = qs.filter(adres__icontains=adv_adres)
+
+    # Sicil aralığı filtresi ve sıralama için import
+    from django.db.models.functions import Cast
+    from django.db.models import IntegerField
+
+    # Sicil aralığı filtresi - Numeric comparison
+    if sicil_min and sicil_min.isdigit():
+        qs = qs.annotate(sicil_int_filter=Cast('sicil_no', IntegerField())).filter(sicil_int_filter__gte=int(sicil_min))
+    if sicil_max and sicil_max.isdigit():
+        if not sicil_min or not sicil_min.isdigit():
+            qs = qs.annotate(sicil_int_filter=Cast('sicil_no', IntegerField()))
+        qs = qs.filter(sicil_int_filter__lte=int(sicil_max))
+
+    # Sıralama - Sicil no'yu numeric olarak sırala
+    allowed_orders = ['sicil_no', '-sicil_no']
+    if order_by in allowed_orders:
+        # Sicil no'yu integer'a cast ederek sırala
+        if order_by == 'sicil_no':
+            qs = qs.annotate(sicil_int=Cast('sicil_no', IntegerField())).order_by('sicil_int')
+        else:  # -sicil_no
+            qs = qs.annotate(sicil_int=Cast('sicil_no', IntegerField())).order_by('-sicil_int')
+    else:
+        # Varsayılan sıralama: sicil no artan (numeric)
+        qs = qs.annotate(sicil_int=Cast('sicil_no', IntegerField())).order_by('sicil_int')
+        order_by = 'sicil_no'
+
+    # İstatistikler
+    stats = {
+        'total_records': BaroLawyer.objects.count(),
+    }
+
+    # Pagination
+    page = Paginator(qs, 25).get_page(request.GET.get('page'))
+
+    return render(request, 'app/baro_lawyers.html', {
+        'page': page,
+        'q': q,
+        'adv_sicil': adv_sicil,
+        'adv_ad': adv_ad,
+        'adv_soyad': adv_soyad,
+        'adv_mail': adv_mail,
+        'adv_tel': adv_tel,
+        'adv_adres': adv_adres,
+        'sicil_min': sicil_min,
+        'sicil_max': sicil_max,
+        'order_by': order_by,
+        'stats': stats,
+    })

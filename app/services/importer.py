@@ -6,7 +6,7 @@ from typing import Tuple, Dict, List
 import pandas as pd
 from django.db import transaction
 
-from app.models import UploadBatch, UploadRowStaging, Lawyer, StatusOption
+from app.models import UploadBatch, UploadRowStaging, Lawyer, StatusOption, BaroLawyer
 from app.utils.normalization import normalize_email, normalize_phone
 from app.utils.file_validators import (
     validate_upload_file,
@@ -16,6 +16,7 @@ from app.utils.file_validators import (
     ValidationError
 )
 
+# ESKİ FORMAT: Tüm alanlar mevcut, BaroLawyer'den eksik alanlar tamamlanır
 REQUIRED_COLS = ["sicilno", "ad", "soyad"]
 
 HEADER_MAP = {
@@ -149,19 +150,29 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
         df = _map_columns(df_raw)
         df = _normalize_df(df)
 
-        # 8) satırları staging'e yaz
+        # 8) satırları staging'e yaz - BaroLawyer tamamlama ile
         rows = []
         skipped_rows = []
+        missing_in_baro = []  # Baro'da bulunamayan siciller
+        completed_from_baro = []  # Baro'dan tamamlanan alanlar
 
         for idx, r in df.iterrows():
             row_num = idx + 2  # Excel satır numarası
 
             ks = str(r.get('kisi_sicilno') or r.get('sicilno') or '').strip()
-            ad = str(r.get('ad') or '').strip()
-            soyad = str(r.get('soyad') or '').strip()
+
+            # Excel'den bilgileri al
+            excel_ad = str(r.get('ad') or '').strip()
+            excel_soyad = str(r.get('soyad') or '').strip()
+            excel_telno = r.get('telno')
+            excel_mail = r.get('mail')
+            excel_ilce = r.get('ilce')
+            excel_adres = r.get('adres_aciklama')
+            excel_notlar = r.get('notlar')
+            excel_status = str(r.get('cevap_status_key')).lower() if r.get('cevap_status_key') else None
 
             # Zorunlu alanlar kontrolü
-            if not ks or not ad or not soyad:
+            if not ks or not excel_ad or not excel_soyad:
                 skipped_rows.append(row_num)
                 continue
 
@@ -171,31 +182,76 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
                 skipped_rows.append(row_num)
                 continue
 
+            # BaroLawyer'den eksik bilgileri tamamla
+            try:
+                baro_lawyer = BaroLawyer.objects.get(sicil_no=ks)
+
+                # Excel'de boş olanları Baro'dan al
+                ad = excel_ad or baro_lawyer.ad or ''
+                soyad = excel_soyad or baro_lawyer.soyad or ''
+                telno = excel_telno or baro_lawyer.tel or None
+                mail = excel_mail or baro_lawyer.mail or None
+                adres_aciklama = excel_adres or baro_lawyer.adres or None
+                ilce = excel_ilce  # İlçe sadece Excel'den
+
+                # Baro'dan tamamlanan alan varsa kaydet
+                if not excel_telno and baro_lawyer.tel:
+                    completed_from_baro.append(f"Satır {row_num} ({ks}): Telefon")
+                if not excel_mail and baro_lawyer.mail:
+                    completed_from_baro.append(f"Satır {row_num} ({ks}): E-posta")
+                if not excel_adres and baro_lawyer.adres:
+                    completed_from_baro.append(f"Satır {row_num} ({ks}): Adres")
+
+            except BaroLawyer.DoesNotExist:
+                # Baro'da bulunamadı - sadece Excel'den al ve uyar
+                missing_in_baro.append((row_num, ks))
+                ad = excel_ad
+                soyad = excel_soyad
+                telno = excel_telno
+                mail = excel_mail
+                ilce = excel_ilce
+                adres_aciklama = excel_adres
+
             rows.append(UploadRowStaging(
                 batch=batch,
                 kisi_sicilno=ks,
                 ad=ad,
                 soyad=soyad,
-                telno=r.get('telno'),
-                mail=r.get('mail'),
-                ilce=r.get('ilce'),
-                adres_aciklama=r.get('adres_aciklama'),
-                notlar=r.get('notlar'),
-                cevap_status_key=(str(r.get('cevap_status_key')).lower() if r.get('cevap_status_key') else None)
+                telno=telno,
+                mail=mail,
+                ilce=ilce,
+                adres_aciklama=adres_aciklama,
+                notlar=excel_notlar,
+                cevap_status_key=excel_status
             ))
 
         # Hiç geçerli satır yoksa
         if not rows:
             batch.delete()  # Boş batch oluşturma
-            raise ValidationError(
-                "Dosyada geçerli kayıt bulunamadı",
-                [f"Toplam {len(df)} satır kontrol edildi, hepsi geçersiz"] if len(df) > 0 else []
-            )
+            error_details = []
+            if len(df) > 0:
+                error_details.append(f"Toplam {len(df)} satır kontrol edildi, hepsi geçersiz")
+            if missing_in_baro:
+                error_details.append(f"{len(missing_in_baro)} sicil no Baro kayıtlarında bulunamadı")
+                for row_num, sicil in missing_in_baro[:5]:
+                    error_details.append(f"  • Satır {row_num}: {sicil}")
+            raise ValidationError("Dosyada geçerli kayıt bulunamadı", error_details)
 
         # 9) Bulk insert
         UploadRowStaging.objects.bulk_create(rows, batch_size=1000)
         batch.row_count = len(rows)
-        batch.save(update_fields=['row_count'])
+
+        # Batch notları - Baro bilgilendirmeleri
+        notes_parts = []
+        if missing_in_baro:
+            notes_parts.append(f"⚠️ {len(missing_in_baro)} sicil no Baro kayıtlarında bulunamadı")
+        if completed_from_baro:
+            notes_parts.append(f"✓ {len(completed_from_baro)} alan Baro kayıtlarından tamamlandı")
+
+        if notes_parts:
+            batch.notes = " | ".join(notes_parts)
+
+        batch.save(update_fields=['row_count', 'notes'])
 
         # 10) Yeni status seçeneklerini seed et
         keys = {r.cevap_status_key for r in rows if r.cevap_status_key}
@@ -204,6 +260,13 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
             for key in (keys - existing):
                 StatusOption.objects.get_or_create(key=key, defaults={'label': key})
 
+        # Sonuç tuple'ına bilgi ekle
+        result_info = {
+            'batch_id': batch.id,
+            'row_count': batch.row_count,
+            'missing_in_baro_count': len(missing_in_baro),
+            'missing_in_baro': missing_in_baro[:10]  # İlk 10'unu döndür
+        }
         return batch.id, batch.row_count
     finally:
         # Geçici dosyayı temizle

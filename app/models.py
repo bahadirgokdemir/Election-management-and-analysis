@@ -92,6 +92,7 @@ class UploadBatch(models.Model):
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STAGED)
     created_by = models.CharField(max_length=128, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, null=True)  # Baro uyarıları ve diğer notlar için
 
 
 class UploadRow(models.Model):
@@ -214,3 +215,36 @@ class ElectionVote(models.Model):
     def __str__(self):
         status = "Oy Verdi" if self.has_voted else "Oy Vermedi"
         return f"{self.election.name} - {self.lawyerperson.kisi_sicilno} - {status}"
+
+
+class BaroLawyer(models.Model):
+    """
+    Tüm baro kayıtları - Aktif.xlsx dosyasından yüklenen avukat bilgileri
+    """
+    sicil_no = models.CharField(max_length=64, unique=True, db_index=True, help_text="Avukat sicil numarası")
+    ad = models.CharField(max_length=128, help_text="Avukat adı")
+    soyad = models.CharField(max_length=128, help_text="Avukat soyadı")
+    tel = models.CharField(max_length=64, blank=True, default='', help_text="Telefon numarası")
+    mail = models.EmailField(max_length=256, blank=True, default='', help_text="E-posta adresi")
+    adres = models.TextField(blank=True, default='', help_text="Adres bilgisi")
+
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['sicil_no']
+        indexes = [
+            models.Index(fields=['sicil_no']),
+            models.Index(fields=['ad', 'soyad']),
+            models.Index(fields=['mail']),
+        ]
+        verbose_name = 'Baro Avukatı'
+        verbose_name_plural = 'Baro Avukatları'
+
+    def __str__(self):
+        return f"{self.sicil_no} - {self.ad} {self.soyad}"
+
+    @property
+    def full_name(self):
+        return f"{self.ad} {self.soyad}"

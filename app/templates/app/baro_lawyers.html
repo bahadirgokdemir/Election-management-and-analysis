@@ -1,0 +1,245 @@
+{% extends 'app/base.html' %}
+{% block title %}Tüm Baro Kayıtları{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Tüm Baro Kayıtları</h1>
+    {% if stats %}
+    <p style="font-size: 14px; color: var(--text-muted); margin-top: 8px;">
+      <strong>Toplam Kişi Sayısı:</strong> {{ stats.total_records }}
+    </p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Sicil Aralığı Filtresi (Ayrı Panel) -->
+<div style="margin-bottom: 20px;">
+  <form method="get" style="display: flex; align-items: center; gap: 12px; background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+    <span style="font-size: 13px; font-weight: 500; color: var(--text-secondary); white-space: nowrap;">Sicil Aralığı:</span>
+    <input type="number" name="sicil_min" placeholder="Başlangıç" value="{{ sicil_min }}"
+           style="width: 120px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px;" />
+    <span style="color: var(--text-muted);">—</span>
+    <input type="number" name="sicil_max" placeholder="Bitiş" value="{{ sicil_max }}"
+           style="width: 120px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px;" />
+
+    <!-- Diğer filtreleri sakla -->
+    <input type="hidden" name="q" value="{{ q }}" />
+    <input type="hidden" name="sicil" value="{{ adv_sicil }}" />
+    <input type="hidden" name="ad" value="{{ adv_ad }}" />
+    <input type="hidden" name="soyad" value="{{ adv_soyad }}" />
+    <input type="hidden" name="mail" value="{{ adv_mail }}" />
+    <input type="hidden" name="tel" value="{{ adv_tel }}" />
+    <input type="hidden" name="adres" value="{{ adv_adres }}" />
+    <input type="hidden" name="order_by" value="{{ order_by }}" />
+
+    <button class="btn primary" type="submit" style="padding: 8px 16px; font-size: 13px;">Filtrele</button>
+    {% if sicil_min or sicil_max %}
+      <a href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&order_by={{ order_by }}"
+         class="btn" style="padding: 8px 16px; font-size: 13px;">Temizle</a>
+    {% endif %}
+  </form>
+</div>
+
+<!-- Filters & Search -->
+<div class="filter-panel">
+  <form method="get" class="filter-grid">
+    <!-- Genel Arama -->
+    <div class="form-group">
+      <label class="form-label">Genel Arama</label>
+      <input type="text" name="q" placeholder="Sicil No, Ad, Soyad, E-posta veya Telefon..." value="{{ q }}" />
+    </div>
+
+    <!-- Alan Bazlı Aramalar (Collapsed) -->
+    <details style="grid-column: 1 / -1;">
+      <summary style="cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 8px; margin-bottom: 12px;">
+        🔍 Gelişmiş Arama (Alan bazlı filtreleme)
+      </summary>
+      <div class="filter-grid" style="margin-top: 12px;">
+        <div class="form-group">
+          <label class="form-label">Sicil No</label>
+          <input type="text" name="sicil" placeholder="Sicil No" value="{{ adv_sicil }}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ad</label>
+          <input type="text" name="ad" placeholder="Ad" value="{{ adv_ad }}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Soyad</label>
+          <input type="text" name="soyad" placeholder="Soyad" value="{{ adv_soyad }}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">E-posta</label>
+          <input type="text" name="mail" placeholder="E-posta" value="{{ adv_mail }}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Telefon</label>
+          <input type="text" name="tel" placeholder="Telefon" value="{{ adv_tel }}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Adres</label>
+          <input type="text" name="adres" placeholder="Adres" value="{{ adv_adres }}" />
+        </div>
+      </div>
+    </details>
+
+    <!-- Sicil aralığı hidden inputları -->
+    <input type="hidden" name="sicil_min" value="{{ sicil_min }}" />
+    <input type="hidden" name="sicil_max" value="{{ sicil_max }}" />
+    <input type="hidden" name="order_by" value="{{ order_by }}" />
+
+    <div class="form-group" style="display: flex; align-items: end;">
+      <button class="btn primary" type="submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        Ara
+      </button>
+    </div>
+  </form>
+</div>
+
+{% if error %}
+<div style="padding: 40px; text-align: center; color: var(--error);">
+  <h3>Hata Oluştu</h3>
+  <p>{{ error }}</p>
+</div>
+{% elif page %}
+
+<!-- Lawyers Table -->
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            Sicil No
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <a href="?{% if order_by == 'sicil_no' %}order_by=-sicil_no{% else %}order_by=sicil_no{% endif %}&q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}"
+                 style="cursor: pointer; color: {% if order_by == 'sicil_no' %}var(--primary){% else %}var(--text-muted){% endif %};"
+                 title="Artan sıralama">
+                <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 15l-6-6-6 6"/>
+                </svg>
+              </a>
+              <a href="?{% if order_by == '-sicil_no' %}order_by=sicil_no{% else %}order_by=-sicil_no{% endif %}&q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}"
+                 style="cursor: pointer; color: {% if order_by == '-sicil_no' %}var(--primary){% else %}var(--text-muted){% endif %};"
+                 title="Azalan sıralama">
+                <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </th>
+        <th>Ad Soyad</th>
+        <th>E-posta</th>
+        <th>Telefon</th>
+        <th>Adres</th>
+        <th style="text-align: right;">İşlemler</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for lawyer in page.object_list %}
+      <tr>
+        <td><strong>{{ lawyer.sicil_no }}</strong></td>
+        <td>{{ lawyer.ad }} {{ lawyer.soyad }}</td>
+        <td>
+          {% if lawyer.mail %}
+            <a href="mailto:{{ lawyer.mail }}" style="color: var(--primary);">{{ lawyer.mail }}</a>
+          {% else %}
+            <span style="color: var(--text-muted);">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if lawyer.tel %}
+            <a href="tel:{{ lawyer.tel }}" style="color: var(--primary);">{{ lawyer.tel }}</a>
+          {% else %}
+            <span style="color: var(--text-muted);">-</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if lawyer.adres %}
+            <span style="font-size: 13px;">{{ lawyer.adres|truncatewords:10 }}</span>
+          {% else %}
+            <span style="color: var(--text-muted);">-</span>
+          {% endif %}
+        </td>
+        <td style="text-align: right;">
+          <button class="btn" onclick="showDetails('{{ lawyer.sicil_no }}', '{{ lawyer.ad }} {{ lawyer.soyad }}', '{{ lawyer.mail }}', '{{ lawyer.tel }}', '{{ lawyer.adres|escapejs }}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            Detay
+          </button>
+        </td>
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+          Kayıt bulunamadı.
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if page.paginator.num_pages > 1 %}
+<div class="pager">
+  {% if page.has_previous %}
+    <a class="btn" href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}&order_by={{ order_by }}&page={{ page.previous_page_number }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M15 19l-7-7 7-7"/>
+      </svg>
+      Önceki
+    </a>
+  {% endif %}
+  <span>Sayfa {{ page.number }} / {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}
+    <a class="btn" href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}&order_by={{ order_by }}&page={{ page.next_page_number }}">
+      Sonraki
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 5l7 7-7 7"/>
+      </svg>
+    </a>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endif %}
+
+<script>
+function showDetails(sicilNo, adSoyad, mail, tel, adres) {
+  const content = `
+    <div style="padding: 20px;">
+      <div style="margin-bottom: 15px;">
+        <strong style="color: var(--text-muted);">Sicil No:</strong>
+        <div style="margin-top: 5px;">${sicilNo}</div>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <strong style="color: var(--text-muted);">Ad Soyad:</strong>
+        <div style="margin-top: 5px;">${adSoyad}</div>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <strong style="color: var(--text-muted);">E-posta:</strong>
+        <div style="margin-top: 5px;">${mail || '-'}</div>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <strong style="color: var(--text-muted);">Telefon:</strong>
+        <div style="margin-top: 5px;">${tel || '-'}</div>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <strong style="color: var(--text-muted);">Adres:</strong>
+        <div style="margin-top: 5px;">${adres || '-'}</div>
+      </div>
+    </div>
+  `;
+
+  openModal(`Avukat Detayı - ${sicilNo}`, content);
+}
+</script>
+
+{% endblock %}

@@ -160,16 +160,42 @@ function deleteLawyer(lawyerId, fullName) {
     cancelText: 'İptal',
     isDanger: true,
     onConfirm: () => {
+      // CSRF token'ı al - form veya cookie'den
+      let csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+      if (!csrfToken) {
+        // Cookie'den al
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+          const [name, value] = cookie.trim().split('=');
+          if (name === 'csrftoken') {
+            csrfToken = value;
+            break;
+          }
+        }
+      }
+
       fetch(`/lawyers/${lawyerId}/delete/`, {
         method: 'POST',
         headers: {
-          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+          'X-CSRFToken': csrfToken,
+          'Content-Type': 'application/json'
         }
       })
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
       .then(data => {
         if (data.success) {
-          window.location.reload();
+          openModal(
+            'Başarılı',
+            `<p style="text-align: center; padding: 40px; color: var(--success);">Avukat ve ${data.deleted_relations} kayıt başarıyla silindi.</p>`
+          );
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
         } else {
           openModal(
             'Hata',
@@ -178,10 +204,10 @@ function deleteLawyer(lawyerId, fullName) {
         }
       })
       .catch(error => {
-        console.error('Error:', error);
+        console.error('Silme hatası:', error);
         openModal(
           'Hata',
-          '<p style="text-align: center; padding: 40px; color: var(--error);">Silme işlemi sırasında bir hata oluştu.</p>'
+          '<p style="text-align: center; padding: 40px; color: var(--error);">Silme işlemi sırasında bir hata oluştu. Detay: ' + error.message + '</p>'
         );
       });
     }

@@ -47,6 +47,142 @@
   </div>
 </div>
 
+<!-- Baro Coverage & Response Statistics -->
+{% if data.baro_stats and data.response_stats %}
+<div class="cards mt" style="margin-top: 24px;">
+  <!-- Baro Coverage -->
+  <div class="card">
+    <h3>📞 Baro Avukatlarına Ulaşım</h3>
+    <div style="margin-top: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Ulaşılan Avukat</span>
+        <span style="font-size: 20px; font-weight: 700; color: var(--primary);">
+          {{ data.baro_stats.system_lawyers }} / {{ data.baro_stats.total_baro_lawyers }}
+        </span>
+      </div>
+      <div style="background: var(--bg-content); border-radius: 8px; height: 32px; overflow: hidden; position: relative; margin-bottom: 16px;">
+        <div style="background: linear-gradient(90deg, #3b82f6, #06b6d4); height: 100%; width: {{ data.baro_stats.reach_percentage }}%; border-radius: 8px; transition: width 0.6s; display: flex; align-items: center; justify-content: center;">
+          <span style="color: white; font-weight: 700; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+            %{{ data.baro_stats.reach_percentage }}
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 12px;">
+        <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #10b981;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Toplam Baro Avukatı</div>
+          <div style="font-size: 18px; font-weight: 700; color: var(--text-primary);">{{ data.baro_stats.total_baro_lawyers }}</div>
+        </div>
+        <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #3b82f6;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Ulaşılan</div>
+          <div style="font-size: 18px; font-weight: 700; color: var(--primary);">{{ data.baro_stats.system_lawyers }}</div>
+        </div>
+        <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #ef4444;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Ulaşılamayan</div>
+          <div style="font-size: 18px; font-weight: 700; color: var(--error);">{{ data.baro_stats.not_reached }}</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; padding: 12px; background: var(--bg-content); border-radius: 8px; border: 1px solid var(--border-color);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; color: var(--text-secondary);">Toplam Net Kişi Sayısı</span>
+          <span style="font-size: 16px; font-weight: 700; color: var(--primary);">{{ data.baro_stats.unique_people_count }}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+          <span style="font-size: 12px; color: var(--text-secondary);">Baro'ya Oranı</span>
+          <span style="font-size: 16px; font-weight: 700; color: var(--success);">%{{ data.baro_stats.people_percentage }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Response Statistics -->
+  <div class="card">
+    <h3>💬 Cevap İstatistikleri</h3>
+    <div style="margin-top: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Cevap Veren Kişi</span>
+        <span style="font-size: 20px; font-weight: 700; color: var(--success);">
+          {{ data.response_stats.responded_count }} / {{ data.response_stats.unique_people }}
+        </span>
+      </div>
+      <div style="background: var(--bg-content); border-radius: 8px; height: 32px; overflow: hidden; position: relative; margin-bottom: 16px;">
+        <div style="background: linear-gradient(90deg, #10b981, #06b6d4); height: 100%; width: {{ data.response_stats.response_percentage }}%; border-radius: 8px; transition: width 0.6s; display: flex; align-items: center; justify-content: center;">
+          <span style="color: white; font-weight: 700; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+            %{{ data.response_stats.response_percentage }}
+          </span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 12px;">
+        <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #10b981;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Cevap Veren</div>
+          <div style="font-size: 18px; font-weight: 700; color: var(--success);">{{ data.response_stats.responded_count }}</div>
+        </div>
+        <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #94a3b8;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Cevap Vermeyen</div>
+          <div style="font-size: 18px; font-weight: 700; color: var(--text-muted);">{{ data.response_stats.no_response_count }}</div>
+        </div>
+      </div>
+
+      {% if data.response_stats.most_common_response %}
+      <div style="margin-top: 16px; padding: 12px; background: var(--bg-content); border-radius: 8px; border: 1px solid var(--border-color);">
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">En Çok Verilen Cevap</div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 14px; font-weight: 600; color: var(--primary);">{{ data.response_stats.most_common_response.status }}</span>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 16px; font-weight: 700; color: var(--text-primary);">{{ data.response_stats.most_common_response.count }}</span>
+            <span style="font-size: 13px; font-weight: 600; color: var(--success);">(%{{ data.response_stats.most_common_response.percentage }})</span>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Response Distribution Chart -->
+<div class="card mt" style="margin-top: 24px;">
+  <h3>📊 Cevap Durumu Detaylı Dağılımı</h3>
+  <div style="margin-top: 16px;">
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Durum</th>
+            <th style="text-align: right;">Kişi Sayısı</th>
+            <th style="text-align: right;">Yüzde</th>
+            <th>Dağılım</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for status, count in data.response_stats.status_distribution.items %}
+          <tr>
+            <td><strong style="color: {% if status == 'Cevap Yok' %}var(--text-muted){% else %}var(--primary){% endif %};">{{ status }}</strong></td>
+            <td style="text-align: right; font-weight: 700; font-size: 16px; color: {% if status == 'Cevap Yok' %}var(--text-muted){% else %}var(--primary){% endif %};">{{ count }}</td>
+            <td style="text-align: right; font-weight: 600;">
+              {% widthratio count data.response_stats.unique_people 100 %}%
+            </td>
+            <td>
+              <div style="background: var(--bg-content); border-radius: 6px; height: 20px; overflow: hidden; position: relative;">
+                <div style="background: {% if status == 'Cevap Yok' %}linear-gradient(90deg, #64748b, #94a3b8){% else %}linear-gradient(90deg, var(--primary), var(--secondary)){% endif %}; height: 100%; width: {% widthratio count data.response_stats.unique_people 100 %}%; border-radius: 6px; transition: width 0.4s;"></div>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">
+              Henüz veri bulunmamaktadır.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 
 <!-- Charts -->
 <div class="cards">
@@ -69,14 +205,14 @@
 {% if data.unique_stats %}
 <div class="cards mt">
   <div class="card">
-    <h3>🎯 Benzersiz Kişi Durum Dağılımı</h3>
+    <h3>Net Kişi Durum Dağılımı</h3>
     <div class="chart-container">
       <canvas id="pieUniqueStatus"></canvas>
     </div>
   </div>
 
   <div class="card">
-    <h3>🏆 Avukat Performans Karşılaştırması</h3>
+    <h3>Avukat Net/Brüt Karşılaştırması</h3>
     <div class="chart-container">
       <canvas id="barLawyerPerformance"></canvas>
     </div>
