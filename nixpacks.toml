@@ -1,15 +1,14 @@
-# Django otomatik algilamayi devre disi birak
-providers = []
+# 1. Nixpacks'e bunun bir Python projesi olduğunu belirtiyoruz
+providers = ["python"]
 
-[phases.setup]
-nixPkgs = ["python311", "postgresql"]
+# 2. Python sürümünü ortam değişkeni olarak doğrudan burada tanımlıyoruz
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.11.8"
 
-[phases.install]
-cmds = ["pip install -r requirements.txt"]
-
-# Build asamasinda migrate/collectstatic CALISTIRMA (runtime'da calisacak)
+# 3. Build aşamasında Django komutlarını atlıyoruz
 [phases.build]
-cmds = []
+cmds = ["echo 'Build phase - skipping Django commands'"]
 
+# 4. Start aşamasında db işlemleri, statik dosyalar ve sunucuyu başlatıyoruz
 [start]
 cmd = "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi --bind 0.0.0.0:$PORT"
