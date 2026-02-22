@@ -12,8 +12,10 @@ from django.contrib import messages
 import json
 
 from .models import Election, ElectionVote, LawyerPerson, Lawyer, StatusOption
+from .permissions import login_required_custom, admin_required, uploader_required
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_elections(request):
     """Seçim listesi ve yönetimi"""
@@ -40,6 +42,7 @@ def ui_elections(request):
     })
 
 
+@admin_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_election_create(request):
@@ -64,6 +67,7 @@ def ui_election_create(request):
     return redirect('ui_elections')
 
 
+@admin_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_election_activate(request, election_id):
@@ -84,6 +88,7 @@ def ui_election_activate(request, election_id):
     return redirect('ui_elections')
 
 
+@admin_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_election_toggle_registration(request, election_id):
@@ -97,6 +102,7 @@ def ui_election_toggle_registration(request, election_id):
     return redirect('ui_elections')
 
 
+@admin_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_election_delete(request, election_id):
@@ -115,6 +121,7 @@ def ui_election_delete(request, election_id):
     return redirect('ui_elections')
 
 
+@uploader_required
 @require_http_methods(["GET"])
 def ui_election_voting(request, election_id):
     """Seçim ekranı - Kapsamlı, modern tasarım"""
@@ -134,6 +141,7 @@ def ui_election_voting(request, election_id):
     })
 
 
+@uploader_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_election_mark_vote(request, election_id):
@@ -216,6 +224,7 @@ def ui_election_mark_vote(request, election_id):
         }, status=500)
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_election_stats(request, election_id):
     """Seçim istatistikleri"""
@@ -289,6 +298,7 @@ def ui_election_stats(request, election_id):
     })
 
 
+@uploader_required
 @require_http_methods(["GET"])
 def ui_election_check(request, election_id):
     """Hızlı işaretleme modu - Sicil no ile tek tek işaretleme"""
@@ -308,6 +318,7 @@ def ui_election_check(request, election_id):
     })
 
 
+@uploader_required
 @require_http_methods(["GET"])
 def ui_election_voting_data(request, election_id):
     """Seçim modu için kişi verilerini JSON olarak döndür"""
@@ -349,6 +360,7 @@ def ui_election_voting_data(request, election_id):
     })
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_election_dashboard(request, election_id):
     """Seçim günü anasayfa - İstatistikler ve genel bakış"""
@@ -390,6 +402,7 @@ def ui_election_dashboard(request, election_id):
     })
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_election_list(request, election_id):
     """Seçim günü listeleme - Basit oy durumu listesi"""
@@ -456,6 +469,7 @@ def ui_election_list(request, election_id):
     })
 
 
+@uploader_required
 @require_http_methods(["GET"])
 def ui_election_quick_mark(request, election_id):
     """Hızlı işaretleme sayfası - Tek tek oy işaretleme"""

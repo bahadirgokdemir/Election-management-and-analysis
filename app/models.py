@@ -1,6 +1,8 @@
 from django.utils import timezone
 
 from django.db import models
+from django.contrib.auth.models import User
+import secrets
 
 
 class Lawyer(models.Model):
@@ -248,3 +250,86 @@ class BaroLawyer(models.Model):
     @property
     def full_name(self):
         return f"{self.ad} {self.soyad}"
+
+
+class UserProfile(models.Model):
+    """
+    Kullanici profili - Rol tabanli yetkilendirme icin
+    """
+    ROLE_ADMIN = 'admin'
+    ROLE_DATA_UPLOADER = 'data_uploader'
+    ROLE_READ_ONLY = 'read_only'
+
+    ROLE_CHOICES = [
+        (ROLE_ADMIN, 'Admin'),
+        (ROLE_DATA_UPLOADER, 'Veri Yukleyici'),
+        (ROLE_READ_ONLY, 'Sadece Okuma'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_READ_ONLY)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Kullanici Profili'
+        verbose_name_plural = 'Kullanici Profilleri'
+
+    def __str__(self):
+        return f"{self.user.username} - {self.get_role_display()}"
+
+    def is_admin(self):
+        return self.role == self.ROLE_ADMIN or self.user.is_superuser
+
+    def is_uploader(self):
+        return self.role in [self.ROLE_ADMIN, self.ROLE_DATA_UPLOADER] or self.user.is_superuser
+
+    def can_read(self):
+        return True  # Tum roller okuyabilir
+
+
+class LawyerAccessCode(models.Model):
+    """
+    Avukat erisim kodu - Avukatlarin kendi kisi listelerinin oy durumlarini gormesi icin
+    """
+    code = models.CharField(max_length=32, unique=True, db_index=True)
+    lawyer = models.ForeignKey(Lawyer, on_delete=models.CASCADE, related_name='access_codes')
+    election = models.ForeignKey(Election, on_delete=models.CASCADE, related_name='access_codes')
+
+    expires_at = models.DateTimeField(help_text="Kodun gecerlilik suresi")
+    is_active = models.BooleanField(default=True, help_text="Kod aktif mi?")
+    use_count = models.IntegerField(default=0, help_text="Kod kac kez kullanildi")
+
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_access_codes')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Avukat Erisim Kodu'
+        verbose_name_plural = 'Avukat Erisim Kodlari'
+        indexes = [
+            models.Index(fields=['code']),
+            models.Index(fields=['lawyer', 'election']),
+            models.Index(fields=['is_active', 'expires_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.lawyer.sicil_no} - {self.election.name} - {self.code[:8]}..."
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = secrets.token_urlsafe(16)
+        super().save(*args, **kwargs)
+
+    def is_valid(self):
+        """Kodun gecerli olup olmadigini kontrol et"""
+        if not self.is_active:
+            return False
+        if timezone.now() > self.expires_at:
+            return False
+        return True
+
+    def increment_use_count(self):
+        """Kullanim sayisini artir"""
+        self.use_count += 1
+        self.save(update_fields=['use_count', 'updated_at'])

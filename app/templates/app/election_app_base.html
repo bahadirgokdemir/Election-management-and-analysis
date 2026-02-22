@@ -357,7 +357,7 @@
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-title">
-        🗳️ {{ election.name }}
+        {{ election.name }}
       </div>
       <div class="sidebar-subtitle">
         {{ election.election_date|date:"d F Y" }}
@@ -387,24 +387,24 @@
       <div class="nav-section">
         <div class="nav-section-title">Seçim Günü</div>
         <a href="{% url 'ui_election_dashboard' election.id %}" class="nav-item {% if request.resolver_match.url_name == 'ui_election_dashboard' %}active{% endif %}">
-          <span class="nav-icon">🏠</span>
+          <span class="nav-icon">-</span>
           <span class="nav-label">Anasayfa</span>
         </a>
         <a href="{% url 'ui_election_list' election.id %}" class="nav-item {% if request.resolver_match.url_name == 'ui_election_list' %}active{% endif %}">
-          <span class="nav-icon">📋</span>
+          <span class="nav-icon">-</span>
           <span class="nav-label">Oy Durumu Listesi</span>
         </a>
         <a href="{% url 'ui_election_quick_mark' election.id %}" class="nav-item {% if request.resolver_match.url_name == 'ui_election_quick_mark' %}active{% endif %}">
-          <span class="nav-icon">✓</span>
-          <span class="nav-label">Oy Yönetimi</span>
+          <span class="nav-icon">-</span>
+          <span class="nav-label">Oy Yonetimi</span>
         </a>
       </div>
 
       <div class="nav-section">
         <div class="nav-section-title">Raporlar</div>
         <a href="{% url 'ui_election_stats' election.id %}" class="nav-item {% if request.resolver_match.url_name == 'ui_election_stats' %}active{% endif %}">
-          <span class="nav-icon">📊</span>
-          <span class="nav-label">Detaylı İstatistikler</span>
+          <span class="nav-icon">-</span>
+          <span class="nav-label">Detayli Istatistikler</span>
         </a>
       </div>
     </nav>
@@ -426,7 +426,7 @@
       <h1 class="topbar-title">{% block page_title %}Anasayfa{% endblock %}</h1>
       <div class="topbar-actions">
         <span class="status-badge {% if election.is_active %}active{% else %}inactive{% endif %}">
-          {% if election.is_active %}● Aktif{% else %}○ Pasif{% endif %}
+          {% if election.is_active %}Aktif{% else %}Pasif{% endif %}
         </span>
         {% block topbar_actions %}{% endblock %}
       </div>

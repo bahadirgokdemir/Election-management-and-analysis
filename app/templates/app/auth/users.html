@@ -1,0 +1,143 @@
+{% extends 'app/base.html' %}
+
+{% block title %}Kullanicilar{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1>Kullanicilar</h1>
+    <p class="subtitle">Sistem kullancilari ve rollerini yonetin</p>
+  </div>
+  <a href="{% url 'auth_create_user' %}" class="btn primary">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 4v16m8-8H4"/>
+    </svg>
+    Yeni Kullanici
+  </a>
+</div>
+
+<!-- Filtreler -->
+<div class="card" style="margin-bottom: 1rem;">
+  <form method="get" class="filter-form">
+    <div class="filter-row">
+      <div class="filter-group">
+        <input type="text" name="q" value="{{ q }}" placeholder="Ara (kullanici adi, e-posta, ad)..." class="form-input" />
+      </div>
+      <div class="filter-group">
+        <select name="role" class="form-select">
+          <option value="all" {% if role_filter == 'all' %}selected{% endif %}>Tum Roller</option>
+          {% for role_key, role_name in role_choices %}
+          <option value="{{ role_key }}" {% if role_filter == role_key %}selected{% endif %}>{{ role_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn">Filtrele</button>
+    </div>
+  </form>
+</div>
+
+<!-- Tablo -->
+<div class="card">
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Kullanici Adi</th>
+          <th>Ad Soyad</th>
+          <th>E-posta</th>
+          <th>Rol</th>
+          <th>Kayit Tarihi</th>
+          <th>Son Giris</th>
+          <th>Islemler</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in page %}
+        <tr id="user-row-{{ user.id }}">
+          <td>
+            <strong>{{ user.username }}</strong>
+            {% if user.is_superuser %}
+            <span class="badge badge-warning">Superuser</span>
+            {% endif %}
+          </td>
+          <td>{{ user.first_name }} {{ user.last_name }}</td>
+          <td>{{ user.email|default:"-" }}</td>
+          <td id="user-role-{{ user.id }}">
+            {% if user.profile %}
+            <span class="status-badge status-{% if user.profile.role == 'admin' %}info{% elif user.profile.role == 'data_uploader' %}warning{% else %}default{% endif %}">
+              {{ user.profile.get_role_display }}
+            </span>
+            {% else %}
+            <span class="status-badge">-</span>
+            {% endif %}
+          </td>
+          <td>{{ user.date_joined|date:"d.m.Y" }}</td>
+          <td>{{ user.last_login|date:"d.m.Y H:i"|default:"-" }}</td>
+          <td>
+            {% if not user.is_superuser and user.id != request.user.id %}
+            <div class="action-buttons">
+              <select class="form-select small" onchange="changeRole({{ user.id }}, this.value)" style="min-width: 130px;">
+                {% for role_key, role_name in role_choices %}
+                <option value="{{ role_key }}" {% if user.profile and user.profile.role == role_key %}selected{% endif %}>
+                  {{ role_name }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            {% else %}
+            <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="empty-state">Henuz kullanici olusturulmamis.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if page.has_other_pages %}
+  <div class="pagination">
+    {% if page.has_previous %}
+    <a href="?page={{ page.previous_page_number }}&q={{ q }}&role={{ role_filter }}" class="btn small">Onceki</a>
+    {% endif %}
+    <span class="page-info">Sayfa {{ page.number }} / {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}
+    <a href="?page={{ page.next_page_number }}&q={{ q }}&role={{ role_filter }}" class="btn small">Sonraki</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function changeRole(userId, newRole) {
+  const formData = new FormData();
+  formData.append('role', newRole);
+
+  fetch(`/auth/users/${userId}/role/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    },
+    body: formData
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Basariyla degisti
+      alert(data.message);
+    } else {
+      alert(data.message || 'Bir hata olustu');
+      location.reload();
+    }
+  })
+  .catch(err => {
+    alert('Hata: ' + err);
+    location.reload();
+  });
+}
+</script>
+{% endblock %}

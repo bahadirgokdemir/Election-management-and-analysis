@@ -1,0 +1,407 @@
+{% load static %}
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Oy Durumu Kontrolu - Avukat Analiz Platformu</title>
+  <link rel="stylesheet" href="{% static 'app/app.css' %}" />
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      padding: 2rem;
+    }
+
+    .public-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .public-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: white;
+    }
+
+    .public-logo {
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 1rem;
+      background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .public-logo svg {
+      width: 32px;
+      height: 32px;
+      color: white;
+    }
+
+    .public-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .public-subtitle {
+      font-size: 1rem;
+      opacity: 0.8;
+    }
+
+    .code-form-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .code-input-group {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .code-input {
+      flex: 1;
+      padding: 1rem 1.25rem;
+      font-size: 1.125rem;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-family: monospace;
+      letter-spacing: 0.05em;
+    }
+
+    .code-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .code-submit {
+      padding: 1rem 2rem;
+      background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .code-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+
+    .error-message {
+      padding: 1rem;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 8px;
+      color: var(--error);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .error-message svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    /* Sonuc alani */
+    .result-header {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .result-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .lawyer-info h2 {
+      font-size: 1.25rem;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .lawyer-info p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .stat-item {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .stat-value.voted {
+      color: var(--success);
+    }
+
+    .stat-value.not-voted {
+      color: var(--warning);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .result-table-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .result-table th {
+      text-align: left;
+      padding: 1rem 1.5rem;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .result-table td {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    .result-table tr:hover td {
+      background: var(--bg-secondary);
+    }
+
+    .vote-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .vote-status.voted {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+    }
+
+    .vote-status.not-voted {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+    }
+
+    .vote-status svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .back-link:hover {
+      color: white;
+    }
+
+    .back-link svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1rem;
+      }
+
+      .code-input-group {
+        flex-direction: column;
+      }
+
+      .result-info {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .stats-row {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="public-container">
+    <div class="public-header">
+      <div class="public-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+        </svg>
+      </div>
+      <h1 class="public-title">Oy Durumu Kontrolu</h1>
+      <p class="public-subtitle">Erisim kodunuz ile kisi listenizdeki oy durumlarini kontrol edin</p>
+    </div>
+
+    {% if not valid_code %}
+    <!-- Kod giris formu -->
+    <div class="code-form-card">
+      {% if error %}
+      <div class="error-message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="code-input-group">
+          <input type="text" name="code" class="code-input" placeholder="Erisim kodunuzu girin..." required autofocus />
+          <button type="submit" class="code-submit">Kontrol Et</button>
+        </div>
+      </form>
+
+      <p style="text-align: center; color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem;">
+        Erisim kodu, listeyi teslim ettiginiz yonetici tarafindan size iletilecektir.
+      </p>
+    </div>
+
+    <a href="{% url 'auth_login' %}" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      Yonetici Girisi
+    </a>
+
+    {% else %}
+    <!-- Sonuclar -->
+    <div class="result-header">
+      <div class="result-info">
+        <div class="lawyer-info">
+          <h2>{{ lawyer.ad }} {{ lawyer.soyad }}</h2>
+          <p>{{ election.name }} - {{ election.election_date }}</p>
+        </div>
+        <div class="stats-row">
+          <div class="stat-item">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">Toplam</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value voted">{{ stats.voted }}</div>
+            <div class="stat-label">Oy Verdi</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value not-voted">{{ stats.not_voted }}</div>
+            <div class="stat-label">Oy Vermedi</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">%{{ stats.participation_rate }}</div>
+            <div class="stat-label">Katilim</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-table-card">
+      <table class="result-table">
+        <thead>
+          <tr>
+            <th>Sicil No</th>
+            <th>Ad Soyad</th>
+            <th>Oy Durumu</th>
+            <th>Saat</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in people %}
+          <tr>
+            <td><strong>{{ item.person.kisi_sicilno }}</strong></td>
+            <td>{{ item.person.ad }} {{ item.person.soyad }}</td>
+            <td>
+              <span class="vote-status {% if item.has_voted %}voted{% else %}not-voted{% endif %}">
+                {% if item.has_voted %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Oy Verdi
+                {% else %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Bekleniyor
+                {% endif %}
+              </span>
+            </td>
+            <td>
+              {% if item.voted_at %}
+              {{ item.voted_at|time:"H:i" }}
+              {% else %}
+              -
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 2rem;">
+              Bu avukata ait kisi kaydi bulunamadi.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <a href="{% url 'lawyer_voting_check' %}" class="back-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      Yeni Kod Gir
+    </a>
+    {% endif %}
+  </div>
+</body>
+</html>

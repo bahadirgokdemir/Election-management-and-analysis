@@ -320,10 +320,10 @@
     </div>
     <div class="sicil-result-actions">
       <button class="action-btn mark-voted" onclick="markFromSicil(true)">
-        ✓ Oy Verdi
+        Oy Verdi
       </button>
       <button class="action-btn mark-not-voted" onclick="markFromSicil(false)">
-        ✗ Oy Vermedi
+        Oy Vermedi
       </button>
     </div>
   </div>
@@ -495,8 +495,8 @@
     if (filtered.length === 0) {
       listContainer.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">🔍</div>
-          <div>Kişi bulunamadı</div>
+          <div class="empty-state-icon"></div>
+          <div>Kisi bulunamadi</div>
         </div>
       `;
       return;
@@ -511,7 +511,7 @@
         <div class="person-sicil">${person.kisi_sicilno || '-'}</div>
         <div>
           <span class="vote-badge ${person.has_voted ? 'voted' : 'not-voted'}">
-            ${person.has_voted ? '✓ Oy Verdi' : '○ Oy Vermedi'}
+            ${person.has_voted ? 'Oy Verdi' : 'Oy Vermedi'}
           </span>
         </div>
         <div class="action-buttons">
@@ -520,14 +520,14 @@
             onclick="markVote('${person.kisi_sicilno}', true)"
             ${person.has_voted ? 'disabled' : ''}
           >
-            ✓ Oy Verdi
+            Oy Verdi
           </button>
           <button
             class="action-btn mark-not-voted"
             onclick="markVote('${person.kisi_sicilno}', false)"
             ${!person.has_voted ? 'disabled' : ''}
           >
-            ✗ Oy Vermedi
+            Oy Vermedi
           </button>
         </div>
       </div>

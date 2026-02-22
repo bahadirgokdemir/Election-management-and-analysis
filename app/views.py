@@ -1,4 +1,5 @@
 from rest_framework import viewsets, mixins
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Lawyer, StatusOption, Person
 from .serializers import LawyerSerializer, StatusOptionSerializer, PersonListSerializer
@@ -13,6 +14,7 @@ from .serializers import UploadBatchSerializer, DiffResponseSerializer
 from .services.importer import parse_and_stage
 from .services.diff_service import compute_diff
 from .services.apply_service import apply_diff
+from .permissions import IsAdmin, IsUploader, IsReadOnly, IsAdminOrReadOnly, IsUploaderOrReadOnly
 
 
 class LawyerViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet):
@@ -20,11 +22,13 @@ class LawyerViewSet(mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.Gen
     serializer_class = LawyerSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["sicil_no", "ad", "soyad"]
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class StatusOptionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     queryset = StatusOption.objects.all().order_by('id')
     serializer_class = StatusOptionSerializer
+    permission_classes = [IsReadOnly]
 
 
 class PersonViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -32,12 +36,14 @@ class PersonViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     serializer_class = PersonListSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["kisi_sicilno", "ad", "soyad", "ilce", "cevap_status__key"]
+    permission_classes = [IsReadOnly]
 
 
 class UploadViewSet(viewsets.GenericViewSet):
     queryset = UploadBatch.objects.all().order_by('-id')
     serializer_class = UploadBatchSerializer
     parser_classes = [MultiPartParser, FormParser]
+    permission_classes = [IsUploader]
 
     # POST /api/uploads/ (form-data: file, lawyerId)
     def create(self, request, *args, **kwargs):
@@ -78,6 +84,8 @@ class UploadViewSet(viewsets.GenericViewSet):
 
 
 class ReportsViewSet(viewsets.ViewSet):
+    permission_classes = [IsReadOnly]
+
     @action(detail=False, methods=['get'])
     def overview(self, request):
         from .services.reports import report_overview

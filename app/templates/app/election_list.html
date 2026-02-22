@@ -272,16 +272,16 @@
     </div>
     <div style="text-align: center;">
       {% if item.has_voted %}
-      <span class="status-badge voted">✓ Oy Verdi</span>
+      <span class="status-badge voted">Oy Verdi</span>
       {% else %}
-      <span class="status-badge not-voted">✗ Oy Vermedi</span>
+      <span class="status-badge not-voted">Oy Vermedi</span>
       {% endif %}
     </div>
   </div>
   {% empty %}
   <div class="empty-state">
-    <div class="empty-icon">🔍</div>
-    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: var(--text-primary);">Kişi bulunamadı</h3>
+    <div class="empty-icon"></div>
+    <h3 style="margin: 0 0 8px 0; font-size: 18px; color: var(--text-primary);">Kisi bulunamadi</h3>
     <p style="margin: 0; font-size: 14px;">Farklı bir arama terimi veya filtre deneyin</p>
   </div>
   {% endfor %}

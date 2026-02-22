@@ -579,9 +579,9 @@ function renderExportModal() {
   if (!exportData) return;
 
   const formatIcons = {
-    csv: '📄',
-    excel: '📊',
-    pdf: '📑'
+    csv: 'CSV',
+    excel: 'XLS',
+    pdf: 'PDF'
   };
 
   const formatLabels = {
@@ -598,7 +598,7 @@ function renderExportModal() {
         <!-- Format Seçimi -->
         <div style="background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
           <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-primary); padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
-            🎯 Export Format
+            Export Format
           </h4>
           <div style="display: flex; flex-direction: column; gap: 8px;">
             ${['csv', 'excel', 'pdf'].map(format => `
@@ -629,7 +629,7 @@ function renderExportModal() {
         <!-- Sütun Seçimi -->
         <div style="background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1;">
           <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-primary); padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
-            📋 Sütun Seçimi
+            Sutun Secimi
           </h4>
           <div style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
             ${exportData.columns.map(col => `
@@ -666,7 +666,7 @@ function renderExportModal() {
         <!-- Ekstra Seçenekler -->
         <div style="background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
           <h4 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: var(--text-primary); padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
-            ⚙️ Seçenekler
+            Secenekler
           </h4>
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
             <input
@@ -692,7 +692,7 @@ function renderExportModal() {
           <div style="display: flex; justify-content: space-between; align-items: start;">
             <div>
               <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
-                📦 Export Özeti
+                Export Ozeti
               </div>
               <div style="font-size: 11px; color: var(--text-secondary);">
                 <strong style="color: var(--primary); font-size: 18px;">${exportData.total_count}</strong> kayıt
@@ -708,7 +708,7 @@ function renderExportModal() {
           ${selectedFormat === 'pdf' && exportData.total_count > 500 ? `
             <div style="margin-top: 12px; padding: 10px; background: rgba(239, 68, 68, 0.1); border-radius: 6px; border-left: 3px solid #EF4444;">
               <div style="font-size: 11px; color: #DC2626; display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 14px;">⚠️</span>
+                <span style="font-size: 14px;">!</span>
                 <span>PDF formatı performans nedeniyle ilk 500 kaydı içerir.</span>
               </div>
             </div>
@@ -717,7 +717,7 @@ function renderExportModal() {
 
         <!-- Önizleme Tablosu -->
         <div style="margin-bottom: 12px; font-size: 11px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
-          <span>📋 Önizleme (İlk 10 satır)</span>
+          <span>Onizleme (Ilk 10 satir)</span>
           <span>${selectedColumns.size === 0 ? 'Lütfen en az 1 sütun seçin' : 'Kaydırarak tüm sütunları görüntüleyin'}</span>
         </div>
 
@@ -728,9 +728,9 @@ function renderExportModal() {
         <!-- Alt Butonlar -->
         <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
           <div style="font-size: 10px; color: var(--text-muted);">
-            ${selectedFormat === 'excel' ? '💡 Excel dosyası otomatik filtreleme ve formatlanmış başlıklar içerir' : ''}
-            ${selectedFormat === 'pdf' ? '💡 PDF dosyası yazdırma için optimize edilmiştir' : ''}
-            ${selectedFormat === 'csv' ? '💡 CSV dosyası tüm programlarda açılabilir' : ''}
+            ${selectedFormat === 'excel' ? 'Excel dosyasi otomatik filtreleme ve formatlanmis basliklar icerir' : ''}
+            ${selectedFormat === 'pdf' ? 'PDF dosyasi yazdirma icin optimize edilmistir' : ''}
+            ${selectedFormat === 'csv' ? 'CSV dosyasi tum programlarda acilabilir' : ''}
           </div>
           <div style="display: flex; gap: 12px;">
             <button onclick="closeModal()" class="btn" style="padding: 10px 20px;">
@@ -748,7 +748,7 @@ function renderExportModal() {
     </div>
   `;
 
-  openModal('📊 Verileri Dışa Aktar', content);
+  openModal('Verileri Disa Aktar', content);
 }
 
 function renderPreviewTable() {
@@ -878,9 +878,9 @@ async function downloadExport() {
       'pdf': 'PDF'
     };
     setTimeout(() => {
-      openModal('✅ Export Başarılı', `
+      openModal('Export Basarili', `
         <div style="text-align: center; padding: 40px;">
-          <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+          <div style="font-size: 48px; margin-bottom: 16px;"></div>
           <div style="font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
             ${formatNames[selectedFormat]} dosyası başarıyla indirildi!
           </div>

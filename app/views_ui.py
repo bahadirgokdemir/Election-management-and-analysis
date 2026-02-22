@@ -10,6 +10,7 @@ import csv
 from io import BytesIO
 
 from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election, BaroLawyer
+from .permissions import login_required_custom, admin_required, uploader_required
 from .services.importer import parse_and_stage
 from .services.diff_service import compute_diff
 from .services.apply_service import apply_diff
@@ -20,16 +21,28 @@ from .services.baro_loader import BaroLoader
 
 from django.shortcuts import get_object_or_404
 
+
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_dashboard(request):
     data = report_overview()
     return render(request, 'app/dashboard.html', {'data': data})
 
 
+@login_required_custom
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def ui_lawyers(request):
+    # POST icin admin yetkisi gerekli
     if request.method == "POST":
+        if not request.user.is_superuser:
+            try:
+                if not request.user.profile.is_admin():
+                    messages.error(request, 'Bu islem icin admin yetkisi gerekiyor.')
+                    return redirect('ui_lawyers')
+            except:
+                messages.error(request, 'Bu islem icin admin yetkisi gerekiyor.')
+                return redirect('ui_lawyers')
         sicil = (request.POST.get('sicil') or '').strip()
         ad = (request.POST.get('ad') or '').strip()
         soyad = (request.POST.get('soyad') or '').strip()
@@ -60,6 +73,7 @@ def ui_lawyers(request):
     return render(request, 'app/lawyers_list.html', {'page': page, 'q': q})
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_people(request):
     q = (request.GET.get('q') or '').strip()
@@ -146,6 +160,7 @@ def ui_people(request):
     })
 
 
+@uploader_required
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def ui_upload(request):
@@ -192,7 +207,7 @@ def ui_upload(request):
             defaults={'ad': ad, 'soyad': soyad}
         )
         if created:
-            messages.success(request, f'✓ Yeni avukat oluşturuldu: {sicil_no} — {ad} {soyad}')
+            messages.success(request, f'Yeni avukat oluşturuldu: {sicil_no} — {ad} {soyad}')
         else:
             if (lawyer.ad != ad) or (lawyer.soyad != soyad):
                 messages.info(
@@ -214,7 +229,7 @@ def ui_upload(request):
             )
         except ValidationError as ve:
             # Detaylı validasyon hatası
-            error_msg = f'❌ Dosya Validasyon Hatası: {ve.message}'
+            error_msg = f'Dosya Validasyon Hatası: {ve.message}'
             messages.error(request, error_msg)
 
             # Detayları ayrı mesajlar olarak ekle
@@ -227,7 +242,7 @@ def ui_upload(request):
         # Batch notlarını kontrol et (Baro uyarıları için)
         batch = UploadBatch.objects.get(id=batch_id)
         if batch.notes:
-            messages.info(request, f'ℹ️ {batch.notes}')
+            messages.info(request, f'{batch.notes}')
 
         # 2) Otomatik olarak uygula
         actor = str(request.user) if request.user.is_authenticated else None
@@ -239,7 +254,7 @@ def ui_upload(request):
             changed = counts.get('changed', 0)
             messages.success(
                 request,
-                f'✓ Yükleme başarılı! {row_count} satır işlendi. '
+                f'Yükleme başarılı! {row_count} satır işlendi. '
                 f'{added} yeni kayıt eklendi, {changed} kayıt güncellendi.'
             )
         else:
@@ -251,12 +266,14 @@ def ui_upload(request):
         return redirect('ui_upload')
 
 
+@uploader_required
 @require_http_methods(["GET"])
 def ui_diff_preview(request, batch_id: int):
     diff = compute_diff(batch_id)
     return render(request, 'app/diff_preview.html', {'diff': diff})
 
 
+@uploader_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_approve_batch(request, batch_id: int):
@@ -268,6 +285,7 @@ def ui_approve_batch(request, batch_id: int):
     return redirect('ui_diff_preview', batch_id=batch_id)
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_people_export_preview(request):
     """Export önizlemesi için ilk 10 satırı ve kullanılabilir sütunları döndürür."""
@@ -347,6 +365,7 @@ def ui_people_export_preview(request):
     })
 
 
+@login_required_custom
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_people_export_download(request):
@@ -431,6 +450,7 @@ def ui_people_export_download(request):
         )
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_people_export(request):
     """Filtrelenmiş kişileri CSV olarak indirir (eski yöntem - geriye dönük uyumluluk)."""
@@ -480,7 +500,8 @@ def ui_people_export(request):
     return response
 
 
-# ⬇️ Şablon indirme — CSV
+# Sablon indirme - CSV
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_download_template_csv(request):
     """
@@ -496,7 +517,8 @@ def ui_download_template_csv(request):
     return response
 
 
-# ⬇️ Şablon indirme — XLSX (openpyxl ile)
+# Sablon indirme - XLSX (openpyxl ile)
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_download_template_xlsx(request):
     """
@@ -505,7 +527,8 @@ def ui_download_template_xlsx(request):
     """
     try:
         from openpyxl import Workbook
-        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.worksheet.datavalidation import DataValidation
     except Exception:
         # openpyxl yoksa CSV döndür
         return ui_download_template_csv(request)
@@ -514,29 +537,126 @@ def ui_download_template_xlsx(request):
     ws = wb.active
     ws.title = "Seçmen Listesi"
 
-    # Başlıklar
-    headers = ['sicilno', 'ad', 'soyad', 'cevapDurumu', 'telno', 'mail', 'ilce', 'adres_aciklama', 'notlar']
-    ws.append(headers)
+    # Minimal modern renk paleti
+    BRAND_BLUE = "2563eb"         # Modern mavi
+    BG_HEADER = "f8fafc"          # Çok açık gri
+    BG_INPUT = "ffffff"           # Beyaz
+    TEXT_PRIMARY = "0f172a"       # Koyu metin
+    TEXT_SECONDARY = "64748b"     # Gri metin
+    BORDER_COLOR = "e2e8f0"       # Açık border
 
-    # Başlık stilini güzelleştir
-    for cell in ws[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    # Minimal border
+    clean_border = Border(
+        left=Side(style='thin', color=BORDER_COLOR),
+        right=Side(style='thin', color=BORDER_COLOR),
+        top=Side(style='thin', color=BORDER_COLOR),
+        bottom=Side(style='thin', color=BORDER_COLOR)
+    )
+
+    # === GÖNDERİCİ BİLGİLERİ ===
+    ws.merge_cells('A1:E1')
+    sender_header = ws['A1']
+    sender_header.value = 'Gönderici Bilgileri'
+    sender_header.font = Font(name='Calibri', size=10, bold=True, color=TEXT_SECONDARY)
+    sender_header.fill = PatternFill(start_color=BG_HEADER, end_color=BG_HEADER, fill_type="solid")
+    sender_header.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    sender_header.border = clean_border
+    ws.row_dimensions[1].height = 24
+
+    # Kolon genişlikleri
+    ws.column_dimensions['A'].width = 14
+    ws.column_dimensions['B'].width = 16
+    ws.column_dimensions['C'].width = 16
+    ws.column_dimensions['D'].width = 16
+    ws.column_dimensions['E'].width = 26
+    ws.column_dimensions['F'].width = 16
+    ws.column_dimensions['G'].width = 16
+    ws.column_dimensions['H'].width = 26
+    ws.column_dimensions['I'].width = 30
+
+    # Satır 2: Input alanları (doğrudan)
+    placeholders = ['12345', 'Ahmet', 'Yılmaz', '0532 123 4567', 'ornek@email.com']
+    for col_idx, placeholder in enumerate(placeholders, start=1):
+        cell = ws.cell(row=2, column=col_idx, value=placeholder)
+        cell.font = Font(name='Calibri', size=10, italic=True, color=TEXT_SECONDARY)
+        cell.fill = PatternFill(start_color=BG_INPUT, end_color=BG_INPUT, fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = clean_border
 
-    # Kolon genişliklerini ayarla
-    ws.column_dimensions['A'].width = 12  # sicilno
-    ws.column_dimensions['B'].width = 15  # ad
-    ws.column_dimensions['C'].width = 15  # soyad
-    ws.column_dimensions['D'].width = 15  # cevapDurumu
-    ws.column_dimensions['E'].width = 15  # telno
-    ws.column_dimensions['F'].width = 25  # mail
-    ws.column_dimensions['G'].width = 12  # ilce
-    ws.column_dimensions['H'].width = 30  # adres_aciklama
-    ws.column_dimensions['I'].width = 30  # notlar
+    ws.row_dimensions[2].height = 28
 
-    # Örnek satır ekle
-    ws.append(['12345', 'Ahmet', 'Yılmaz', 'geliyor', '5551234567', 'ahmet@example.com', 'Çankaya', 'Kızılay Mah.', 'Örnek not'])
+    # Satır 3: Boş ayırıcı
+    ws.row_dimensions[3].height = 8
+
+    # === LİSTE BÖLÜMÜ ===
+    ws.merge_cells('A4:I4')
+    list_header = ws['A4']
+    list_header.value = 'Seçmen Listesi'
+    list_header.font = Font(name='Calibri', size=10, bold=True, color=TEXT_SECONDARY)
+    list_header.fill = PatternFill(start_color=BG_HEADER, end_color=BG_HEADER, fill_type="solid")
+    list_header.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    list_header.border = clean_border
+    ws.row_dimensions[4].height = 24
+
+    # Satır 5: Tablo başlıkları
+    data_headers = ['Sicil No', 'Ad', 'Soyad', 'Cevap Durumu', 'Telefon', 'E-posta', 'İlçe', 'Adres', 'Notlar']
+    for col_idx, header in enumerate(data_headers, start=1):
+        cell = ws.cell(row=5, column=col_idx, value=header)
+        cell.font = Font(name='Calibri', size=9, bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color=BRAND_BLUE, end_color=BRAND_BLUE, fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = clean_border
+
+    ws.row_dimensions[5].height = 26
+
+    # === CEVAP DURUMU DROPDOWN ===
+    dv = DataValidation(
+        type="list",
+        formula1='"OLUMLU,OLUMSUZ,TEPKİLİ,İLETİŞİM GEREKİYOR"',
+        allow_blank=True,
+        showErrorMessage=True,
+        showInputMessage=True
+    )
+    dv.error = 'Sadece listeden seçim yapabilirsiniz'
+    dv.errorTitle = 'Geçersiz Giriş'
+    dv.errorStyle = 'stop'
+    dv.prompt = 'Lütfen bir seçenek seçin'
+    dv.promptTitle = 'Cevap Durumu'
+
+    # D sütununun 6. satırından itibaren
+    dv.add('D6:D1000')
+    ws.add_data_validation(dv)
+
+    # === AÇIKLAMA KUTUSU ===
+    ws.column_dimensions['K'].width = 2.5  # Ayırıcı
+    ws.column_dimensions['L'].width = 38   # Açıklama
+
+    # Başlık
+    info_header = ws.cell(row=1, column=12, value='Cevap Seçenekleri Açıklaması')
+    info_header.font = Font(name='Calibri', size=9, bold=True, color=TEXT_PRIMARY)
+    info_header.fill = PatternFill(start_color=BG_HEADER, end_color=BG_HEADER, fill_type="solid")
+    info_header.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    info_header.border = clean_border
+
+    # Açıklamalar
+    explanations = [
+        'OLUMLU: Veysel Kırıcı\'yı destekliyor ve ön seçime katılacak',
+        'OLUMSUZ: Başka bir adayı destekliyor',
+        'TEPKİLİ: Ön seçime veya baroya karşı olumsuz tutum',
+        'İLETİŞİM GEREKİYOR: Ziyaret edilmeli, fikri yok veya aranmalı',
+    ]
+
+    for idx, text in enumerate(explanations, start=2):
+        cell = ws.cell(row=idx, column=12, value=text)
+        cell.font = Font(name='Calibri', size=8, color=TEXT_PRIMARY)
+        cell.fill = PatternFill(start_color=BG_INPUT, end_color=BG_INPUT, fill_type="solid")
+        cell.alignment = Alignment(horizontal="left", vertical="top", indent=1, wrap_text=True)
+        cell.border = clean_border
+
+    # Satır yükseklikleri
+    ws.row_dimensions[1].height = 22
+    for i in range(2, 6):
+        ws.row_dimensions[i].height = 20
 
     # Açıklama sayfası ekle
     ws_info = wb.create_sheet("Bilgi")
@@ -565,6 +685,7 @@ def ui_download_template_xlsx(request):
     resp['Content-Disposition'] = 'attachment; filename="liste_sablon.xlsx"'
     return resp
 # ========== YENİ: Seçili satırları uygula ==========
+@uploader_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_approve_selected(request, batch_id: int):
@@ -697,6 +818,7 @@ def ui_approve_selected(request, batch_id: int):
     return redirect('ui_dashboard')
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_lawyer_people(request, lawyer_id: int):
     lawyer = get_object_or_404(Lawyer, id=lawyer_id)
@@ -733,6 +855,7 @@ def ui_lawyer_people(request, lawyer_id: int):
     })
 
 
+@login_required_custom
 @require_http_methods(["GET", "POST"])
 def ui_person_edit(request, person_id):
     """
@@ -782,6 +905,7 @@ def ui_person_edit(request, person_id):
         return JsonResponse({'success': True})
 
 
+@admin_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_person_relation_delete(request, lawyerperson_id):
@@ -797,6 +921,7 @@ def ui_person_relation_delete(request, lawyerperson_id):
     return JsonResponse({'success': True})
 
 
+@admin_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_lawyer_delete(request, lawyer_id):
@@ -836,6 +961,7 @@ def ui_lawyer_delete(request, lawyer_id):
         })
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_unique_people(request):
     """
@@ -888,6 +1014,7 @@ def ui_unique_people(request):
     })
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_unique_person_detail(request, kisi_sicilno: str):
     """Belirli bir sicil no için detay modal verisi"""
@@ -899,6 +1026,7 @@ def ui_unique_person_detail(request, kisi_sicilno: str):
     return JsonResponse(person)
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_person_analytics(request, kisi_sicilno: str):
     """
@@ -917,6 +1045,7 @@ def ui_person_analytics(request, kisi_sicilno: str):
     return JsonResponse(analytics)
 
 
+@login_required_custom
 @require_http_methods(["GET"])
 def ui_baro_lawyers(request):
     """

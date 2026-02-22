@@ -52,7 +52,7 @@
 <div class="cards mt" style="margin-top: 24px;">
   <!-- Baro Coverage -->
   <div class="card">
-    <h3>📞 Baro Avukatlarına Ulaşım</h3>
+    <h3>Baro Avukatlarına Ulaşım</h3>
     <div style="margin-top: 16px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
         <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Ulaşılan Avukat</span>
@@ -98,7 +98,7 @@
 
   <!-- Response Statistics -->
   <div class="card">
-    <h3>💬 Cevap İstatistikleri</h3>
+    <h3> Cevap İstatistikleri</h3>
     <div style="margin-top: 16px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
         <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Cevap Veren Kişi</span>
@@ -143,7 +143,7 @@
 
 <!-- Response Distribution Chart -->
 <div class="card mt" style="margin-top: 24px;">
-  <h3>📊 Cevap Durumu Detaylı Dağılımı</h3>
+  <h3>Cevap Durumu Detaylı Dağılımı</h3>
   <div style="margin-top: 16px;">
     <div class="table-container">
       <table class="table">
@@ -187,14 +187,14 @@
 <!-- Charts -->
 <div class="cards">
   <div class="card">
-    <h3>📊 Durum Dağılımı (Tüm Kayıtlar)</h3>
+    <h3>Durum Dağılımı (Tüm Kayıtlar)</h3>
     <div class="chart-container">
       <canvas id="pieStatus"></canvas>
     </div>
   </div>
 
   <div class="card">
-    <h3>📈 Kişi Sayıları (Tüm Kayıtlar)</h3>
+    <h3>Kişi Sayıları (Tüm Kayıtlar)</h3>
     <div class="chart-container">
       <canvas id="barStatus"></canvas>
     </div>
@@ -224,14 +224,14 @@
 {% if data.district_stats %}
 <div class="cards mt">
   <div class="card">
-    <h3>🗺️ En Çok Kişi Olan İlçeler</h3>
+    <h3>En Çok Kişi Olan İlçeler</h3>
     <div class="chart-container">
       <canvas id="barDistricts"></canvas>
     </div>
   </div>
 
   <div class="card">
-    <h3>📍 Benzersiz Kişi Bazlı İlçeler</h3>
+    <h3>Benzersiz Kişi Bazlı İlçeler</h3>
     <div class="chart-container">
       <canvas id="barUniqueDistricts"></canvas>
     </div>
@@ -241,7 +241,7 @@
 
 <!-- Details Table -->
 <div class="card mt">
-  <h3>📋 Detaylı Durum Analizi</h3>
+  <h3>Detaylı Durum Analizi</h3>
   <div class="table-container" style="margin-top: 16px;">
     <table class="table">
       <thead>
@@ -280,7 +280,7 @@
 
 <!-- Avukat İstatistikleri -->
 <div class="card mt">
-  <h3>👥 Avukat Bazında İstatistikler</h3>
+  <h3>Avukat Bazında İstatistikler</h3>
   <div class="table-container" style="margin-top: 16px;">
     <table class="table">
       <thead>
@@ -330,7 +330,7 @@
 <!-- Recent Activity & Quick Links -->
 <div class="cards mt">
   <div class="card">
-    <h3>🕒 Son Aktiviteler</h3>
+    <h3>Son Aktiviteler</h3>
     <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto;">
       {% if data.recent_logs %}
         {% for log in data.recent_logs %}
@@ -359,7 +359,7 @@
   </div>
 
   <div class="card">
-    <h3>🔗 Hızlı Erişim</h3>
+    <h3>Hızlı Erişim</h3>
     <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 16px;">
       <a href="{% url 'ui_people' %}" class="btn" style="justify-content: flex-start;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -407,10 +407,32 @@
   const labels = Object.keys(raw);
   const values = Object.values(raw);
 
-  const colors = [
+  // Cevap durumu renk haritası
+  const statusColorMap = {
+    'OLUMLU': '#70AD47',
+    'olumlu': '#70AD47',
+    'Olumlu': '#70AD47',
+    'OLUMSUZ': '#C00000',
+    'olumsuz': '#C00000',
+    'Olumsuz': '#C00000',
+    'TEPKİLİ': '#FFC000',
+    'tepkili': '#FFC000',
+    'Tepkili': '#FFC000',
+    'İLETİŞİM GEREKİYOR': '#7030A0',
+    'iletişim gerekiyor': '#7030A0',
+    'İletişim Gerekiyor': '#7030A0'
+  };
+
+  // Varsayılan renkler (eğer status map'te yoksa)
+  const defaultColors = [
     '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
     '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'
   ];
+
+  // Her label için renk belirle
+  const colors = labels.map((label, index) => {
+    return statusColorMap[label] || defaultColors[index % defaultColors.length];
+  });
 
   const commonOptions = {
     responsive: true,
@@ -516,6 +538,11 @@
     const uniqueLabels = Object.keys(uniqueStatusData);
     const uniqueValues = Object.values(uniqueStatusData);
 
+    // Benzersiz kişiler için de aynı renk haritasını kullan
+    const uniqueColors = uniqueLabels.map((label, index) => {
+      return statusColorMap[label] || defaultColors[index % defaultColors.length];
+    });
+
     const pieUniqueCtx = document.getElementById('pieUniqueStatus');
     if (pieUniqueCtx && uniqueLabels.length > 0) {
       new Chart(pieUniqueCtx, {
@@ -524,7 +551,7 @@
           labels: uniqueLabels,
           datasets: [{
             data: uniqueValues,
-            backgroundColor: colors,
+            backgroundColor: uniqueColors,
             borderWidth: 2,
             borderColor: '#0f172a',
             hoverBorderWidth: 3

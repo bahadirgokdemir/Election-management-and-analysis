@@ -1,0 +1,173 @@
+{% extends 'app/base.html' %}
+
+{% block title %}Erisim Kodlari{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-content">
+    <h1>Erisim Kodlari</h1>
+    <p class="subtitle">Avukat oy durumu kontrol kodlarini yonetin</p>
+  </div>
+  <a href="{% url 'auth_generate_access_code' %}" class="btn primary">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 4v16m8-8H4"/>
+    </svg>
+    Yeni Kod Olustur
+  </a>
+</div>
+
+<!-- Filtreler -->
+<div class="card" style="margin-bottom: 1rem;">
+  <form method="get" class="filter-form">
+    <div class="filter-row">
+      <div class="filter-group">
+        <input type="text" name="q" value="{{ q }}" placeholder="Ara (kod, sicil, ad)..." class="form-input" />
+      </div>
+      <div class="filter-group">
+        <select name="lawyer" class="form-select">
+          <option value="">Tum Avukatlar</option>
+          {% for lawyer in lawyers %}
+          <option value="{{ lawyer.id }}" {% if selected_lawyer_id == lawyer.id|stringformat:"s" %}selected{% endif %}>
+            {{ lawyer.ad }} {{ lawyer.soyad }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <select name="election" class="form-select">
+          <option value="">Tum Secimler</option>
+          {% for election in elections %}
+          <option value="{{ election.id }}" {% if selected_election_id == election.id|stringformat:"s" %}selected{% endif %}>
+            {{ election.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <select name="status" class="form-select">
+          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>Tum Durumlar</option>
+          <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Aktif</option>
+          <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Suresi Dolmus/Pasif</option>
+        </select>
+      </div>
+      <button type="submit" class="btn">Filtrele</button>
+    </div>
+  </form>
+</div>
+
+<!-- Tablo -->
+<div class="card">
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Avukat</th>
+          <th>Secim</th>
+          <th>Son Kullanim</th>
+          <th>Kullanim</th>
+          <th>Durum</th>
+          <th>Islemler</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for code in page %}
+        <tr id="code-row-{{ code.id }}">
+          <td>
+            <code class="code-display" style="user-select: all; cursor: pointer;" title="Kopyalamak icin tiklayin">
+              {{ code.code }}
+            </code>
+          </td>
+          <td>{{ code.lawyer.ad }} {{ code.lawyer.soyad }}</td>
+          <td>{{ code.election.name }}</td>
+          <td>{{ code.expires_at|date:"d.m.Y H:i" }}</td>
+          <td>{{ code.use_count }} kez</td>
+          <td>
+            <span class="status-badge {% if code.is_valid %}status-success{% else %}status-danger{% endif %}">
+              {% if code.is_valid %}Aktif{% else %}Pasif/Suresi Dolmus{% endif %}
+            </span>
+          </td>
+          <td>
+            <div class="action-buttons">
+              <button class="btn small" onclick="toggleCode({{ code.id }})" title="{% if code.is_active %}Pasif Yap{% else %}Aktif Yap{% endif %}">
+                {% if code.is_active %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                  <path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                </svg>
+                {% else %}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                {% endif %}
+              </button>
+              <button class="btn small danger" onclick="deleteCode({{ code.id }})" title="Sil">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                  <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="empty-state">Henuz erisim kodu olusturulmamis.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if page.has_other_pages %}
+  <div class="pagination">
+    {% if page.has_previous %}
+    <a href="?page={{ page.previous_page_number }}&q={{ q }}&lawyer={{ selected_lawyer_id }}&election={{ selected_election_id }}&status={{ status_filter }}" class="btn small">Onceki</a>
+    {% endif %}
+    <span class="page-info">Sayfa {{ page.number }} / {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}
+    <a href="?page={{ page.next_page_number }}&q={{ q }}&lawyer={{ selected_lawyer_id }}&election={{ selected_election_id }}&status={{ status_filter }}" class="btn small">Sonraki</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function toggleCode(codeId) {
+  fetch(`/auth/access-codes/${codeId}/toggle/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      location.reload();
+    } else {
+      alert(data.message || 'Bir hata olustu');
+    }
+  })
+  .catch(err => alert('Hata: ' + err));
+}
+
+function deleteCode(codeId) {
+  if (!confirm('Bu erisim kodunu silmek istediginizden emin misiniz?')) return;
+
+  fetch(`/auth/access-codes/${codeId}/delete/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      document.getElementById(`code-row-${codeId}`).remove();
+    } else {
+      alert(data.message || 'Bir hata olustu');
+    }
+  })
+  .catch(err => alert('Hata: ' + err));
+}
+</script>
+{% endblock %}

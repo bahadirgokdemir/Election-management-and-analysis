@@ -170,7 +170,7 @@
 
 <div class="page-header">
   <div>
-    <h1>🗳️ Seçim Yönetimi</h1>
+    <h1>Secim Yonetimi</h1>
     <p>Seçim günü oluşturun, yönetin ve oy durumlarını takip edin</p>
   </div>
   <button class="btn primary" onclick="openCreateElectionModal()">
@@ -192,10 +192,10 @@
         </h3>
         <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
           <span style="font-size: 13px; color: var(--text-muted);">
-            📅 {{ stat.election.election_date|date:"d F Y" }}
+            {{ stat.election.election_date|date:"d F Y" }}
           </span>
           <span class="status-indicator {% if stat.election.is_active %}active{% else %}inactive{% endif %}">
-            {% if stat.election.is_active %}● AKTİF{% else %}○ PASİF{% endif %}
+            {% if stat.election.is_active %}AKTIF{% else %}PASIF{% endif %}
           </span>
         </div>
       </div>
@@ -203,13 +203,13 @@
         <form method="post" action="{% url 'ui_election_activate' stat.election.id %}" style="display: inline;">
           {% csrf_token %}
           <button type="submit" class="action-icon-btn" title="{% if stat.election.is_active %}Pasif Et{% else %}Aktif Et{% endif %}">
-            {% if stat.election.is_active %}⏸{% else %}▶{% endif %}
+            {% if stat.election.is_active %}||{% else %}>{% endif %}
           </button>
         </form>
         {% if not stat.election.is_active %}
         <form method="post" action="{% url 'ui_election_delete' stat.election.id %}" style="display: inline;" onsubmit="return confirm('{{ stat.election.name }} seçimini silmek istediğinize emin misiniz?');">
           {% csrf_token %}
-          <button type="submit" class="action-icon-btn delete" title="Sil">🗑</button>
+          <button type="submit" class="action-icon-btn delete" title="Sil">X</button>
         </form>
         {% endif %}
       </div>
@@ -251,7 +251,7 @@
   </div>
   {% empty %}
   <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 80px 40px;">
-    <div style="font-size: 64px; margin-bottom: 24px;">🗳️</div>
+    <div style="font-size: 64px; margin-bottom: 24px;"></div>
     <h3 style="margin: 0 0 12px 0; color: var(--text-primary); font-size: 24px;">Henüz Seçim Oluşturulmadı</h3>
     <p style="margin: 0 0 24px 0; color: var(--text-muted); font-size: 15px;">
       Yeni bir seçim oluşturmak için yukarıdaki butona tıklayın
@@ -331,7 +331,7 @@ function openCreateElectionModal() {
     </form>
   `;
 
-  openModal('🗳️ Yeni Seçim Oluştur', content);
+  openModal('Yeni Secim Olustur', content);
 }
 </script>
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Lawyer, StatusOption, Person, LawyerPerson, UploadBatch, UploadRowStaging, BatchDiff, AuditLog, Election, ElectionVote
+from .models import Lawyer, StatusOption, Person, LawyerPerson, UploadBatch, UploadRowStaging, BatchDiff, AuditLog, Election, ElectionVote, UserProfile, LawyerAccessCode
 
 
 @admin.register(Lawyer)
@@ -56,3 +56,20 @@ class ElectionVoteAdmin(admin.ModelAdmin):
     def get_kisi_name(self, obj):
         return f"{obj.lawyerperson.ad} {obj.lawyerperson.soyad}"
     get_kisi_name.short_description = "Ad Soyad"
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "role", "created_at", "updated_at")
+    list_filter = ("role",)
+    search_fields = ("user__username", "user__email", "user__first_name", "user__last_name")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(LawyerAccessCode)
+class LawyerAccessCodeAdmin(admin.ModelAdmin):
+    list_display = ("code", "lawyer", "election", "is_active", "expires_at", "use_count", "created_by")
+    list_filter = ("is_active", "election", "lawyer")
+    search_fields = ("code", "lawyer__sicil_no", "lawyer__ad", "lawyer__soyad")
+    readonly_fields = ("code", "use_count", "created_at", "updated_at")
+    raw_id_fields = ("lawyer", "election", "created_by")

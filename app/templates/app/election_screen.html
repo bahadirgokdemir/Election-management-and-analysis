@@ -610,15 +610,15 @@
         </div>
         <div class="person-lawyer">${person.lawyer_sicil}</div>
         <div class="person-status ${person.has_voted ? 'voted' : 'pending'}">
-          ${person.has_voted ? '✓ Oy Verdi' : '○ Bekliyor'}
+          ${person.has_voted ? 'Oy Verdi' : 'Bekliyor'}
           ${person.voted_at ? `<div style="font-size: 11px; color: var(--text-muted);">${person.voted_at}</div>` : ''}
         </div>
         <div class="vote-actions">
           <button class="vote-btn vote-btn-yes ${person.has_voted ? 'active' : ''}" onclick="markVote(${person.id}, true)">
-            ✓ Verdi
+            Verdi
           </button>
           <button class="vote-btn vote-btn-no" onclick="markVote(${person.id}, false)">
-            ✗ İptal
+            Iptal
           </button>
         </div>
       </div>

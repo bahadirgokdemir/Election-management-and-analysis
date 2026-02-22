@@ -13,7 +13,7 @@
       <div>
         <h1 style="margin: 0;">{{ election.name }}</h1>
         <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-muted);">
-          📅 {{ election.election_date|date:"d F Y" }}
+          {{ election.election_date|date:"d F Y" }}
           {% if election.is_active %}
             <span style="margin-left: 8px; padding: 2px 8px; background: var(--success); color: white; border-radius: 4px; font-size: 10px; font-weight: 600;">AKTİF</span>
           {% endif %}
@@ -150,13 +150,13 @@
                 onclick="markVote({{ election.id }}, {{ item.person.id }}, true)"
                 class="vote-btn {% if item.has_voted %}active{% endif %}"
                 style="flex: 1; padding: 6px 12px; border: 2px solid var(--success); background: {% if item.has_voted %}var(--success){% else %}transparent{% endif %}; color: {% if item.has_voted %}white{% else %}var(--success){% endif %}; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; transition: all 0.2s;">
-                ✓ Verdi
+                Verdi
               </button>
               <button
                 onclick="markVote({{ election.id }}, {{ item.person.id }}, false)"
                 class="vote-btn {% if not item.has_voted %}active{% endif %}"
                 style="flex: 1; padding: 6px 12px; border: 2px solid #ef4444; background: {% if not item.has_voted %}#ef4444{% else %}transparent{% endif %}; color: {% if not item.has_voted %}white{% else %}#ef4444{% endif %}; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 11px; transition: all 0.2s;">
-                ✗ Vermedi
+                Vermedi
               </button>
             </div>
             {% if item.voted_at %}
@@ -169,8 +169,8 @@
         {% empty %}
         <tr>
           <td colspan="6" style="text-align: center; padding: 60px; color: var(--text-muted);">
-            <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
-            <div>Kişi bulunamadı</div>
+            <div style="font-size: 48px; margin-bottom: 16px;"></div>
+            <div>Kisi bulunamadi</div>
           </td>
         </tr>
         {% endfor %}

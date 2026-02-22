@@ -1,0 +1,231 @@
+{% load static %}
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Giris Yap - Avukat Analiz Platformu</title>
+  <link rel="stylesheet" href="{% static 'app/app.css' %}" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+      padding: 2.5rem;
+      background: var(--bg-card);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-logo {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1rem;
+      background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-logo svg {
+      width: 36px;
+      height: 36px;
+      color: white;
+    }
+
+    .login-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .login-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .form-label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .form-input {
+      padding: 0.875rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    .login-btn {
+      padding: 0.875rem 1.5rem;
+      background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 0.5rem;
+    }
+
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+
+    .login-btn:active {
+      transform: translateY(0);
+    }
+
+    .messages-container {
+      margin-bottom: 1.5rem;
+    }
+
+    .message {
+      padding: 0.875rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .message-error {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .message-success {
+      background: rgba(34, 197, 94, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .message-warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .message svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .login-footer a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.875rem;
+    }
+
+    .login-footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-header">
+      <div class="login-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+        </svg>
+      </div>
+      <h1 class="login-title">Avukat Analiz Platformu</h1>
+      <p class="login-subtitle">Devam etmek icin giris yapiniz</p>
+    </div>
+
+    {% if messages %}
+    <div class="messages-container">
+      {% for m in messages %}
+      <div class="message message-{{ m.tags }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          {% if m.tags == 'error' %}
+          <path d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          {% elif m.tags == 'success' %}
+          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          {% else %}
+          <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+          {% endif %}
+        </svg>
+        <span>{{ m }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" class="login-form">
+      {% csrf_token %}
+      {% if request.GET.next %}
+      <input type="hidden" name="next" value="{{ request.GET.next }}" />
+      {% endif %}
+
+      <div class="form-group">
+        <label for="username" class="form-label">Kullanici Adi</label>
+        <input type="text" id="username" name="username" class="form-input" placeholder="kullaniciadi" required autofocus />
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">Sifre</label>
+        <input type="password" id="password" name="password" class="form-input" placeholder="********" required />
+      </div>
+
+      <button type="submit" class="login-btn">Giris Yap</button>
+    </form>
+
+    <div class="login-footer">
+      <a href="{% url 'lawyer_voting_check' %}">Avukat Oy Durumu Kontrolu</a>
+    </div>
+  </div>
+</body>
+</html>

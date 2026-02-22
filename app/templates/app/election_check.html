@@ -302,7 +302,7 @@
     <div class="card">
       <!-- Header -->
       <div class="header">
-        <h1>🗳️ {{ election.name }}</h1>
+        <h1>{{ election.name }}</h1>
         <p>Hızlı İşaretleme Modu</p>
       </div>
 
@@ -342,8 +342,8 @@
 
         <!-- Empty State -->
         <div id="emptyState" class="empty-state">
-          <div class="empty-icon">👆</div>
-          <h3 style="font-size: 18px; margin-bottom: 8px; color: #1a202c;">Sicil numarasını girin</h3>
+          <div class="empty-icon"></div>
+          <h3 style="font-size: 18px; margin-bottom: 8px; color: #1a202c;">Sicil numarasini girin</h3>
           <p style="font-size: 14px;">Kişiyi aramak için yukarıdaki kutuu kullanın</p>
         </div>
       </div>
@@ -438,21 +438,21 @@
       result.innerHTML = `
         <div class="person-name">${person.ad} ${person.soyad}</div>
         <div class="person-details">
-          <span>📋 ${person.kisi_sicilno}</span>
-          <span>👤 ${person.lawyer_sicil}</span>
+          <span>Sicil: ${person.kisi_sicilno}</span>
+          <span>Avukat: ${person.lawyer_sicil}</span>
         </div>
 
         <div class="vote-status ${person.has_voted ? 'voted' : 'not-voted'}">
-          ${person.has_voted ? '✅ OY VERDİ' : '⏳ OY VERMEDİ'}
+          ${person.has_voted ? 'OY VERDI' : 'OY VERMEDI'}
           ${person.voted_at ? `<br><small>Saat: ${person.voted_at}</small>` : ''}
         </div>
 
         <div class="action-buttons">
           <button class="btn btn-yes" onclick="markVote(${person.id}, true)">
-            ✓ Oy Verdi
+            Oy Verdi
           </button>
           <button class="btn btn-no" onclick="markVote(${person.id}, false)">
-            ✗ Oy Vermedi
+            Oy Vermedi
           </button>
           <button class="btn btn-back" onclick="clearSearch()">
             ← Temizle
@@ -471,7 +471,7 @@
       result.className = 'result show';
       result.innerHTML = `
         <div class="empty-state">
-          <div class="empty-icon">❌</div>
+          <div class="empty-icon">X</div>
           <h3 style="font-size: 18px; margin-bottom: 8px; color: #1a202c;">Kişi bulunamadı</h3>
           <p style="font-size: 14px;">Sicil numarasını kontrol edin</p>
         </div>
@@ -518,7 +518,7 @@
           // UI'ı güncelle
           showPerson(person);
           updateStats();
-          showToast(`${hasVoted ? '✅ Oy verdi olarak işaretlendi' : '❌ Oy vermedi olarak işaretlendi'}`, hasVoted ? 'success' : 'error');
+          showToast(`${hasVoted ? 'Oy verdi olarak isaretlendi' : 'Oy vermedi olarak isaretlendi'}`, hasVoted ? 'success' : 'error');
           playSound(hasVoted);
 
           // 1 saniye sonra temizle

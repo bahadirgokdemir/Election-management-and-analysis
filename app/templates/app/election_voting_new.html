@@ -410,8 +410,8 @@
   <div class="header">
     <div class="header-content">
       <div class="election-info">
-        <h1>🗳️ {{ election.name }}</h1>
-        <p>📅 {{ election.election_date|date:"d F Y" }}</p>
+        <h1>{{ election.name }}</h1>
+        <p>{{ election.election_date|date:"d F Y" }}</p>
       </div>
       <a href="{% url 'ui_elections' %}" class="back-btn">
         ← Seçim Listesi
@@ -462,13 +462,13 @@
       <!-- Filters -->
       <div class="filters">
         <button class="filter-btn active" onclick="filterVoteStatus('all')" id="filter-all">
-          📋 Tümü (<span id="count-all">0</span>)
+          Tumu (<span id="count-all">0</span>)
         </button>
         <button class="filter-btn yellow" onclick="filterVoteStatus('not_voted')" id="filter-not-voted">
-          ⏳ Oy Vermedi (<span id="count-not-voted">0</span>)
+          Oy Vermedi (<span id="count-not-voted">0</span>)
         </button>
         <button class="filter-btn green" onclick="filterVoteStatus('voted')" id="filter-voted">
-          ✅ Oy Verdi (<span id="count-voted">0</span>)
+          Oy Verdi (<span id="count-voted">0</span>)
         </button>
         <div class="showing-count">
           <span id="filteredCount">0</span> kişi gösteriliyor
@@ -489,8 +489,8 @@
 
       <!-- Empty State -->
       <div id="emptyState" class="empty-state" style="display: none;">
-        <div class="empty-icon">🔍</div>
-        <h3 style="font-size: 20px; margin-bottom: 8px; color: #1a202c;">Kişi bulunamadı</h3>
+        <div class="empty-icon"></div>
+        <h3 style="font-size: 20px; margin-bottom: 8px; color: #1a202c;">Kisi bulunamadi</h3>
         <p>Farklı bir arama terimi veya filtre deneyin</p>
       </div>
     </div>
@@ -589,17 +589,17 @@
           <div class="person-info">
             <h3>${person.ad} ${person.soyad}</h3>
             <div class="person-meta">
-              <span>📋 ${person.kisi_sicilno}</span>
-              <span>👤 ${person.lawyer_sicil}</span>
-              ${person.voted_at ? `<span style="color: #10b981;">✓ ${person.voted_at}</span>` : ''}
+              <span>${person.kisi_sicilno}</span>
+              <span>${person.lawyer_sicil}</span>
+              ${person.voted_at ? `<span style="color: #10b981;">${person.voted_at}</span>` : ''}
             </div>
           </div>
           <div class="vote-actions">
             <button class="vote-btn vote-btn-yes ${person.has_voted ? 'active' : ''}" onclick="event.stopPropagation(); markVote(${person.id}, true)">
-              ✓ Verdi
+              Verdi
             </button>
             <button class="vote-btn vote-btn-no" onclick="event.stopPropagation(); markVote(${person.id}, false)">
-              ✗ Vermedi
+              Vermedi
             </button>
           </div>
         </div>
@@ -628,7 +628,7 @@
           renderPeople();
           updateStats();
           const personName = person ? `${person.ad} ${person.soyad}` : 'Kişi';
-          showToast(`${personName} - ${hasVoted ? 'Oy verdi ✓' : 'Oy vermedi ✗'}`, hasVoted);
+          showToast(`${personName} - ${hasVoted ? 'Oy verdi' : 'Oy vermedi'}`, hasVoted);
           playSound(hasVoted);
         }
       })

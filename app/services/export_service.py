@@ -158,7 +158,7 @@ class ExportService:
                 if filter_texts:
                     ws.merge_cells(f'A{current_row}:{get_column_letter(len(selected_columns))}{current_row}')
                     filter_cell = ws[f'A{current_row}']
-                    filter_cell.value = '🔍 Filtreler: ' + ' | '.join(filter_texts)
+                    filter_cell.value = 'Filtreler: ' + ' | '.join(filter_texts)
                     filter_cell.font = info_font
                     filter_cell.fill = info_fill
                     filter_cell.alignment = Alignment(horizontal='left')
@@ -308,7 +308,7 @@ class ExportService:
                 filter_texts.append(f"İlçe: {include_filters['ilce']}")
 
             if filter_texts:
-                filter_text = '🔍 <b>Filtreler:</b> ' + ' | '.join(filter_texts)
+                filter_text = '<b>Filtreler:</b> ' + ' | '.join(filter_texts)
                 elements.append(Paragraph(filter_text, info_style))
                 elements.append(Spacer(1, 0.5*cm))
 
@@ -377,7 +377,7 @@ class ExportService:
                 textColor=colors.red,
                 alignment=1
             )
-            warning_text = f'⚠️ Performans nedeniyle sadece ilk 500 kayıt gösterilmektedir. (Toplam: {queryset.count()})'
+            warning_text = f'Performans nedeniyle sadece ilk 500 kayit gosterilmektedir. (Toplam: {queryset.count()})'
             elements.append(Paragraph(warning_text, warning_style))
 
         # PDF oluştur
