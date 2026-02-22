@@ -1,14 +1,14 @@
-# 1. Nixpacks'e bunun bir Python projesi olduğunu belirtiyoruz
 providers = ["python"]
 
-# 2. Python sürümünü ortam değişkeni olarak doğrudan burada tanımlıyoruz
 [variables]
 NIXPACKS_PYTHON_VERSION = "3.11.8"
 
-# 3. Build aşamasında Django komutlarını atlıyoruz
+# BURAYI EKLİYORUZ: İşletim sistemine gerekli olan C++ kütüphanesini kuruyoruz
+[phases.setup]
+nixPkgs = ["...", "stdenv.cc.cc.lib"]
+
 [phases.build]
 cmds = ["echo 'Build phase - skipping Django commands'"]
 
-# 4. Start aşamasında db işlemleri, statik dosyalar ve sunucuyu başlatıyoruz
 [start]
 cmd = "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi --bind 0.0.0.0:$PORT"
