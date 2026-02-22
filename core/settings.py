@@ -91,7 +91,7 @@ else:
             'NAME': os.getenv('DB_NAME'),
             'USER': os.getenv('DB_USER'),
             'PASSWORD': os.getenv('DB_PASSWORD'),
-            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'HOST': os.getenv('DB_HOST', 'postgresql://postgres:tSdZmKgYkpsFQhPQRmYQXjkAChvpbkAw@postgres.railway.internal:5432/railway'),
             'PORT': os.getenv('DB_PORT', '5432'),
         }
     }
