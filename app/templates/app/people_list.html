@@ -467,7 +467,7 @@ function clearAdvancedSearch() {
 // Edit Person Modal
 async function editPerson(personId) {
   try {
-    const response = await fetch(`/people/${personId}/edit/`);
+    const response = await fetch(`/ui/people/${personId}/edit/`);
     const person = await response.json();
 
     const content = `
@@ -541,7 +541,7 @@ async function editPerson(personId) {
       };
 
       try {
-        const response = await fetch(`/people/${personId}/edit/`, {
+        const response = await fetch(`/ui/people/${personId}/edit/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -577,7 +577,7 @@ function deletePerson(lawyerPersonId) {
     isDanger: true,
     onConfirm: async () => {
       try {
-        const response = await fetch(`/people/relation/${lawyerPersonId}/delete/`, {
+        const response = await fetch(`/ui/people/relation/${lawyerPersonId}/delete/`, {
           method: 'POST',
           headers: {
             'X-CSRFToken': '{{ csrf_token }}'
@@ -627,7 +627,7 @@ async function openExportModal() {
 
 async function fetchExportPreview() {
   const params = new URLSearchParams(exportFilters);
-  const response = await fetch(`/people/export/preview/?${params}`);
+  const response = await fetch(`/ui/people/export/preview/?${params}`);
   exportData = await response.json();
 
   // Set default selected columns
@@ -999,7 +999,7 @@ async function downloadExport() {
       formData.append('columns[]', col);
     });
 
-    const response = await fetch('/people/export/download/', {
+    const response = await fetch('/ui/people/export/download/', {
       method: 'POST',
       body: formData,
       headers: {
@@ -1069,7 +1069,7 @@ async function downloadExport() {
 async function showPersonAnalytics(kisiSicilno) {
   try {
     // Analiz verilerini fetch et
-    const response = await fetch(`/people/${kisiSicilno}/analytics/`);
+    const response = await fetch(`/ui/people/${kisiSicilno}/analytics/`);
     if (!response.ok) {
       throw new Error('Analiz verileri yüklenemedi');
     }
