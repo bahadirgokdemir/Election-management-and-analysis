@@ -53,7 +53,7 @@ def auth_logout(request):
     """Cikis yap"""
     logout(request)
     messages.success(request, 'Basariyla cikis yaptiniz.')
-    return redirect('auth_login')
+    return redirect('landing')
 
 
 @admin_required
