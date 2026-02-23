@@ -1,13 +1,26 @@
 """
 Public view'lar - Giris gerektirmeyen avukat oy durumu kontrolu
 """
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Q
 
 from .models import LawyerAccessCode, LawyerPerson, ElectionVote
+
+
+@require_http_methods(["GET"])
+def landing_page(request):
+    """
+    Ana sayfa - Giris gerektirmez.
+    Avukat kod girisi ve yonetici girisi secenekleri sunar.
+    """
+    # Eger kullanici zaten giris yapmissa dashboard'a yonlendir
+    if request.user.is_authenticated:
+        return redirect('ui_dashboard')
+
+    return render(request, 'app/public/landing.html')
 
 
 @require_http_methods(["GET", "POST"])

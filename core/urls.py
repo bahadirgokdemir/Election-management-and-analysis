@@ -20,12 +20,15 @@ from django.http import HttpResponse
 from django.conf import settings
 from django.conf.urls.static import static
 
+from app.views_public import landing_page
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('app.urls')),
     path('auth/', include('app.urls_auth')),
     path('lawyer/', include('app.urls_public')),
-    path('', include('app.urls_ui')),
+    path('', landing_page, name='landing'),  # Ana sayfa - public
+    path('ui/', include('app.urls_ui')),  # Dashboard ve diger sayfalar
 ]
 
 

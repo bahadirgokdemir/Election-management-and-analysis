@@ -13,6 +13,7 @@ class LoginRequiredMiddleware:
 
     # Giris gerektirmeyen URL isimleri
     EXEMPT_URLS = [
+        'landing',
         'auth_login',
         'auth_logout',
         'lawyer_voting_check',
