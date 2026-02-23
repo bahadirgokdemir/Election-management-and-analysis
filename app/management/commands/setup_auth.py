@@ -47,21 +47,31 @@ class Command(BaseCommand):
         else:
             self.stdout.write('Tum kullanicilarin zaten profili var.\n')
 
-        # Admin kullanici olustur (Kullanıcı Adı verilmisse)
+        # Admin kullanici olustur veya guncelle
         admin_username = options['admin_username']
         admin_password = options['admin_password']
         admin_email = options['admin_email']
 
         if admin_password:
-            if User.objects.filter(username=admin_username).exists():
-                self.stdout.write(self.style.WARNING(f'\n"{admin_username}" kullanicisi zaten mevcut.'))
-            else:
-                user = User.objects.create_superuser(
-                    username=admin_username,
-                    email=admin_email,
-                    password=admin_password
-                )
+            user, created = User.objects.get_or_create(
+                username=admin_username,
+                defaults={'email': admin_email, 'is_staff': True, 'is_superuser': True}
+            )
+
+            # Sifreyi her zaman guncelle
+            user.set_password(admin_password)
+            user.is_staff = True
+            user.is_superuser = True
+            user.save()
+
+            # Profil olustur (yoksa)
+            if not hasattr(user, 'profile'):
+                UserProfile.objects.create(user=user, role=UserProfile.ROLE_ADMIN)
+
+            if created:
                 self.stdout.write(self.style.SUCCESS(f'\nAdmin kullanici olusturuldu: {admin_username}'))
+            else:
+                self.stdout.write(self.style.SUCCESS(f'\nAdmin kullanici guncellendi: {admin_username}'))
 
         # Profil istatistikleri
         self.stdout.write('\n--- Profil Istatistikleri ---')

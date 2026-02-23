@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Seçim 2026</title>
+  <title>Secim 2026</title>
   <style>
     * {
       margin: 0;
@@ -11,338 +11,342 @@
       box-sizing: border-box;
     }
 
-    :root {
-      --primary: #3b82f6;
-      --primary-dark: #2563eb;
-      --success: #22c55e;
-      --warning: #f59e0b;
-      --error: #ef4444;
-      --bg-dark: #0f172a;
-      --bg-card: #1e293b;
-      --bg-input: #334155;
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --border: #475569;
-    }
-
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
-      color: var(--text-primary);
+      background: #0a0f1a;
+      background-image:
+        radial-gradient(ellipse at top, #1e3a5f 0%, transparent 50%),
+        radial-gradient(ellipse at bottom, #1a1a2e 0%, transparent 50%);
       display: flex;
       flex-direction: column;
-    }
-
-    .container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
       align-items: center;
-      padding: 24px;
-      max-width: 480px;
-      margin: 0 auto;
-      width: 100%;
+      justify-content: center;
+      padding: 20px;
     }
 
-    /* Logo ve Baslik */
+    .main-container {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    /* Header */
     .header {
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 40px;
     }
 
-    .logo {
-      width: 72px;
-      height: 72px;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      border-radius: 20px;
+    .logo-box {
+      width: 90px;
+      height: 90px;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      border-radius: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 20px;
-      box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3);
+      margin: 0 auto 24px;
+      box-shadow:
+        0 20px 50px rgba(59, 130, 246, 0.4),
+        0 0 0 1px rgba(255,255,255,0.1);
     }
 
-    .logo svg {
-      width: 40px;
-      height: 40px;
+    .logo-box svg {
+      width: 48px;
+      height: 48px;
       color: white;
     }
 
-    .title {
-      font-size: 28px;
-      font-weight: 700;
+    .app-title {
+      font-size: 36px;
+      font-weight: 800;
+      color: #ffffff;
       margin-bottom: 8px;
-      letter-spacing: -0.5px;
+      letter-spacing: -1px;
     }
 
-    .subtitle {
-      font-size: 15px;
-      color: var(--text-secondary);
-      line-height: 1.5;
+    .app-subtitle {
+      font-size: 16px;
+      color: #94a3b8;
     }
 
-    /* Kod Giris Karti */
-    .code-card {
-      background: var(--bg-card);
-      border-radius: 20px;
-      padding: 32px 24px;
-      width: 100%;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
-      margin-bottom: 24px;
+    /* Main Card */
+    .main-card {
+      background: linear-gradient(145deg, #1e293b 0%, #1a2332 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow:
+        0 25px 60px rgba(0,0,0,0.5),
+        inset 0 1px 0 rgba(255,255,255,0.05);
     }
 
-    .code-card-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 8px;
+    .card-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .card-icon {
+      width: 56px;
+      height: 56px;
+      background: rgba(59, 130, 246, 0.15);
+      border: 2px solid rgba(59, 130, 246, 0.3);
+      border-radius: 16px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: center;
+      margin: 0 auto 16px;
     }
 
-    .code-card-title svg {
-      width: 22px;
-      height: 22px;
-      color: var(--primary);
+    .card-icon svg {
+      width: 28px;
+      height: 28px;
+      color: #60a5fa;
     }
 
-    .code-card-desc {
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin-bottom: 24px;
-      line-height: 1.5;
+    .card-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
     }
 
+    .card-desc {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.6;
+    }
+
+    /* Form */
     .code-form {
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
 
+    .input-wrapper {
+      position: relative;
+    }
+
     .code-input {
       width: 100%;
-      padding: 18px 20px;
-      font-size: 18px;
-      font-weight: 500;
-      letter-spacing: 2px;
+      padding: 20px 24px;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 4px;
       text-align: center;
       text-transform: uppercase;
-      border: 2px solid var(--border);
-      border-radius: 14px;
-      background: var(--bg-input);
-      color: var(--text-primary);
-      transition: all 0.2s;
+      border: 2px solid #334155;
+      border-radius: 16px;
+      background: #0f172a;
+      color: #ffffff;
+      transition: all 0.3s;
     }
 
     .code-input:focus {
       outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+      border-color: #3b82f6;
+      box-shadow:
+        0 0 0 4px rgba(59, 130, 246, 0.2),
+        0 0 30px rgba(59, 130, 246, 0.1);
     }
 
     .code-input::placeholder {
-      color: var(--text-muted);
+      color: #475569;
       letter-spacing: 0;
       text-transform: none;
       font-weight: 400;
+      font-size: 16px;
     }
 
-    .code-btn {
+    .submit-btn {
       width: 100%;
-      padding: 18px 24px;
-      font-size: 16px;
-      font-weight: 600;
+      padding: 20px 32px;
+      font-size: 17px;
+      font-weight: 700;
       color: white;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
       border: none;
-      border-radius: 14px;
+      border-radius: 16px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(59, 130, 246, 0.5);
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .submit-btn svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Divider */
+    .divider {
+      display: flex;
+      align-items: center;
+      margin: 28px 0;
+      color: #475569;
+      font-size: 13px;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #334155, transparent);
+    }
+
+    .divider span {
+      padding: 0 16px;
+    }
+
+    /* Admin Link */
+    .admin-btn {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-    }
-
-    .code-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
-    }
-
-    .code-btn:active {
-      transform: translateY(0);
-    }
-
-    .code-btn svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    /* Hata Mesaji */
-    .error-box {
-      padding: 14px 16px;
-      background: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: 10px;
-      color: #fca5a5;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-
-    .error-box svg {
-      width: 20px;
-      height: 20px;
-      flex-shrink: 0;
-      color: var(--error);
-    }
-
-    /* Yonetici Girisi */
-    .admin-section {
-      text-align: center;
-      padding-top: 24px;
-      border-top: 1px solid rgba(255,255,255,0.1);
       width: 100%;
-    }
-
-    .admin-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--text-secondary);
+      padding: 16px 24px;
+      font-size: 15px;
+      font-weight: 500;
+      color: #94a3b8;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid #334155;
+      border-radius: 14px;
       text-decoration: none;
-      font-size: 14px;
-      padding: 12px 24px;
-      border-radius: 10px;
-      transition: all 0.2s;
+      transition: all 0.3s;
     }
 
-    .admin-link:hover {
-      color: var(--text-primary);
-      background: rgba(255,255,255,0.05);
+    .admin-btn:hover {
+      color: #ffffff;
+      background: rgba(255,255,255,0.06);
+      border-color: #475569;
     }
 
-    .admin-link svg {
-      width: 18px;
-      height: 18px;
+    .admin-btn svg {
+      width: 20px;
+      height: 20px;
     }
 
     /* Footer */
     .footer {
+      margin-top: 40px;
       text-align: center;
-      padding: 20px;
-      color: var(--text-muted);
-      font-size: 12px;
+      color: #475569;
+      font-size: 13px;
     }
 
-    /* Mobil Responsive */
+    /* Mobile */
     @media (max-width: 480px) {
-      .container {
-        padding: 20px 16px;
+      body {
+        padding: 16px;
       }
 
-      .title {
-        font-size: 24px;
+      .logo-box {
+        width: 76px;
+        height: 76px;
       }
 
-      .code-card {
-        padding: 24px 20px;
+      .logo-box svg {
+        width: 40px;
+        height: 40px;
+      }
+
+      .app-title {
+        font-size: 28px;
+      }
+
+      .main-card {
+        padding: 24px;
       }
 
       .code-input {
-        padding: 16px;
+        padding: 18px 20px;
+        font-size: 18px;
+        letter-spacing: 3px;
+      }
+
+      .submit-btn {
+        padding: 18px 24px;
         font-size: 16px;
-      }
-
-      .code-btn {
-        padding: 16px 20px;
-      }
-    }
-
-    /* Tablet ve Desktop */
-    @media (min-width: 768px) {
-      .container {
-        padding: 40px 24px;
-      }
-
-      .logo {
-        width: 80px;
-        height: 80px;
-      }
-
-      .logo svg {
-        width: 44px;
-        height: 44px;
-      }
-
-      .title {
-        font-size: 32px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="main-container">
     <div class="header">
-      <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+      <div class="logo-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
         </svg>
       </div>
-      <h1 class="title">Seçim 2026</h1>
-      <p class="subtitle">Secim gunu oy durumu takip sistemi</p>
+      <h1 class="app-title">Secim 2026</h1>
+      <p class="app-subtitle">Oy Durumu Takip Sistemi</p>
     </div>
 
-    <div class="code-card">
-      <h2 class="code-card-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-        </svg>
-        Erisim Kodu ile Giris
-      </h2>
-      <p class="code-card-desc">
-        Size verilen erisim kodunu girerek muvekkillerinizin oy durumlarini goruntuleyebilirsiniz.
-      </p>
+    <div class="main-card">
+      <div class="card-header">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+        </div>
+        <h2 class="card-title">Oy Durumu Sorgula</h2>
+        <p class="card-desc">Erisim kodunuzu girerek muvekkillerinizin oy durumlarini anlik olarak takip edin.</p>
+      </div>
 
       <form action="{% url 'lawyer_voting_check' %}" method="post" class="code-form">
         {% csrf_token %}
-        <input
-          type="text"
-          name="code"
-          class="code-input"
-          placeholder="Erisim kodunuzu girin"
-          autocomplete="off"
-          autocapitalize="characters"
-          spellcheck="false"
-          required
-          autofocus
-        />
-        <button type="submit" class="code-btn">
+        <div class="input-wrapper">
+          <input
+            type="text"
+            name="code"
+            class="code-input"
+            placeholder="Erisim Kodu"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            maxlength="20"
+            required
+            autofocus
+          />
+        </div>
+        <button type="submit" class="submit-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
-          Oy Durumlarini Kontrol Et
+          Sorgula
         </button>
       </form>
-    </div>
 
-    <div class="admin-section">
-      <a href="{% url 'auth_login' %}" class="admin-link">
+      <div class="divider">
+        <span>veya</span>
+      </div>
+
+      <a href="{% url 'auth_login' %}" class="admin-btn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          <path d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
         </svg>
-        Yonetici Girisi
+        Yonetici Paneli
       </a>
     </div>
-  </div>
 
-  <div class="footer">
-    Seçim 2026
+    <div class="footer">
+      Secim 2026 - Oy Takip Sistemi
+    </div>
   </div>
 </body>
 </html>
