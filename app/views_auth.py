@@ -28,7 +28,7 @@ def auth_login(request):
         password = request.POST.get('password', '')
 
         if not username or not password:
-            messages.error(request, 'Kullanici adi ve sifre zorunludur.')
+            messages.error(request, 'Kullanıcı Adı ve Şifre zorunludur.')
             return render(request, 'app/auth/login.html')
 
         user = authenticate(request, username=username, password=password)
@@ -43,7 +43,7 @@ def auth_login(request):
                 return redirect(next_url)
             return redirect('ui_dashboard')
         else:
-            messages.error(request, 'Gecersiz kullanici adi veya sifre.')
+            messages.error(request, 'Gecersiz Kullanıcı Adı veya Şifre.')
 
     return render(request, 'app/auth/login.html')
 
@@ -253,19 +253,19 @@ def auth_create_user(request):
 
         # Validasyon
         if not username or not password:
-            messages.error(request, 'Kullanici adi ve sifre zorunludur.')
+            messages.error(request, 'Kullanıcı Adı ve Şifre zorunludur.')
             return redirect('auth_create_user')
 
         if password != password_confirm:
-            messages.error(request, 'Sifreler eslesmiyor.')
+            messages.error(request, 'Şifreler eslesmiyor.')
             return redirect('auth_create_user')
 
         if len(password) < 8:
-            messages.error(request, 'Sifre en az 8 karakter olmalidir.')
+            messages.error(request, 'Şifre en az 8 karakter olmalidir.')
             return redirect('auth_create_user')
 
         if User.objects.filter(username=username).exists():
-            messages.error(request, 'Bu kullanici adi zaten kullaniliyor.')
+            messages.error(request, 'Bu Kullanıcı Adı zaten kullaniliyor.')
             return redirect('auth_create_user')
 
         # Kullanici olustur

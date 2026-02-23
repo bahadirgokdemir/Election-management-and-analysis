@@ -20,7 +20,7 @@ class Command(BaseCommand):
         parser.add_argument(
             '--admin-password',
             type=str,
-            help='Admin sifresi (belirtilmezse olusturulmaz)'
+            help='Admin Kullanıcı Adısi (belirtilmezse olusturulmaz)'
         )
         parser.add_argument(
             '--admin-email',
@@ -47,7 +47,7 @@ class Command(BaseCommand):
         else:
             self.stdout.write('Tum kullanicilarin zaten profili var.\n')
 
-        # Admin kullanici olustur (sifre verilmisse)
+        # Admin kullanici olustur (Kullanıcı Adı verilmisse)
         admin_username = options['admin_username']
         admin_password = options['admin_password']
         admin_email = options['admin_email']
