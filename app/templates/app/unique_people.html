@@ -259,6 +259,147 @@
 {% endif %}
 
 <script>
+// CSRF Token
+function getCsrfToken() {
+  return '{{ csrf_token }}';
+}
+
+// Edit Record Modal
+async function editRecord(recordId) {
+  try {
+    const response = await fetch(`/ui/people/${recordId}/edit/`);
+    const person = await response.json();
+
+    const content = `
+      <form id="edit-record-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Ad</label>
+            <input type="text" id="edit-ad" value="${person.ad || ''}" required />
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Soyad</label>
+            <input type="text" id="edit-soyad" value="${person.soyad || ''}" required />
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">E-posta</label>
+            <input type="email" id="edit-mail" value="${person.mail || ''}" />
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label">Telefon</label>
+            <input type="text" id="edit-telno" value="${person.telno || ''}" />
+          </div>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Ilce</label>
+          <input type="text" id="edit-ilce" value="${person.ilce || ''}" />
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Adres Aciklama</label>
+          <textarea id="edit-adres" rows="2">${person.adres_aciklama || ''}</textarea>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Notlar</label>
+          <textarea id="edit-notlar" rows="2">${person.notlar || ''}</textarea>
+        </div>
+
+        <div class="form-group" style="margin: 0;">
+          <label class="form-label">Cevap Durumu</label>
+          <select id="edit-status">
+            <option value="">Belirtilmemis</option>
+            ${person.available_statuses.map(s =>
+              `<option value="${s.key}" ${person.cevap_status_key === s.key ? 'selected' : ''}>${s.label}</option>`
+            ).join('')}
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+          <button type="button" onclick="closeModal()" class="btn">Iptal</button>
+          <button type="submit" class="btn primary">Kaydet</button>
+        </div>
+      </form>
+    `;
+
+    openModal('Kayit Duzenle', content);
+
+    document.getElementById('edit-record-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = {
+        ad: document.getElementById('edit-ad').value,
+        soyad: document.getElementById('edit-soyad').value,
+        mail: document.getElementById('edit-mail').value,
+        telno: document.getElementById('edit-telno').value,
+        ilce: document.getElementById('edit-ilce').value,
+        adres_aciklama: document.getElementById('edit-adres').value,
+        notlar: document.getElementById('edit-notlar').value,
+        cevap_status_key: document.getElementById('edit-status').value
+      };
+
+      try {
+        const response = await fetch(`/ui/people/${recordId}/edit/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+          },
+          body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+          closeModal();
+          location.reload();
+        } else {
+          alert('Kayit guncellenirken bir hata olustu.');
+        }
+      } catch (error) {
+        console.error('Edit error:', error);
+        alert('Kayit guncellenirken bir hata olustu.');
+      }
+    });
+  } catch (error) {
+    console.error('Fetch error:', error);
+    alert('Kisi bilgileri yuklenirken bir hata olustu.');
+  }
+}
+
+// Delete Record
+function deleteRecord(recordId) {
+  confirmAction({
+    title: 'Kayit Sil',
+    message: 'Bu kaydi silmek istediginizden emin misiniz?<br><br>Bu islem geri alinamaz!',
+    confirmText: 'Evet, Sil',
+    cancelText: 'Iptal',
+    isDanger: true,
+    onConfirm: async () => {
+      try {
+        const response = await fetch(`/ui/people/relation/${recordId}/delete/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': getCsrfToken()
+          }
+        });
+
+        if (response.ok) {
+          closeModal();
+          location.reload();
+        } else {
+          alert('Kayit silinirken bir hata olustu.');
+        }
+      } catch (error) {
+        console.error('Delete error:', error);
+        alert('Kayit silinirken bir hata olustu.');
+      }
+    }
+  });
+}
+
 // Show Person Detail Modal
 async function showPersonDetail(kisiSicilno) {
   try {
@@ -332,25 +473,37 @@ async function showPersonDetail(kisiSicilno) {
                       <div style="font-weight: 600; color: var(--text-primary);">${rec.lawyer.full_name}</div>
                       <div style="font-size: 10px; color: var(--text-muted); font-family: monospace;">Sicil: ${rec.lawyer.sicil_no}</div>
                     </div>
-                    ${rec.cevap_status ?
-                      `<span style="padding: 4px 10px; background: var(--primary); color: white; border-radius: 4px; font-size: 10px; font-weight: 600;">${rec.cevap_status}</span>` :
-                      `<span style="padding: 4px 10px; background: var(--bg-card); color: var(--text-muted); border-radius: 4px; font-size: 10px;">-</span>`}
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      ${rec.cevap_status ?
+                        \`<span style="padding: 4px 10px; background: var(--primary); color: white; border-radius: 4px; font-size: 10px; font-weight: 600;">\${rec.cevap_status}</span>\` :
+                        \`<span style="padding: 4px 10px; background: var(--bg-card); color: var(--text-muted); border-radius: 4px; font-size: 10px;">-</span>\`}
+                      <button onclick="editRecord(\${rec.id})" class="icon-btn" title="Duzenle" style="width: 28px; height: 28px; padding: 4px;">
+                        <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button onclick="deleteRecord(\${rec.id})" class="icon-btn danger" title="Sil" style="width: 28px; height: 28px; padding: 4px;">
+                        <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; font-size: 11px;">
                     <div>
                       <span style="color: var(--text-muted);">Email:</span>
-                      <span style="color: var(--text-secondary); margin-left: 4px;">${rec.mail || '-'}</span>
+                      <span style="color: var(--text-secondary); margin-left: 4px;">\${rec.mail || '-'}</span>
                     </div>
                     <div>
                       <span style="color: var(--text-muted);">Tel:</span>
-                      <span style="color: var(--text-secondary); margin-left: 4px;">${rec.telno || '-'}</span>
+                      <span style="color: var(--text-secondary); margin-left: 4px;">\${rec.telno || '-'}</span>
                     </div>
                     <div>
                       <span style="color: var(--text-muted);">Ilce:</span>
-                      <span style="color: var(--text-secondary); margin-left: 4px;">${rec.ilce || '-'}</span>
+                      <span style="color: var(--text-secondary); margin-left: 4px;">\${rec.ilce || '-'}</span>
                     </div>
                   </div>
-                  ${rec.notlar ? `<div style="margin-top: 8px; font-size: 11px; color: var(--text-muted); font-style: italic;">Not: ${rec.notlar}</div>` : ''}
+                  \${rec.notlar ? \`<div style="margin-top: 8px; font-size: 11px; color: var(--text-muted); font-style: italic;">Not: \${rec.notlar}</div>\` : ''}
                 </div>
               `).join('') :
               '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Kayit bulunamadi</div>'}
