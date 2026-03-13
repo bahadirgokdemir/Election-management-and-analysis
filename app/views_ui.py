@@ -25,7 +25,11 @@ from django.shortcuts import get_object_or_404
 @login_required_custom
 @require_http_methods(["GET"])
 def ui_dashboard(request):
-    data = report_overview()
+    try:
+        data = report_overview()
+    except Exception as e:
+        data = {}
+        messages.error(request, f'Dashboard verisi yüklenirken hata oluştu: {e}')
     return render(request, 'app/dashboard.html', {'data': data})
 
 
@@ -51,10 +55,14 @@ def ui_lawyers(request):
             messages.error(request, "Sicil No, Ad ve Soyad zorunludur.")
             return redirect('ui_lawyers')
 
-        lawyer, created = Lawyer.objects.get_or_create(
-            sicil_no=sicil,
-            defaults={'ad': ad, 'soyad': soyad}
-        )
+        try:
+            lawyer, created = Lawyer.objects.get_or_create(
+                sicil_no=sicil,
+                defaults={'ad': ad, 'soyad': soyad}
+            )
+        except Exception as e:
+            messages.error(request, f'Avukat kaydedilirken hata oluştu: {e}')
+            return redirect('ui_lawyers')
         if created:
             messages.success(request, f"Avukat eklendi: {sicil} — {ad} {soyad}")
         else:
@@ -269,7 +277,11 @@ def ui_upload(request):
 @uploader_required
 @require_http_methods(["GET"])
 def ui_diff_preview(request, batch_id: int):
-    diff = compute_diff(batch_id)
+    try:
+        diff = compute_diff(batch_id)
+    except Exception as e:
+        messages.error(request, f'Diff önizlemesi yüklenirken hata oluştu: {e}')
+        return redirect('ui_dashboard')
     return render(request, 'app/diff_preview.html', {'diff': diff})
 
 
@@ -277,7 +289,11 @@ def ui_diff_preview(request, batch_id: int):
 @csrf_exempt
 @require_http_methods(["POST"])
 def ui_approve_batch(request, batch_id: int):
-    res = apply_diff(batch_id, actor=str(request.user) if request.user.is_authenticated else None)
+    try:
+        res = apply_diff(batch_id, actor=str(request.user) if request.user.is_authenticated else None)
+    except Exception as e:
+        messages.error(request, f'Değişiklikler uygulanırken hata oluştu: {e}')
+        return redirect('ui_diff_preview', batch_id=batch_id)
     if res.get('ok'):
         messages.success(request, 'Değişiklikler uygulandı.')
         return redirect('ui_dashboard')
@@ -429,25 +445,28 @@ def ui_people_export_download(request):
         filter_info['ilce'] = selected_ilce
 
     # Format'a göre export
-    if export_format == 'excel':
-        return ExportService.export_to_excel(
-            queryset=qs,
-            selected_columns=selected_columns,
-            include_stats=include_stats,
-            include_filters=filter_info
-        )
-    elif export_format == 'pdf':
-        return ExportService.export_to_pdf(
-            queryset=qs,
-            selected_columns=selected_columns,
-            include_stats=include_stats,
-            include_filters=filter_info
-        )
-    else:  # csv (default)
-        return ExportService.export_to_csv(
-            queryset=qs,
-            selected_columns=selected_columns
-        )
+    try:
+        if export_format == 'excel':
+            return ExportService.export_to_excel(
+                queryset=qs,
+                selected_columns=selected_columns,
+                include_stats=include_stats,
+                include_filters=filter_info
+            )
+        elif export_format == 'pdf':
+            return ExportService.export_to_pdf(
+                queryset=qs,
+                selected_columns=selected_columns,
+                include_stats=include_stats,
+                include_filters=filter_info
+            )
+        else:  # csv (default)
+            return ExportService.export_to_csv(
+                queryset=qs,
+                selected_columns=selected_columns
+            )
+    except Exception as e:
+        return JsonResponse({'error': f'Dışa aktarma sırasında hata oluştu: {e}'}, status=500)
 
 
 @login_required_custom
@@ -696,7 +715,12 @@ def ui_approve_selected(request, batch_id: int):
       - removed: çoklu checkbox (value=kisi_sicilno)
       - changed: çoklu checkbox (value=kisi_sicilno) -> tüm değişen alanlar uygulanır
     """
-    diff = compute_diff(batch_id)
+    try:
+        diff = compute_diff(batch_id)
+    except Exception as e:
+        messages.error(request, f'Diff bilgisi alınırken hata oluştu: {e}')
+        return redirect('ui_dashboard')
+
     sel_added = set(request.POST.getlist('added'))
     sel_removed = set(request.POST.getlist('removed'))
     sel_changed = set(request.POST.getlist('changed'))
@@ -724,92 +748,96 @@ def ui_approve_selected(request, batch_id: int):
 
     applied_add, applied_remove, applied_change = 0, 0, 0
 
-    with transaction.atomic():
-        # ADDED - Yeni kayıtlar
-        for row in diff.get('added', []):
-            ks = str(row.get('kisi_sicilno') or '')
-            if ks not in sel_added:
-                continue
+    try:
+        with transaction.atomic():
+            # ADDED - Yeni kayıtlar
+            for row in diff.get('added', []):
+                ks = str(row.get('kisi_sicilno') or '')
+                if ks not in sel_added:
+                    continue
 
-            # Person global kaydı (referans için) - sadece sicilno saklanır
-            person, _ = Person.objects.get_or_create(
-                kisi_sicilno=ks,
-                defaults={
-                    'ad': row.get('ad') or '',
-                    'soyad': row.get('soyad') or '',
-                }
-            )
+                # Person global kaydı (referans için) - sadece sicilno saklanır
+                person, _ = Person.objects.get_or_create(
+                    kisi_sicilno=ks,
+                    defaults={
+                        'ad': row.get('ad') or '',
+                        'soyad': row.get('soyad') or '',
+                    }
+                )
 
-            # KRITIK: Gerçek veriler LawyerPerson'da saklanır
-            # Her avukat için bağımsız kopya
-            LawyerPerson.objects.update_or_create(
-                lawyer=lawyer,
-                kisi_sicilno=ks,
-                defaults={
-                    'person': person,
-                    'ad': row.get('ad') or '',
-                    'soyad': row.get('soyad') or '',
-                    'mail': row.get('mail') or '',
-                    'telno': row.get('telno') or '',
-                    'ilce': row.get('ilce') or '',
-                    'adres_aciklama': row.get('adres_aciklama') or '',
-                    'notlar': row.get('notlar') or '',
-                    'cevap_status': get_status(row.get('cevap_status_key')),
-                    'active': True
-                }
-            )
-            applied_add += 1
+                # KRITIK: Gerçek veriler LawyerPerson'da saklanır
+                # Her avukat için bağımsız kopya
+                LawyerPerson.objects.update_or_create(
+                    lawyer=lawyer,
+                    kisi_sicilno=ks,
+                    defaults={
+                        'person': person,
+                        'ad': row.get('ad') or '',
+                        'soyad': row.get('soyad') or '',
+                        'mail': row.get('mail') or '',
+                        'telno': row.get('telno') or '',
+                        'ilce': row.get('ilce') or '',
+                        'adres_aciklama': row.get('adres_aciklama') or '',
+                        'notlar': row.get('notlar') or '',
+                        'cevap_status': get_status(row.get('cevap_status_key')),
+                        'active': True
+                    }
+                )
+                applied_add += 1
 
-        # REMOVED - Kayıt silme (soft delete)
-        for row in diff.get('removed', []):
-            ks = str(row.get('kisi_sicilno') or '')
-            if ks not in sel_removed:
-                continue
+            # REMOVED - Kayıt silme (soft delete)
+            for row in diff.get('removed', []):
+                ks = str(row.get('kisi_sicilno') or '')
+                if ks not in sel_removed:
+                    continue
 
-            # Bu avukattan kaldır (hard delete veya soft delete)
-            deleted_count = LawyerPerson.objects.filter(
-                lawyer=lawyer,
-                kisi_sicilno=ks
-            ).delete()[0]
+                # Bu avukattan kaldır (hard delete veya soft delete)
+                deleted_count = LawyerPerson.objects.filter(
+                    lawyer=lawyer,
+                    kisi_sicilno=ks
+                ).delete()[0]
 
-            if deleted_count > 0:
-                applied_remove += 1
+                if deleted_count > 0:
+                    applied_remove += 1
 
-        # CHANGED - Mevcut kayıtları güncelle
-        for row in diff.get('changed', []):
-            ks = str(row.get('kisi_sicilno') or '')
-            if ks not in sel_changed:
-                continue
+            # CHANGED - Mevcut kayıtları güncelle
+            for row in diff.get('changed', []):
+                ks = str(row.get('kisi_sicilno') or '')
+                if ks not in sel_changed:
+                    continue
 
-            after = row.get('after') or {}
+                after = row.get('after') or {}
 
-            # Person referansını al/oluştur
-            person, _ = Person.objects.get_or_create(
-                kisi_sicilno=ks,
-                defaults={
-                    'ad': after.get('ad') or '',
-                    'soyad': after.get('soyad') or '',
-                }
-            )
+                # Person referansını al/oluştur
+                person, _ = Person.objects.get_or_create(
+                    kisi_sicilno=ks,
+                    defaults={
+                        'ad': after.get('ad') or '',
+                        'soyad': after.get('soyad') or '',
+                    }
+                )
 
-            # KRITIK: LawyerPerson'ı güncelle - sadece bu avukatın verisi
-            LawyerPerson.objects.update_or_create(
-                lawyer=lawyer,
-                kisi_sicilno=ks,
-                defaults={
-                    'person': person,
-                    'ad': after.get('ad') or '',
-                    'soyad': after.get('soyad') or '',
-                    'mail': after.get('mail') or '',
-                    'telno': after.get('telno') or '',
-                    'ilce': after.get('ilce') or '',
-                    'adres_aciklama': after.get('adres_aciklama') or '',
-                    'notlar': after.get('notlar') or '',
-                    'cevap_status': get_status(after.get('cevap_status_key')),
-                    'active': True
-                }
-            )
-            applied_change += 1
+                # KRITIK: LawyerPerson'ı güncelle - sadece bu avukatın verisi
+                LawyerPerson.objects.update_or_create(
+                    lawyer=lawyer,
+                    kisi_sicilno=ks,
+                    defaults={
+                        'person': person,
+                        'ad': after.get('ad') or '',
+                        'soyad': after.get('soyad') or '',
+                        'mail': after.get('mail') or '',
+                        'telno': after.get('telno') or '',
+                        'ilce': after.get('ilce') or '',
+                        'adres_aciklama': after.get('adres_aciklama') or '',
+                        'notlar': after.get('notlar') or '',
+                        'cevap_status': get_status(after.get('cevap_status_key')),
+                        'active': True
+                    }
+                )
+                applied_change += 1
+    except Exception as e:
+        messages.error(request, f'Değişiklikler uygulanırken hata oluştu: {e}')
+        return redirect('ui_diff_preview', batch_id=batch_id)
 
     messages.success(
         request,
@@ -885,23 +913,29 @@ def ui_person_edit(request, person_id):
     if request.method == "POST":
         # LawyerPerson bilgilerini güncelle - sadece bu avukat için
         import json
-        data = json.loads(request.body)
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, Exception) as e:
+            return JsonResponse({'success': False, 'error': f'Geçersiz veri formatı: {e}'}, status=400)
 
-        lp.ad = data.get('ad', lp.ad)
-        lp.soyad = data.get('soyad', lp.soyad)
-        lp.mail = data.get('mail') or None
-        lp.telno = data.get('telno') or None
-        lp.ilce = data.get('ilce') or None
-        lp.adres_aciklama = data.get('adres_aciklama') or None
-        lp.notlar = data.get('notlar') or None
+        try:
+            lp.ad = data.get('ad', lp.ad)
+            lp.soyad = data.get('soyad', lp.soyad)
+            lp.mail = data.get('mail') or None
+            lp.telno = data.get('telno') or None
+            lp.ilce = data.get('ilce') or None
+            lp.adres_aciklama = data.get('adres_aciklama') or None
+            lp.notlar = data.get('notlar') or None
 
-        status_key = data.get('cevap_status_key')
-        if status_key:
-            lp.cevap_status = StatusOption.objects.filter(key=status_key).first()
-        else:
-            lp.cevap_status = None
+            status_key = data.get('cevap_status_key')
+            if status_key:
+                lp.cevap_status = StatusOption.objects.filter(key=status_key).first()
+            else:
+                lp.cevap_status = None
 
-        lp.save()
+            lp.save()
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'Kayıt güncellenirken hata oluştu: {e}'}, status=500)
         return JsonResponse({'success': True})
 
 
@@ -1018,7 +1052,10 @@ def ui_unique_people(request):
 @require_http_methods(["GET"])
 def ui_unique_person_detail(request, kisi_sicilno: str):
     """Belirli bir sicil no için detay modal verisi"""
-    person = UniquePeopleService.get_person_details(kisi_sicilno)
+    try:
+        person = UniquePeopleService.get_person_details(kisi_sicilno)
+    except Exception as e:
+        return JsonResponse({'error': f'Kişi detayı alınırken hata oluştu: {e}'}, status=500)
 
     if not person:
         return JsonResponse({'error': 'Kişi bulunamadı'}, status=404)
@@ -1033,14 +1070,19 @@ def ui_person_analytics(request, kisi_sicilno: str):
     Kişi bazlı analiz verisi
     Avukat ve durum istatistikleri, grafik verileri
     """
-    analytics = PersonAnalyticsService.get_person_analytics(kisi_sicilno)
+    try:
+        analytics = PersonAnalyticsService.get_person_analytics(kisi_sicilno)
+    except Exception as e:
+        return JsonResponse({'error': f'Analiz verisi alınırken hata oluştu: {e}'}, status=500)
 
     if not analytics:
         return JsonResponse({'error': 'Kişi bulunamadı veya veri yok'}, status=404)
 
-    # Karşılaştırmalı istatistikler
-    comparison = PersonAnalyticsService.get_comparison_stats(kisi_sicilno)
-    analytics['comparison'] = comparison
+    try:
+        comparison = PersonAnalyticsService.get_comparison_stats(kisi_sicilno)
+        analytics['comparison'] = comparison
+    except Exception:
+        analytics['comparison'] = {}
 
     return JsonResponse(analytics)
 

@@ -107,7 +107,10 @@ def auth_generate_access_code(request):
     if request.method == "POST":
         lawyer_id = request.POST.get('lawyer_id')
         election_id = request.POST.get('election_id')
-        expires_days = int(request.POST.get('expires_days', 30))
+        try:
+            expires_days = int(request.POST.get('expires_days', 30))
+        except (TypeError, ValueError):
+            expires_days = 30
 
         if not lawyer_id or not election_id:
             messages.error(request, 'Avukat ve secim secimi zorunludur.')
@@ -129,12 +132,16 @@ def auth_generate_access_code(request):
             return redirect('auth_access_codes')
 
         # Yeni kod olustur
-        code = LawyerAccessCode.objects.create(
-            lawyer=lawyer,
-            election=election,
-            expires_at=timezone.now() + timedelta(days=expires_days),
-            created_by=request.user
-        )
+        try:
+            code = LawyerAccessCode.objects.create(
+                lawyer=lawyer,
+                election=election,
+                expires_at=timezone.now() + timedelta(days=expires_days),
+                created_by=request.user
+            )
+        except Exception as e:
+            messages.error(request, f'Erisim kodu olusturulurken hata olustu: {e}')
+            return redirect('auth_generate_access_code')
 
         messages.success(request, f'Erisim kodu olusturuldu: {code.code}')
         return redirect('auth_access_codes')
@@ -151,16 +158,18 @@ def auth_generate_access_code(request):
 @require_http_methods(["POST"])
 def auth_toggle_access_code(request, code_id):
     """Erisim kodunu aktif/pasif yap"""
-    code = get_object_or_404(LawyerAccessCode, id=code_id)
-    code.is_active = not code.is_active
-    code.save()
-
-    status = 'aktif' if code.is_active else 'pasif'
-    return JsonResponse({
-        'success': True,
-        'message': f'Kod {status} yapildi',
-        'is_active': code.is_active
-    })
+    try:
+        code = get_object_or_404(LawyerAccessCode, id=code_id)
+        code.is_active = not code.is_active
+        code.save()
+        status = 'aktif' if code.is_active else 'pasif'
+        return JsonResponse({
+            'success': True,
+            'message': f'Kod {status} yapildi',
+            'is_active': code.is_active
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Islem sirasinda hata olustu: {e}'}, status=500)
 
 
 @admin_required
@@ -168,13 +177,15 @@ def auth_toggle_access_code(request, code_id):
 @require_http_methods(["POST"])
 def auth_delete_access_code(request, code_id):
     """Erisim kodunu sil"""
-    code = get_object_or_404(LawyerAccessCode, id=code_id)
-    code.delete()
-
-    return JsonResponse({
-        'success': True,
-        'message': 'Kod silindi'
-    })
+    try:
+        code = get_object_or_404(LawyerAccessCode, id=code_id)
+        code.delete()
+        return JsonResponse({
+            'success': True,
+            'message': 'Kod silindi'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': f'Silme sirasinda hata olustu: {e}'}, status=500)
 
 
 @admin_required
@@ -269,13 +280,17 @@ def auth_create_user(request):
             return redirect('auth_create_user')
 
         # Kullanici olustur
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            password=password,
-            first_name=first_name,
-            last_name=last_name
-        )
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name
+            )
+        except Exception as e:
+            messages.error(request, f'Kullanici olusturulurken hata olustu: {e}')
+            return redirect('auth_create_user')
 
         # Profil rol guncelle (signal otomatik olusturur)
         try:

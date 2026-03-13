@@ -55,13 +55,17 @@ def ui_election_create(request):
         messages.error(request, 'Seçim adı ve tarihi zorunludur')
         return redirect('ui_elections')
 
-    Election.objects.create(
-        name=name,
-        election_date=election_date,
-        description=description,
-        is_active=False,
-        allow_external_registration=True
-    )
+    try:
+        Election.objects.create(
+            name=name,
+            election_date=election_date,
+            description=description,
+            is_active=False,
+            allow_external_registration=True
+        )
+    except Exception as e:
+        messages.error(request, f'Seçim oluşturulurken hata oluştu: {e}')
+        return redirect('ui_elections')
 
     messages.success(request, f'{name} seçimi başarıyla oluşturuldu')
     return redirect('ui_elections')
@@ -322,42 +326,47 @@ def ui_election_check(request, election_id):
 @require_http_methods(["GET"])
 def ui_election_voting_data(request, election_id):
     """Seçim modu için kişi verilerini JSON olarak döndür"""
-    election = get_object_or_404(Election, id=election_id)
+    try:
+        election = get_object_or_404(Election, id=election_id)
 
-    # Tüm aktif kişileri getir (sadece gerekli alanlar)
-    people = LawyerPerson.objects.filter(active=True).select_related('lawyer')
+        # Tüm aktif kişileri getir (sadece gerekli alanlar)
+        people = LawyerPerson.objects.filter(active=True).select_related('lawyer')
 
-    # Oy durumlarını getir
-    votes = {
-        vote.lawyerperson_id: vote
-        for vote in ElectionVote.objects.filter(election=election).select_related('lawyerperson')
-    }
-
-    # JSON formatında veri hazırla
-    people_data = []
-    for person in people:
-        vote = votes.get(person.id)
-        people_data.append({
-            'id': person.id,
-            'kisi_sicilno': person.kisi_sicilno,
-            'ad': person.ad,
-            'soyad': person.soyad,
-            'lawyer_name': f"{person.lawyer.ad} {person.lawyer.soyad}" if person.lawyer else '-',
-            'lawyer_sicil': person.lawyer.sicil_no if person.lawyer else '-',
-            'has_voted': vote.has_voted if vote else False,
-            'voted_at': vote.voted_at.strftime('%H:%M') if vote and vote.voted_at else None,
-        })
-
-    return JsonResponse({
-        'success': True,
-        'people': people_data,
-        'stats': {
-            'total_people': len(people_data),
-            'voted_count': sum(1 for p in people_data if p['has_voted']),
-            'not_voted_count': sum(1 for p in people_data if not p['has_voted']),
-            'participation_rate': round((sum(1 for p in people_data if p['has_voted']) / len(people_data) * 100) if people_data else 0, 1),
+        # Oy durumlarını getir
+        votes = {
+            vote.lawyerperson_id: vote
+            for vote in ElectionVote.objects.filter(election=election).select_related('lawyerperson')
         }
-    })
+
+        # JSON formatında veri hazırla
+        people_data = []
+        for person in people:
+            vote = votes.get(person.id)
+            people_data.append({
+                'id': person.id,
+                'kisi_sicilno': person.kisi_sicilno,
+                'ad': person.ad,
+                'soyad': person.soyad,
+                'lawyer_name': f"{person.lawyer.ad} {person.lawyer.soyad}" if person.lawyer else '-',
+                'lawyer_sicil': person.lawyer.sicil_no if person.lawyer else '-',
+                'has_voted': vote.has_voted if vote else False,
+                'voted_at': vote.voted_at.strftime('%H:%M') if vote and vote.voted_at else None,
+            })
+
+        return JsonResponse({
+            'success': True,
+            'people': people_data,
+            'stats': {
+                'total_people': len(people_data),
+                'voted_count': sum(1 for p in people_data if p['has_voted']),
+                'not_voted_count': sum(1 for p in people_data if not p['has_voted']),
+                'participation_rate': round((sum(1 for p in people_data if p['has_voted']) / len(people_data) * 100) if people_data else 0, 1),
+            }
+        })
+    except Exception as e:
+        import traceback
+        print(f"[ERROR] voting_data error: {traceback.format_exc()}")
+        return JsonResponse({'success': False, 'error': f'Veriler yüklenirken hata oluştu: {e}'}, status=500)
 
 
 @login_required_custom

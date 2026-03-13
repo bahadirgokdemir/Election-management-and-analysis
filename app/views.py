@@ -48,36 +48,57 @@ class UploadViewSet(viewsets.GenericViewSet):
     # POST /api/uploads/ (form-data: file, lawyerId)
     def create(self, request, *args, **kwargs):
         file = request.FILES.get('file')
-        lawyer_id = int(request.data.get('lawyerId'))
+        try:
+            lawyer_id = int(request.data.get('lawyerId'))
+        except (TypeError, ValueError):
+            return Response({"detail": "Geçerli bir lawyerId giriniz."}, status=400)
+
         if not file or not lawyer_id:
             return Response({"detail": "file ve lawyerId zorunlu"}, status=400)
 
-        # 1) Dosyayı staging'e yükle
-        batch_id, row_count = parse_and_stage(file, lawyer_id,
-                                              created_by=str(request.user) if request.user.is_authenticated else None)
+        try:
+            batch_id, row_count = parse_and_stage(
+                file, lawyer_id,
+                created_by=str(request.user) if request.user.is_authenticated else None
+            )
+        except Exception as e:
+            return Response({"detail": f"Dosya işleme hatası: {str(e)}"}, status=400)
 
-        # 2) Otomatik olarak uygula (approve et)
-        actor = str(request.user) if request.user.is_authenticated else None
-        result = apply_diff(batch_id, actor=actor)
+        try:
+            actor = str(request.user) if request.user.is_authenticated else None
+            result = apply_diff(batch_id, actor=actor)
+        except Exception as e:
+            return Response({"detail": f"Uygulama hatası: {str(e)}"}, status=500)
 
-        # 3) Sonucu döndür
-        obj = UploadBatch.objects.get(id=batch_id)
-        response_data = UploadBatchSerializer(obj).data
-        response_data['apply_result'] = result  # Ekleme/güncelleme sayılarını da göster
+        try:
+            obj = UploadBatch.objects.get(id=batch_id)
+            response_data = UploadBatchSerializer(obj).data
+            response_data['apply_result'] = result
+        except Exception as e:
+            return Response({"detail": f"Yanıt hazırlama hatası: {str(e)}"}, status=500)
 
         return Response(response_data, status=status.HTTP_201_CREATED)
 
     # GET /api/uploads/{id}/diff/
     @action(detail=True, methods=['get'])
     def diff(self, request, pk=None):
-        diff = compute_diff(int(pk))
-
+        try:
+            diff = compute_diff(int(pk))
+        except (TypeError, ValueError):
+            return Response({"detail": "Geçersiz batch ID."}, status=400)
+        except Exception as e:
+            return Response({"detail": f"Diff hesaplama hatası: {str(e)}"}, status=500)
         return Response(diff)
 
     # POST /api/uploads/{id}/approve/
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        result = apply_diff(int(pk), actor=str(request.user) if request.user.is_authenticated else None)
+        try:
+            result = apply_diff(int(pk), actor=str(request.user) if request.user.is_authenticated else None)
+        except (TypeError, ValueError):
+            return Response({"detail": "Geçersiz batch ID."}, status=400)
+        except Exception as e:
+            return Response({"detail": f"Uygulama hatası: {str(e)}"}, status=500)
 
         code = status.HTTP_200_OK if result.get('ok') else status.HTTP_400_BAD_REQUEST
         return Response(result, status=code)
@@ -94,11 +115,20 @@ class ReportsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def by_lawyer(self, request):
         from .services.reports import report_by_lawyer
-        lawyer_id = int(request.query_params.get('lawyerId'))
-        return Response(report_by_lawyer(lawyer_id))
+        try:
+            lawyer_id = int(request.query_params.get('lawyerId'))
+        except (TypeError, ValueError):
+            return Response({"detail": "Geçerli bir lawyerId giriniz."}, status=400)
+        try:
+            return Response(report_by_lawyer(lawyer_id))
+        except Exception as e:
+            return Response({"detail": f"Rapor hatası: {str(e)}"}, status=500)
 
     @action(detail=False, methods=['get'])
     def status_breakdown(self, request):
         from .services.reports import report_status_breakdown
-        key = request.query_params.get('status')
-        return Response(report_status_breakdown(key))
+        try:
+            key = request.query_params.get('status')
+            return Response(report_status_breakdown(key))
+        except Exception as e:
+            return Response({"detail": f"Rapor hatası: {str(e)}"}, status=500)
