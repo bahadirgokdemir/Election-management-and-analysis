@@ -16,11 +16,11 @@ class Command(BaseCommand):
 
         count = BaroLawyer.objects.count()
         if count > 0:
-            self.stdout.write(f'BaroLawyer tablosunda zaten {count} kayit var, atlanıyor.')
-            return
+            self.stdout.write(f'BaroLawyer tablosunda {count} kayit bulundu, siliniyor ve yeniden yukleniyor...')
+            BaroLawyer.objects.all().delete()
 
-        json_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))), 'baro_data.json')
+        from django.conf import settings
+        json_path = os.path.join(str(settings.BASE_DIR), 'baro_data.json')
 
         if not os.path.exists(json_path):
             self.stdout.write(self.style.WARNING(f'baro_data.json bulunamadi: {json_path}'))
