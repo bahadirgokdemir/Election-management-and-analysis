@@ -9,6 +9,7 @@ from .views_ui import (
     ui_unique_people, ui_unique_person_detail,
     ui_person_analytics, ui_baro_lawyers,
     ui_baro_tag_toggle, ui_baro_tag_stats, ui_baro_blacklist_detail,
+    ui_baro_whitelist_detail, ui_baro_bulk_tag,
 )
 from .views_election import (
     ui_elections, ui_election_create, ui_election_activate,
@@ -54,6 +55,8 @@ urlpatterns = [
     path('baro-lawyers/', ui_baro_lawyers, name='ui_baro_lawyers'),
     path('baro-lawyers/tag-stats/', ui_baro_tag_stats, name='ui_baro_tag_stats'),
     path('baro-lawyers/blacklist/', ui_baro_blacklist_detail, name='ui_baro_blacklist_detail'),
+    path('baro-lawyers/whitelist/', ui_baro_whitelist_detail, name='ui_baro_whitelist_detail'),
+    path('baro-lawyers/bulk-tag/', ui_baro_bulk_tag, name='ui_baro_bulk_tag'),
     path('baro-lawyers/<str:sicil_no>/tag/', ui_baro_tag_toggle, name='ui_baro_tag_toggle'),
 
     # Seçim günü yönetimi

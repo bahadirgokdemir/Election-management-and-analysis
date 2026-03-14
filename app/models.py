@@ -254,13 +254,13 @@ class BaroLawyer(models.Model):
 
 class BaroLawyerTag(models.Model):
     """
-    Baro avukatlarına etiket - Kara liste veya 'Biz' (whitelist) işaretlemesi
+    Baro avukatlarına etiket - Kara liste veya 'Beyaz Liste' işaretlemesi
     """
     BLACKLIST = 'blacklist'
     WHITELIST = 'whitelist'
     TAG_CHOICES = [
         (BLACKLIST, 'Kara Liste'),
-        (WHITELIST, 'Biz'),
+        (WHITELIST, 'Beyaz Liste'),
     ]
 
     baro_lawyer = models.OneToOneField(BaroLawyer, on_delete=models.CASCADE, related_name='tag')

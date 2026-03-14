@@ -1249,14 +1249,11 @@ def ui_baro_tag_stats(request):
     })
 
 
-@login_required_custom
-@require_http_methods(["GET"])
-def ui_baro_blacklist_detail(request):
-    """Kara listedeki kişilerin detay listesi (JSON)."""
+def _tag_detail_response(tag_type: str):
+    """Ortak yardımcı: belirli tag türündeki kişileri JSON olarak döndür."""
     tags = BaroLawyerTag.objects.filter(
-        tag_type='blacklist'
+        tag_type=tag_type
     ).select_related('baro_lawyer').order_by('baro_lawyer__sicil_no')
-
     data = [{
         'sicil_no': t.baro_lawyer.sicil_no,
         'ad': t.baro_lawyer.ad,
@@ -1267,5 +1264,58 @@ def ui_baro_blacklist_detail(request):
         'created_by': t.created_by or '',
         'created_at': t.created_at.strftime('%d.%m.%Y %H:%M'),
     } for t in tags]
-
     return JsonResponse({'ok': True, 'count': len(data), 'results': data})
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_baro_blacklist_detail(request):
+    """Kara listedeki kişilerin detay listesi (JSON)."""
+    return _tag_detail_response('blacklist')
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_baro_whitelist_detail(request):
+    """Beyaz listedeki kişilerin detay listesi (JSON)."""
+    return _tag_detail_response('whitelist')
+
+
+@login_required_custom
+@require_http_methods(["POST"])
+def ui_baro_bulk_tag(request):
+    """
+    Toplu etiketleme — Birden fazla sicil no'yu aynı anda işaretle.
+    POST body: tag_type ('blacklist' | 'whitelist'), sicil_nos (newline-separated), note (optional)
+    """
+    tag_type = (request.POST.get('tag_type') or '').strip()
+    note = (request.POST.get('note') or '').strip() or None
+    raw_sicils = request.POST.get('sicil_nos', '')
+    actor = str(request.user) if request.user.is_authenticated else None
+
+    if tag_type not in (BaroLawyerTag.BLACKLIST, BaroLawyerTag.WHITELIST):
+        return JsonResponse({'error': 'Geçersiz etiket türü'}, status=400)
+
+    sicil_list = [s.strip() for s in raw_sicils.replace(',', '\n').splitlines() if s.strip()]
+    if not sicil_list:
+        return JsonResponse({'error': 'Sicil no listesi boş'}, status=400)
+
+    found, not_found, updated = [], [], 0
+    for sicil in sicil_list:
+        try:
+            baro_lawyer = BaroLawyer.objects.get(sicil_no=sicil)
+            BaroLawyerTag.objects.update_or_create(
+                baro_lawyer=baro_lawyer,
+                defaults={'tag_type': tag_type, 'note': note, 'created_by': actor},
+            )
+            found.append(sicil)
+            updated += 1
+        except BaroLawyer.DoesNotExist:
+            not_found.append(sicil)
+
+    return JsonResponse({
+        'ok': True,
+        'updated': updated,
+        'not_found': not_found,
+        'not_found_count': len(not_found),
+    })

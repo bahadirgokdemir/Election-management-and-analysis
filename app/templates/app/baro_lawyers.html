@@ -9,18 +9,63 @@
     <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
       Toplam <strong>{{ stats.total_records }}</strong> kayıt —
       <span style="color: #ef4444; font-weight: 600;">{{ stats.blacklist_count }} kara liste</span> /
-      <span style="color: #10b981; font-weight: 600;">{{ stats.whitelist_count }} biz</span> /
+      <span style="color: #10b981; font-weight: 600;">{{ stats.whitelist_count }} beyaz liste</span> /
       <span style="color: var(--text-muted);">{{ stats.untagged_count }} etiketsiz</span>
     </p>
     {% endif %}
   </div>
-  <div style="display: flex; gap: 10px;">
+  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    <button onclick="showBulkTagPanel()" class="btn" style="font-size:13px;">
+      <svg style="width:15px;height:15px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      Toplu Etiketleme
+    </button>
     <button onclick="showBlacklistPopup()" class="btn" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">
       <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
       </svg>
       Kara Liste ({{ stats.blacklist_count }})
     </button>
+    <button onclick="showWhitelistPopup()" class="btn" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3);">
+      <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      Beyaz Liste ({{ stats.whitelist_count }})
+    </button>
+  </div>
+</div>
+
+<!-- Toplu Etiketleme Paneli (gizli) -->
+<div id="bulk-tag-panel" style="display:none; margin-bottom:20px; background:var(--bg-card); border:1px solid var(--border-color); border-radius:10px; padding:20px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <h3 style="margin:0;font-size:15px;">Toplu Etiketleme</h3>
+    <button onclick="hideBulkTagPanel()" class="btn" style="padding:4px 10px;font-size:12px;">✕ Kapat</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="form-group">
+      <label class="form-label">Sicil Numaraları <span style="color:var(--text-muted);font-weight:400;">(her satıra bir sicil)</span></label>
+      <textarea id="bulk-sicil-nos" rows="8" placeholder="12345&#10;23456&#10;34567&#10;..." style="width:100%;font-family:monospace;font-size:13px;padding:10px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-content);color:var(--text-primary);resize:vertical;"></textarea>
+    </div>
+    <div>
+      <div class="form-group">
+        <label class="form-label">Etiket Türü</label>
+        <div style="display:flex;gap:10px;margin-top:4px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;border:1px solid rgba(239,68,68,0.4);border-radius:8px;flex:1;background:rgba(239,68,68,0.05);">
+            <input type="radio" name="bulk_tag_type" value="blacklist" checked> <span style="color:#ef4444;font-weight:600;">🚫 Kara Liste</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 14px;border:1px solid rgba(16,185,129,0.4);border-radius:8px;flex:1;background:rgba(16,185,129,0.05);">
+            <input type="radio" name="bulk_tag_type" value="whitelist"> <span style="color:#10b981;font-weight:600;">✅ Beyaz Liste</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Not (opsiyonel)</label>
+        <input type="text" id="bulk-tag-note" placeholder="Toplu etiketleme notu..." style="width:100%;padding:9px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-content);color:var(--text-primary);" />
+      </div>
+      <div id="bulk-tag-result" style="display:none;margin-top:12px;padding:12px;border-radius:8px;font-size:13px;"></div>
+      <button onclick="applyBulkTag()" class="btn primary" style="margin-top:16px;width:100%;padding:12px;font-size:14px;font-weight:600;">
+        Toplu Etiketle
+      </button>
+    </div>
   </div>
 </div>
 
@@ -67,7 +112,7 @@
         <select name="tag_filter">
           <option value="" {% if not tag_filter %}selected{% endif %}>Tümü</option>
           <option value="blacklist" {% if tag_filter == 'blacklist' %}selected{% endif %}>🚫 Kara Liste</option>
-          <option value="whitelist" {% if tag_filter == 'whitelist' %}selected{% endif %}>✅ Biz</option>
+          <option value="whitelist" {% if tag_filter == 'whitelist' %}selected{% endif %}>✅ Beyaz Liste</option>
           <option value="none" {% if tag_filter == 'none' %}selected{% endif %}>Etiketsiz</option>
         </select>
       </div>
@@ -171,7 +216,7 @@
             <span style="font-size: 10px; margin-left: 6px; padding: 2px 6px; border-radius: 4px;
               {% if tag.tag_type == 'blacklist' %}background: rgba(239,68,68,0.15); color: #ef4444;
               {% else %}background: rgba(16,185,129,0.15); color: #10b981;{% endif %}">
-              {% if tag.tag_type == 'blacklist' %}🚫 Kara Liste{% else %}✅ Biz{% endif %}
+              {% if tag.tag_type == 'blacklist' %}🚫 Kara Liste{% else %}✅ Beyaz Liste{% endif %}
             </span>
           {% endif %}
         </td>
@@ -200,7 +245,7 @@
           {% if tag.tag_type == 'blacklist' %}
             <span title="{{ tag.note|default:'Kara liste' }}" style="font-size: 18px; cursor: default;">🚫</span>
           {% elif tag.tag_type == 'whitelist' %}
-            <span title="{{ tag.note|default:'Biz' }}" style="font-size: 18px; cursor: default;">✅</span>
+            <span title="{{ tag.note|default:'Beyaz Liste' }}" style="font-size: 18px; cursor: default;">✅</span>
           {% else %}
             <span style="color: var(--text-muted); font-size: 12px;">—</span>
           {% endif %}
@@ -256,7 +301,7 @@ async function showDetails(sicilNo, adSoyad, mail, tel, adres, tagType, tagNote)
   const tagBadge = tagType === 'blacklist'
     ? `<span style="padding: 4px 10px; background: rgba(239,68,68,0.15); color: #ef4444; border-radius: 6px; font-weight: 600;">🚫 Kara Liste</span>`
     : tagType === 'whitelist'
-      ? `<span style="padding: 4px 10px; background: rgba(16,185,129,0.15); color: #10b981; border-radius: 6px; font-weight: 600;">✅ Biz</span>`
+      ? `<span style="padding: 4px 10px; background: rgba(16,185,129,0.15); color: #10b981; border-radius: 6px; font-weight: 600;">✅ Beyaz Liste</span>`
       : `<span style="color: var(--text-muted); font-size: 12px;">Etiketsiz</span>`;
 
   const tagNoteHtml = tagNote
@@ -326,7 +371,7 @@ async function showDetails(sicilNo, adSoyad, mail, tel, adres, tagType, tagNote)
             🚫 Kara Listeye Ekle
           </button>
           <button onclick="applyTag('${sicilNo}', 'whitelist')" class="btn" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 13px;">
-            ✅ Biz Olarak İşaretle
+            ✅ Beyaz Liste Olarak İşaretle
           </button>
           ${tagType ? `<button onclick="applyTag('${sicilNo}', '')" class="btn" style="font-size: 13px;">Etiketi Kaldır</button>` : ''}
         </div>
@@ -410,6 +455,109 @@ async function showBlacklistPopup() {
     openModal('🚫 Kara Liste', content);
   } catch (e) {
     alert('Kara liste yüklenirken hata oluştu.');
+  }
+}
+
+// Beyaz liste popup
+async function showWhitelistPopup() {
+  try {
+    const res = await fetch('/ui/baro-lawyers/whitelist/');
+    const data = await res.json();
+    if (!data.ok) { alert('Hata oluştu.'); return; }
+
+    const rows = data.results.length > 0
+      ? data.results.map(p => `
+          <tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 8px 10px; font-family: monospace; font-size: 12px; color: var(--primary);">${p.sicil_no}</td>
+            <td style="padding: 8px 10px; font-weight: 600;">${p.ad} ${p.soyad}</td>
+            <td style="padding: 8px 10px; font-size: 12px; color: var(--text-secondary);">${p.mail || '-'}</td>
+            <td style="padding: 8px 10px; font-size: 11px; color: var(--text-muted); font-style: italic;">${p.note || '-'}</td>
+            <td style="padding: 8px 10px; font-size: 11px; color: var(--text-muted);">${p.created_by || '-'}</td>
+          </tr>
+        `).join('')
+      : `<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-muted);">Beyaz listede kimse yok.</td></tr>`;
+
+    const content = `
+      <div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Toplam <strong style="color: #10b981;">${data.count}</strong> kişi beyaz listede.
+        </p>
+        <div style="overflow-x: auto; max-height: 450px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <thead style="position: sticky; top: 0; background: var(--bg-card);">
+              <tr>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">Sicil No</th>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">Ad Soyad</th>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">E-posta</th>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">Not</th>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">Ekleyen</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+          <button onclick="closeModal()" class="btn primary" style="padding: 10px 24px;">Kapat</button>
+        </div>
+      </div>
+    `;
+    openModal('✅ Beyaz Liste', content);
+  } catch (e) {
+    alert('Beyaz liste yüklenirken hata oluştu.');
+  }
+}
+
+// Toplu etiketleme
+function showBulkTagPanel() {
+  document.getElementById('bulk-tag-panel').style.display = 'block';
+  document.getElementById('bulk-tag-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function hideBulkTagPanel() {
+  document.getElementById('bulk-tag-panel').style.display = 'none';
+  document.getElementById('bulk-tag-result').style.display = 'none';
+  document.getElementById('bulk-sicil-nos').value = '';
+  document.getElementById('bulk-tag-note').value = '';
+}
+
+async function applyBulkTag() {
+  const sicilNos = document.getElementById('bulk-sicil-nos').value.trim();
+  const tagType = document.querySelector('input[name="bulk_tag_type"]:checked')?.value || 'blacklist';
+  const note = document.getElementById('bulk-tag-note').value.trim();
+  const resultEl = document.getElementById('bulk-tag-result');
+
+  if (!sicilNos) { alert('Lütfen en az bir sicil numarası girin.'); return; }
+
+  const formData = new FormData();
+  formData.append('tag_type', tagType);
+  formData.append('sicil_nos', sicilNos);
+  formData.append('note', note);
+
+  try {
+    const res = await fetch('/ui/baro-lawyers/bulk-tag/', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: formData,
+    });
+    const data = await res.json();
+    if (data.ok) {
+      const tagLabel = tagType === 'blacklist' ? '🚫 Kara Liste' : '✅ Beyaz Liste';
+      let html = `<strong style="color:var(--success);">✓ ${data.updated} kişi ${tagLabel} olarak etiketlendi.</strong>`;
+      if (data.not_found_count > 0) {
+        html += `<div style="margin-top:8px;color:#f59e0b;"><strong>${data.not_found_count} sicil bulunamadı:</strong> ${data.not_found.join(', ')}</div>`;
+      }
+      resultEl.style.display = 'block';
+      resultEl.style.background = 'rgba(16,185,129,0.1)';
+      resultEl.style.border = '1px solid rgba(16,185,129,0.3)';
+      resultEl.innerHTML = html;
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      resultEl.style.display = 'block';
+      resultEl.style.background = 'rgba(239,68,68,0.1)';
+      resultEl.style.border = '1px solid rgba(239,68,68,0.3)';
+      resultEl.innerHTML = `<strong style="color:#ef4444;">Hata:</strong> ${data.error}`;
+    }
+  } catch (e) {
+    alert('Bağlantı hatası.');
   }
 }
 </script>
