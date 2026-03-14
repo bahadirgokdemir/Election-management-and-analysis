@@ -17,6 +17,20 @@ from app.utils.file_validators import (
 # Minimum gerekli kolon - sadece sicilno zorunlu, ad/soyad Baro'dan tamamlanabilir
 REQUIRED_COLS = ["sicilno"]
 
+# Türkçe karakter → ASCII eşlemesi (isim karşılaştırması için)
+_TR_MAP = str.maketrans('İŞĞÜÖÇışğüöç', 'ISGUOCisgüoc'.replace('ü', 'U').replace('ö', 'O').replace('ç', 'C'))
+_TR_MAP = str.maketrans({
+    'İ': 'I', 'Ş': 'S', 'Ğ': 'G', 'Ü': 'U', 'Ö': 'O', 'Ç': 'C',
+    'ı': 'I', 'ş': 'S', 'ğ': 'G', 'ü': 'U', 'ö': 'O', 'ç': 'C',
+})
+
+
+def _normalize_name(name: str) -> str:
+    """İsim karşılaştırması için normalize et (büyük harf, Türkçe karakter, boşluk)."""
+    if not name:
+        return ""
+    return name.strip().upper().translate(_TR_MAP)
+
 # Tüm kabul edilen kolon isimleri
 HEADER_MAP = {
     # gelen sütun adını → standart alan
@@ -245,7 +259,7 @@ def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 @transaction.atomic
-def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tuple[int, int]:
+def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tuple[int, int, list]:
     """
     Yüklenen dosyayı geçici olarak işler, veritabanına yazar.
 
@@ -255,7 +269,8 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
     - Telefon, mail, adres opsiyonel - Baro'dan tamamlanabilir
     - Boş satırlar otomatik atlanır
 
-    :return: (batch_id, row_count)
+    :return: (batch_id, row_count, name_mismatches)
+             name_mismatches: [{'kisi_sicilno', 'row_num', 'excel_ad', 'excel_soyad', 'baro_ad', 'baro_soyad'}, ...]
     :raises ValidationError: Ciddi validasyon hatası durumunda
     """
     # 0) Dosya validasyonu (format ve boyut)
@@ -335,6 +350,7 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
         missing_in_baro = []
         completed_from_baro = []
         validation_warnings = []
+        name_mismatches = []  # Sicil no - isim uyuşmazlıkları (staging'e eklenmeyen)
 
         for idx, r in df.iterrows():
             row_num = idx + 2  # Excel satır numarası (1 başlık)
@@ -364,12 +380,39 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
             if excel_status:
                 excel_status = excel_status.lower()
 
-            # BaroLawyer'den eksik bilgileri tamamla
+            # BaroLawyer'den eksik bilgileri tamamla ve isim doğrulaması yap
             baro_lawyer = None
             try:
                 baro_lawyer = BaroLawyer.objects.get(sicil_no=ks_clean)
             except BaroLawyer.DoesNotExist:
                 missing_in_baro.append((row_num, ks_clean))
+
+            # --- İSİM / SOYİSİM DOĞRULAMASI ---
+            # Excel'de isim varsa ve Baro'da bu sicil varsa: karşılaştır.
+            # Her ikisinde de isim varsa, normalize edilmiş hallerini eşleştir.
+            if baro_lawyer and (excel_ad or excel_soyad):
+                baro_ad_norm = _normalize_name(baro_lawyer.ad)
+                baro_soyad_norm = _normalize_name(baro_lawyer.soyad)
+                excel_ad_norm = _normalize_name(excel_ad or '')
+                excel_soyad_norm = _normalize_name(excel_soyad or '')
+
+                ad_mismatch = excel_ad_norm and (excel_ad_norm != baro_ad_norm)
+                soyad_mismatch = excel_soyad_norm and (excel_soyad_norm != baro_soyad_norm)
+
+                if ad_mismatch or soyad_mismatch:
+                    name_mismatches.append({
+                        'kisi_sicilno': ks_clean,
+                        'row_num': row_num,
+                        'excel_ad': excel_ad or '',
+                        'excel_soyad': excel_soyad or '',
+                        'baro_ad': baro_lawyer.ad,
+                        'baro_soyad': baro_lawyer.soyad,
+                    })
+                    skipped_rows.append((row_num, (
+                        f"İsim uyuşmazlığı: Listedeki '{excel_ad} {excel_soyad}' "
+                        f"≠ Baro'daki '{baro_lawyer.ad} {baro_lawyer.soyad}'"
+                    )))
+                    continue  # Bu satırı staging'e EKLEME
 
             # Ad/Soyad: Excel > Baro > Boş bırak
             ad = excel_ad
@@ -447,6 +490,8 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
             notes_parts.append(f"{len(set(completed_from_baro))} alan Baro'dan tamamlandı")
         if validation_warnings:
             notes_parts.append(f"{len(validation_warnings)} uyarı")
+        if name_mismatches:
+            notes_parts.append(f"{len(name_mismatches)} kişi isim uyuşmazlığı nedeniyle eklenmedi")
 
         if notes_parts:
             batch.notes = " | ".join(notes_parts)
@@ -460,7 +505,7 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
             for key in (keys - existing):
                 StatusOption.objects.get_or_create(key=key, defaults={'label': key.title()})
 
-        return batch.id, batch.row_count
+        return batch.id, batch.row_count, name_mismatches
 
     finally:
         # Geçici dosyayı temizle

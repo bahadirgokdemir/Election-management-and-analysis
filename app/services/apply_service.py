@@ -57,13 +57,14 @@ def apply_diff(batch_id: int, actor: str = None) -> Dict:
             }
         )
 
-    # 2) REMOVED → Bu avukattan kaldır (hard delete veya soft delete)
-    for row in removed:
-        ks = row['kisi_sicilno']
+    # 2) REMOVED → Bu avukattan soft-delete et (active=False), kayıtları koru
+    # Hard delete yerine soft delete: eski veriler silinmez, tekrar eklenirse reaktive edilir
+    removed_ks_list = [row['kisi_sicilno'] for row in removed]
+    if removed_ks_list:
         LawyerPerson.objects.filter(
             lawyer_id=batch.lawyer_id,
-            kisi_sicilno=ks
-        ).delete()
+            kisi_sicilno__in=removed_ks_list
+        ).update(active=False)
 
     # 3) CHANGED → LawyerPerson alanlarını güncelle (sadece bu avukat için)
     for item in changed:

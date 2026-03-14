@@ -252,6 +252,35 @@ class BaroLawyer(models.Model):
         return f"{self.ad} {self.soyad}"
 
 
+class BaroLawyerTag(models.Model):
+    """
+    Baro avukatlarına etiket - Kara liste veya 'Biz' (whitelist) işaretlemesi
+    """
+    BLACKLIST = 'blacklist'
+    WHITELIST = 'whitelist'
+    TAG_CHOICES = [
+        (BLACKLIST, 'Kara Liste'),
+        (WHITELIST, 'Biz'),
+    ]
+
+    baro_lawyer = models.OneToOneField(BaroLawyer, on_delete=models.CASCADE, related_name='tag')
+    tag_type = models.CharField(max_length=16, choices=TAG_CHOICES)
+    note = models.TextField(blank=True, null=True, help_text="Etiketleme nedeni / not")
+    created_by = models.CharField(max_length=128, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['tag_type']),
+        ]
+        verbose_name = 'Baro Avukat Etiketi'
+        verbose_name_plural = 'Baro Avukat Etiketleri'
+
+    def __str__(self):
+        return f"{self.baro_lawyer.sicil_no} - {self.get_tag_type_display()}"
+
+
 class UserProfile(models.Model):
     """
     Kullanici profili - Rol tabanli yetkilendirme icin

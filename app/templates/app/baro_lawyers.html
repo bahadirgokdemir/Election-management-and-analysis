@@ -6,16 +6,27 @@
   <div>
     <h1>Tüm Baro Kayıtları</h1>
     {% if stats %}
-    <p style="font-size: 14px; color: var(--text-muted); margin-top: 8px;">
-      <strong>Toplam Kişi Sayısı:</strong> {{ stats.total_records }}
+    <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
+      Toplam <strong>{{ stats.total_records }}</strong> kayıt —
+      <span style="color: #ef4444; font-weight: 600;">{{ stats.blacklist_count }} kara liste</span> /
+      <span style="color: #10b981; font-weight: 600;">{{ stats.whitelist_count }} biz</span> /
+      <span style="color: var(--text-muted);">{{ stats.untagged_count }} etiketsiz</span>
     </p>
     {% endif %}
   </div>
+  <div style="display: flex; gap: 10px;">
+    <button onclick="showBlacklistPopup()" class="btn" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">
+      <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
+      Kara Liste ({{ stats.blacklist_count }})
+    </button>
+  </div>
 </div>
 
-<!-- Sicil Aralığı Filtresi (Ayrı Panel) -->
+<!-- Sicil Aralığı Filtresi -->
 <div style="margin-bottom: 20px;">
-  <form method="get" style="display: flex; align-items: center; gap: 12px; background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color);">
+  <form method="get" style="display: flex; align-items: center; gap: 12px; background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); flex-wrap: wrap;">
     <span style="font-size: 13px; font-weight: 500; color: var(--text-secondary); white-space: nowrap;">Sicil Aralığı:</span>
     <input type="number" name="sicil_min" placeholder="Başlangıç" value="{{ sicil_min }}"
            style="width: 120px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px;" />
@@ -23,7 +34,6 @@
     <input type="number" name="sicil_max" placeholder="Bitiş" value="{{ sicil_max }}"
            style="width: 120px; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px;" />
 
-    <!-- Diğer filtreleri sakla -->
     <input type="hidden" name="q" value="{{ q }}" />
     <input type="hidden" name="sicil" value="{{ adv_sicil }}" />
     <input type="hidden" name="ad" value="{{ adv_ad }}" />
@@ -32,10 +42,11 @@
     <input type="hidden" name="tel" value="{{ adv_tel }}" />
     <input type="hidden" name="adres" value="{{ adv_adres }}" />
     <input type="hidden" name="order_by" value="{{ order_by }}" />
+    <input type="hidden" name="tag_filter" value="{{ tag_filter }}" />
 
     <button class="btn primary" type="submit" style="padding: 8px 16px; font-size: 13px;">Filtrele</button>
     {% if sicil_min or sicil_max %}
-      <a href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&order_by={{ order_by }}"
+      <a href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&order_by={{ order_by }}&tag_filter={{ tag_filter }}"
          class="btn" style="padding: 8px 16px; font-size: 13px;">Temizle</a>
     {% endif %}
   </form>
@@ -43,58 +54,73 @@
 
 <!-- Filters & Search -->
 <div class="filter-panel">
-  <form method="get" class="filter-grid">
-    <!-- Genel Arama -->
-    <div class="form-group">
-      <label class="form-label">Genel Arama</label>
-      <input type="text" name="q" placeholder="Sicil No, Ad, Soyad, E-posta veya Telefon..." value="{{ q }}" />
+  <form method="get">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label class="form-label">Genel Arama</label>
+        <input type="text" name="q" placeholder="Sicil No, Ad, Soyad, E-posta, Telefon..." value="{{ q }}" />
+      </div>
+
+      <!-- Etiket Filtresi -->
+      <div class="form-group">
+        <label class="form-label">Etiket Filtresi</label>
+        <select name="tag_filter">
+          <option value="" {% if not tag_filter %}selected{% endif %}>Tümü</option>
+          <option value="blacklist" {% if tag_filter == 'blacklist' %}selected{% endif %}>🚫 Kara Liste</option>
+          <option value="whitelist" {% if tag_filter == 'whitelist' %}selected{% endif %}>✅ Biz</option>
+          <option value="none" {% if tag_filter == 'none' %}selected{% endif %}>Etiketsiz</option>
+        </select>
+      </div>
+
+      <!-- Alan Bazlı Aramalar (Collapsed) -->
+      <details style="grid-column: 1 / -1;">
+        <summary style="cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 8px; margin-bottom: 12px;">
+          Gelişmiş Arama (Alan bazlı filtreleme)
+        </summary>
+        <div class="filter-grid" style="margin-top: 12px;">
+          <div class="form-group">
+            <label class="form-label">Sicil No</label>
+            <input type="text" name="sicil" placeholder="Sicil No" value="{{ adv_sicil }}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ad</label>
+            <input type="text" name="ad" placeholder="Ad" value="{{ adv_ad }}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Soyad</label>
+            <input type="text" name="soyad" placeholder="Soyad" value="{{ adv_soyad }}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-posta</label>
+            <input type="text" name="mail" placeholder="E-posta" value="{{ adv_mail }}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Telefon</label>
+            <input type="text" name="tel" placeholder="Telefon" value="{{ adv_tel }}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Adres</label>
+            <input type="text" name="adres" placeholder="Adres" value="{{ adv_adres }}" />
+          </div>
+        </div>
+      </details>
+
+      <!-- Sicil aralığı ve sıralama hidden -->
+      <input type="hidden" name="sicil_min" value="{{ sicil_min }}" />
+      <input type="hidden" name="sicil_max" value="{{ sicil_max }}" />
+      <input type="hidden" name="order_by" value="{{ order_by }}" />
     </div>
 
-    <!-- Alan Bazlı Aramalar (Collapsed) -->
-    <details style="grid-column: 1 / -1;">
-      <summary style="cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 8px; margin-bottom: 12px;">
-        Gelismis Arama (Alan bazli filtreleme)
-      </summary>
-      <div class="filter-grid" style="margin-top: 12px;">
-        <div class="form-group">
-          <label class="form-label">Sicil No</label>
-          <input type="text" name="sicil" placeholder="Sicil No" value="{{ adv_sicil }}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Ad</label>
-          <input type="text" name="ad" placeholder="Ad" value="{{ adv_ad }}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Soyad</label>
-          <input type="text" name="soyad" placeholder="Soyad" value="{{ adv_soyad }}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">E-posta</label>
-          <input type="text" name="mail" placeholder="E-posta" value="{{ adv_mail }}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Telefon</label>
-          <input type="text" name="tel" placeholder="Telefon" value="{{ adv_tel }}" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Adres</label>
-          <input type="text" name="adres" placeholder="Adres" value="{{ adv_adres }}" />
-        </div>
-      </div>
-    </details>
-
-    <!-- Sicil aralığı hidden inputları -->
-    <input type="hidden" name="sicil_min" value="{{ sicil_min }}" />
-    <input type="hidden" name="sicil_max" value="{{ sicil_max }}" />
-    <input type="hidden" name="order_by" value="{{ order_by }}" />
-
-    <div class="form-group" style="display: flex; align-items: end;">
+    <div style="display: flex; gap: 8px; margin-top: 12px;">
       <button class="btn primary" type="submit">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
         </svg>
         Ara
       </button>
+      {% if q or adv_sicil or adv_ad or adv_soyad or adv_mail or adv_tel or adv_adres or tag_filter %}
+      <a class="btn" href="{% url 'ui_baro_lawyers' %}">Temizle</a>
+      {% endif %}
     </div>
   </form>
 </div>
@@ -115,19 +141,13 @@
           <div style="display: flex; align-items: center; gap: 8px;">
             Sicil No
             <div style="display: flex; flex-direction: column; gap: 2px;">
-              <a href="?{% if order_by == 'sicil_no' %}order_by=-sicil_no{% else %}order_by=sicil_no{% endif %}&q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}"
-                 style="cursor: pointer; color: {% if order_by == 'sicil_no' %}var(--primary){% else %}var(--text-muted){% endif %};"
-                 title="Artan sıralama">
-                <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 15l-6-6-6 6"/>
-                </svg>
+              <a href="?{% if order_by == 'sicil_no' %}order_by=-sicil_no{% else %}order_by=sicil_no{% endif %}&q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}&tag_filter={{ tag_filter }}"
+                 style="cursor: pointer; color: {% if order_by == 'sicil_no' %}var(--primary){% else %}var(--text-muted){% endif %};" title="Artan">
+                <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
               </a>
-              <a href="?{% if order_by == '-sicil_no' %}order_by=sicil_no{% else %}order_by=-sicil_no{% endif %}&q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}"
-                 style="cursor: pointer; color: {% if order_by == '-sicil_no' %}var(--primary){% else %}var(--text-muted){% endif %};"
-                 title="Azalan sıralama">
-                <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M6 9l6 6 6-6"/>
-                </svg>
+              <a href="?{% if order_by == '-sicil_no' %}order_by=sicil_no{% else %}order_by=-sicil_no{% endif %}&q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}&tag_filter={{ tag_filter }}"
+                 style="cursor: pointer; color: {% if order_by == '-sicil_no' %}var(--primary){% else %}var(--text-muted){% endif %};" title="Azalan">
+                <svg style="width: 12px; height: 12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
               </a>
             </div>
           </div>
@@ -136,14 +156,25 @@
         <th>E-posta</th>
         <th>Telefon</th>
         <th>Adres</th>
+        <th style="text-align: center; width: 80px;">Etiket</th>
         <th style="text-align: right;">İşlemler</th>
       </tr>
     </thead>
     <tbody>
     {% for lawyer in page.object_list %}
-      <tr>
+      {% with tag=lawyer.tag %}
+      <tr style="{% if tag.tag_type == 'blacklist' %}background: rgba(239,68,68,0.05);{% elif tag.tag_type == 'whitelist' %}background: rgba(16,185,129,0.05);{% endif %}">
         <td><strong>{{ lawyer.sicil_no }}</strong></td>
-        <td>{{ lawyer.ad }} {{ lawyer.soyad }}</td>
+        <td>
+          {{ lawyer.ad }} {{ lawyer.soyad }}
+          {% if tag %}
+            <span style="font-size: 10px; margin-left: 6px; padding: 2px 6px; border-radius: 4px;
+              {% if tag.tag_type == 'blacklist' %}background: rgba(239,68,68,0.15); color: #ef4444;
+              {% else %}background: rgba(16,185,129,0.15); color: #10b981;{% endif %}">
+              {% if tag.tag_type == 'blacklist' %}🚫 Kara Liste{% else %}✅ Biz{% endif %}
+            </span>
+          {% endif %}
+        </td>
         <td>
           {% if lawyer.mail %}
             <a href="mailto:{{ lawyer.mail }}" style="color: var(--primary);">{{ lawyer.mail }}</a>
@@ -160,14 +191,24 @@
         </td>
         <td>
           {% if lawyer.adres %}
-            <span style="font-size: 13px;">{{ lawyer.adres|truncatewords:10 }}</span>
+            <span style="font-size: 13px;">{{ lawyer.adres|truncatewords:8 }}</span>
           {% else %}
             <span style="color: var(--text-muted);">-</span>
           {% endif %}
         </td>
+        <td style="text-align: center;">
+          {% if tag.tag_type == 'blacklist' %}
+            <span title="{{ tag.note|default:'Kara liste' }}" style="font-size: 18px; cursor: default;">🚫</span>
+          {% elif tag.tag_type == 'whitelist' %}
+            <span title="{{ tag.note|default:'Biz' }}" style="font-size: 18px; cursor: default;">✅</span>
+          {% else %}
+            <span style="color: var(--text-muted); font-size: 12px;">—</span>
+          {% endif %}
+        </td>
         <td style="text-align: right;">
-          <button class="btn" onclick="showDetails('{{ lawyer.sicil_no }}', '{{ lawyer.ad }} {{ lawyer.soyad }}', '{{ lawyer.mail }}', '{{ lawyer.tel }}', '{{ lawyer.adres|escapejs }}')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <button class="btn" style="padding: 5px 10px; font-size: 12px;"
+            onclick="showDetails('{{ lawyer.sicil_no }}', '{{ lawyer.ad }} {{ lawyer.soyad }}', '{{ lawyer.mail|escapejs }}', '{{ lawyer.tel|escapejs }}', '{{ lawyer.adres|escapejs }}', '{{ tag.tag_type|default:'' }}', '{{ tag.note|default:''|escapejs }}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
               <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
               <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
             </svg>
@@ -175,9 +216,10 @@
           </button>
         </td>
       </tr>
+      {% endwith %}
     {% empty %}
       <tr>
-        <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
           Kayıt bulunamadı.
         </td>
       </tr>
@@ -190,20 +232,16 @@
 {% if page.paginator.num_pages > 1 %}
 <div class="pager">
   {% if page.has_previous %}
-    <a class="btn" href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}&order_by={{ order_by }}&page={{ page.previous_page_number }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M15 19l-7-7 7-7"/>
-      </svg>
+    <a class="btn" href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}&order_by={{ order_by }}&tag_filter={{ tag_filter }}&page={{ page.previous_page_number }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
       Önceki
     </a>
   {% endif %}
   <span>Sayfa {{ page.number }} / {{ page.paginator.num_pages }}</span>
   {% if page.has_next %}
-    <a class="btn" href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}&order_by={{ order_by }}&page={{ page.next_page_number }}">
+    <a class="btn" href="?q={{ q }}&sicil={{ adv_sicil }}&ad={{ adv_ad }}&soyad={{ adv_soyad }}&mail={{ adv_mail }}&tel={{ adv_tel }}&adres={{ adv_adres }}&sicil_min={{ sicil_min }}&sicil_max={{ sicil_max }}&order_by={{ order_by }}&tag_filter={{ tag_filter }}&page={{ page.next_page_number }}">
       Sonraki
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M9 5l7 7-7 7"/>
-      </svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
     </a>
   {% endif %}
 </div>
@@ -212,33 +250,146 @@
 {% endif %}
 
 <script>
-function showDetails(sicilNo, adSoyad, mail, tel, adres) {
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+function showDetails(sicilNo, adSoyad, mail, tel, adres, tagType, tagNote) {
+  const tagBadge = tagType === 'blacklist'
+    ? `<span style="padding: 4px 10px; background: rgba(239,68,68,0.15); color: #ef4444; border-radius: 6px; font-weight: 600;">🚫 Kara Liste</span>`
+    : tagType === 'whitelist'
+      ? `<span style="padding: 4px 10px; background: rgba(16,185,129,0.15); color: #10b981; border-radius: 6px; font-weight: 600;">✅ Biz</span>`
+      : `<span style="color: var(--text-muted); font-size: 12px;">Etiketsiz</span>`;
+
+  const tagNoteHtml = tagNote
+    ? `<div style="margin-top: 6px; font-size: 12px; color: var(--text-muted); font-style: italic;">Not: ${tagNote}</div>`
+    : '';
+
   const content = `
-    <div style="padding: 20px;">
-      <div style="margin-bottom: 15px;">
-        <strong style="color: var(--text-muted);">Sicil No:</strong>
-        <div style="margin-top: 5px;">${sicilNo}</div>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <!-- Kişi bilgileri -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Sicil No</div>
+          <div style="font-weight: 700; font-family: monospace; color: var(--primary);">${sicilNo}</div>
+        </div>
+        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Ad Soyad</div>
+          <div style="font-weight: 600;">${adSoyad}</div>
+        </div>
+        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">E-posta</div>
+          <div style="font-size: 13px;">${mail || '-'}</div>
+        </div>
+        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Telefon</div>
+          <div style="font-size: 13px;">${tel || '-'}</div>
+        </div>
       </div>
-      <div style="margin-bottom: 15px;">
-        <strong style="color: var(--text-muted);">Ad Soyad:</strong>
-        <div style="margin-top: 5px;">${adSoyad}</div>
+      ${adres ? `<div style="padding: 12px; background: var(--bg-content); border-radius: 8px;"><div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Adres</div><div style="font-size: 13px;">${adres}</div></div>` : ''}
+
+      <!-- Mevcut etiket -->
+      <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Mevcut Etiket</div>
+        ${tagBadge}
+        ${tagNoteHtml}
       </div>
-      <div style="margin-bottom: 15px;">
-        <strong style="color: var(--text-muted);">E-posta:</strong>
-        <div style="margin-top: 5px;">${mail || '-'}</div>
+
+      <!-- Etiketleme alanı -->
+      <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Etiket Değiştir</div>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label class="form-label" style="font-size: 11px;">Açıklama / Not (opsiyonel)</label>
+          <input type="text" id="tag-note-input" value="${tagNote}" placeholder="Neden ekliyorsunuz?" style="width: 100%; padding: 8px 10px;" />
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button onclick="applyTag('${sicilNo}', 'blacklist')" class="btn" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); font-size: 13px;">
+            🚫 Kara Listeye Ekle
+          </button>
+          <button onclick="applyTag('${sicilNo}', 'whitelist')" class="btn" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 13px;">
+            ✅ Biz Olarak İşaretle
+          </button>
+          ${tagType ? `<button onclick="applyTag('${sicilNo}', '')" class="btn" style="font-size: 13px;">Etiketi Kaldır</button>` : ''}
+        </div>
       </div>
-      <div style="margin-bottom: 15px;">
-        <strong style="color: var(--text-muted);">Telefon:</strong>
-        <div style="margin-top: 5px;">${tel || '-'}</div>
-      </div>
-      <div style="margin-bottom: 15px;">
-        <strong style="color: var(--text-muted);">Adres:</strong>
-        <div style="margin-top: 5px;">${adres || '-'}</div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button onclick="closeModal()" class="btn primary" style="padding: 10px 24px;">Kapat</button>
       </div>
     </div>
   `;
+  openModal(`Avukat Detayı — ${sicilNo} / ${adSoyad}`, content);
+}
 
-  openModal(`Avukat Detayı - ${sicilNo}`, content);
+async function applyTag(sicilNo, tagType) {
+  const note = (document.getElementById('tag-note-input') || {}).value || '';
+  const formData = new FormData();
+  formData.append('tag_type', tagType);
+  formData.append('note', note);
+
+  try {
+    const res = await fetch(`/ui/baro-lawyers/${sicilNo}/tag/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: formData,
+    });
+    const data = await res.json();
+    if (data.ok) {
+      closeModal();
+      location.reload();
+    } else {
+      alert(data.error || 'Hata oluştu.');
+    }
+  } catch (e) {
+    alert('Bağlantı hatası.');
+  }
+}
+
+// Kara liste popup
+async function showBlacklistPopup() {
+  try {
+    const res = await fetch('/ui/baro-lawyers/blacklist/');
+    const data = await res.json();
+    if (!data.ok) { alert('Hata oluştu.'); return; }
+
+    const rows = data.results.length > 0
+      ? data.results.map(p => `
+          <tr style="border-bottom: 1px solid var(--border-color);">
+            <td style="padding: 8px 10px; font-family: monospace; font-size: 12px; color: var(--primary);">${p.sicil_no}</td>
+            <td style="padding: 8px 10px; font-weight: 600;">${p.ad} ${p.soyad}</td>
+            <td style="padding: 8px 10px; font-size: 12px; color: var(--text-secondary);">${p.mail || '-'}</td>
+            <td style="padding: 8px 10px; font-size: 11px; color: var(--text-muted); font-style: italic;">${p.note || '-'}</td>
+            <td style="padding: 8px 10px; font-size: 11px; color: var(--text-muted);">${p.created_by || '-'}</td>
+          </tr>
+        `).join('')
+      : `<tr><td colspan="5" style="padding: 30px; text-align: center; color: var(--text-muted);">Kara listede kimse yok.</td></tr>`;
+
+    const content = `
+      <div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Toplam <strong style="color: #ef4444;">${data.count}</strong> kişi kara listede.
+        </p>
+        <div style="overflow-x: auto; max-height: 450px; overflow-y: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <thead style="position: sticky; top: 0; background: var(--bg-card);">
+              <tr>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">Sicil No</th>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">Ad Soyad</th>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">E-posta</th>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">Not</th>
+                <th style="padding: 8px 10px; text-align: left; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-color);">Ekleyen</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+          <button onclick="closeModal()" class="btn primary" style="padding: 10px 24px;">Kapat</button>
+        </div>
+      </div>
+    `;
+    openModal('🚫 Kara Liste', content);
+  } catch (e) {
+    alert('Kara liste yüklenirken hata oluştu.');
+  }
 }
 </script>
 

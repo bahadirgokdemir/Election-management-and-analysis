@@ -47,6 +47,58 @@
   </div>
 </div>
 
+<!-- Blacklist / Whitelist Grafik -->
+<div class="card" style="margin-top: 24px;" id="tag-stats-card">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+    <h3 style="margin: 0; font-size: 15px;">Baro Kayıt Etiketleme Durumu</h3>
+    <a href="{% url 'ui_baro_lawyers' %}" class="btn" style="font-size: 12px; padding: 6px 12px;">Tüm Kayıtlar</a>
+  </div>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;">
+    <!-- Donut Chart -->
+    <div style="display: flex; justify-content: center; align-items: center;">
+      <canvas id="tagDonutChart" width="200" height="200"></canvas>
+    </div>
+    <!-- Stats -->
+    <div id="tag-stats-detail" style="display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: rgba(239,68,68,0.07); border-radius: 8px; border-left: 3px solid #ef4444;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">🚫</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">Kara Liste</span>
+        </div>
+        <div style="text-align: right;">
+          <div id="tag-blacklist-count" style="font-size: 22px; font-weight: 800; color: #ef4444;">—</div>
+          <div id="tag-blacklist-pct" style="font-size: 11px; color: var(--text-muted);">%—</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: rgba(16,185,129,0.07); border-radius: 8px; border-left: 3px solid #10b981;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">✅</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-primary);">Biz</span>
+        </div>
+        <div style="text-align: right;">
+          <div id="tag-whitelist-count" style="font-size: 22px; font-weight: 800; color: #10b981;">—</div>
+          <div id="tag-whitelist-pct" style="font-size: 11px; color: var(--text-muted);">%—</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid var(--border-color);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px; filter: grayscale(1);">⬜</span>
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">Etiketsiz</span>
+        </div>
+        <div style="text-align: right;">
+          <div id="tag-untagged-count" style="font-size: 22px; font-weight: 800; color: var(--text-secondary);">—</div>
+          <div id="tag-untagged-pct" style="font-size: 11px; color: var(--text-muted);">%—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;">
+    <a href="{% url 'ui_baro_lawyers' %}?tag_filter=blacklist" class="btn" style="font-size: 12px; background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">🚫 Kara Listeyi Gör</a>
+    <a href="{% url 'ui_baro_lawyers' %}?tag_filter=whitelist" class="btn" style="font-size: 12px; background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3);">✅ Biz Listesini Gör</a>
+    <a href="{% url 'ui_baro_lawyers' %}?tag_filter=none" class="btn" style="font-size: 12px;">Etiketsizleri Gör</a>
+  </div>
+</div>
+
 <!-- Baro Coverage & Response Statistics -->
 {% if data.baro_stats and data.response_stats %}
 <div class="cards mt" style="margin-top: 24px;">
@@ -402,6 +454,54 @@
 {{ data.lawyer_performance.lawyer_unique_counts|json_script:"lawyerPerformanceData" }}
 
 <script>
+// ── Blacklist / Whitelist Donut Grafiği ──────────────────────────
+(async function loadTagStats() {
+  try {
+    const res = await fetch('/ui/baro-lawyers/tag-stats/');
+    const d = await res.json();
+    const total = d.total || 1;
+    const pct = n => total > 0 ? ((n / total) * 100).toFixed(1) : '0.0';
+
+    document.getElementById('tag-blacklist-count').textContent = d.blacklist;
+    document.getElementById('tag-whitelist-count').textContent = d.whitelist;
+    document.getElementById('tag-untagged-count').textContent  = d.untagged;
+    document.getElementById('tag-blacklist-pct').textContent  = '%' + pct(d.blacklist);
+    document.getElementById('tag-whitelist-pct').textContent  = '%' + pct(d.whitelist);
+    document.getElementById('tag-untagged-pct').textContent   = '%' + pct(d.untagged);
+
+    const canvas = document.getElementById('tagDonutChart');
+    if (canvas && typeof Chart !== 'undefined') {
+      new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Kara Liste', 'Biz', 'Etiketsiz'],
+          datasets: [{
+            data: [d.blacklist, d.whitelist, d.untagged],
+            backgroundColor: ['rgba(239,68,68,0.85)', 'rgba(16,185,129,0.85)', 'rgba(100,116,139,0.25)'],
+            borderColor: ['#ef4444', '#10b981', 'rgba(100,116,139,0.4)'],
+            borderWidth: 2,
+            hoverOffset: 6,
+          }]
+        },
+        options: {
+          cutout: '68%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: ctx => ` ${ctx.label}: ${ctx.raw} (%${pct(ctx.raw)})`
+              }
+            }
+          }
+        }
+      });
+    }
+  } catch(e) {
+    console.warn('Tag stats yüklenemedi:', e);
+  }
+})();
+
+// ── Durum Grafiği ────────────────────────────────────────────────
 (function(){
   const raw = JSON.parse(document.getElementById('byStatusData').textContent || '{}');
   const labels = Object.keys(raw);

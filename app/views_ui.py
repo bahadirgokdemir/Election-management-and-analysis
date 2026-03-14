@@ -9,7 +9,7 @@ from django.db import transaction
 import csv
 from io import BytesIO
 
-from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election, BaroLawyer
+from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election, BaroLawyer, BaroLawyerTag
 from .permissions import login_required_custom, admin_required, uploader_required
 from .services.importer import parse_and_stage
 from .services.diff_service import compute_diff
@@ -231,7 +231,7 @@ def ui_upload(request):
         from app.utils.file_validators import ValidationError
 
         try:
-            batch_id, row_count = parse_and_stage(
+            batch_id, row_count, name_mismatches = parse_and_stage(
                 file, lawyer.id,
                 created_by=str(request.user) if request.user.is_authenticated else None
             )
@@ -252,6 +252,22 @@ def ui_upload(request):
         if batch.notes:
             messages.info(request, f'{batch.notes}')
 
+        # İsim uyuşmazlığı uyarıları
+        if name_mismatches:
+            messages.warning(
+                request,
+                f'{len(name_mismatches)} kişi Baro kaydındaki isimle uyuşmadığı için listeye eklenmedi:'
+            )
+            for m in name_mismatches[:15]:  # Max 15 detay göster
+                messages.warning(
+                    request,
+                    f'Sicil {m["kisi_sicilno"]} (Satır {m["row_num"]}): '
+                    f'Listede "{m["excel_ad"]} {m["excel_soyad"]}" '
+                    f'— Baro\'da "{m["baro_ad"]} {m["baro_soyad"]}"'
+                )
+            if len(name_mismatches) > 15:
+                messages.warning(request, f'... ve {len(name_mismatches) - 15} kişi daha.')
+
         # 2) Otomatik olarak uygula
         actor = str(request.user) if request.user.is_authenticated else None
         result = apply_diff(batch_id, actor=actor)
@@ -260,10 +276,14 @@ def ui_upload(request):
             counts = result.get('counts', {})
             added = counts.get('added', 0)
             changed = counts.get('changed', 0)
+            removed = counts.get('removed', 0)
+            rejection_note = f', {len(name_mismatches)} kişi isim uyuşmazlığı nedeniyle reddedildi' if name_mismatches else ''
+            removed_note = f', {removed} kayıt pasife alındı' if removed else ''
             messages.success(
                 request,
                 f'Yükleme başarılı! {row_count} satır işlendi. '
-                f'{added} yeni kayıt eklendi, {changed} kayıt güncellendi.'
+                f'{added} yeni kayıt eklendi, {changed} kayıt güncellendi'
+                f'{removed_note}{rejection_note}.'
             )
         else:
             messages.warning(request, f'Yükleme tamamlandı ancak uygulama sırasında sorun oluştu: {result.get("message")}')
@@ -791,13 +811,13 @@ def ui_approve_selected(request, batch_id: int):
                 if ks not in sel_removed:
                     continue
 
-                # Bu avukattan kaldır (hard delete veya soft delete)
-                deleted_count = LawyerPerson.objects.filter(
+                # Bu avukattan soft-delete et (active=False) - kayıtları koru
+                updated_count = LawyerPerson.objects.filter(
                     lawyer=lawyer,
                     kisi_sicilno=ks
-                ).delete()[0]
+                ).update(active=False)
 
-                if deleted_count > 0:
+                if updated_count > 0:
                     applied_remove += 1
 
             # CHANGED - Mevcut kayıtları güncelle
@@ -1110,8 +1130,11 @@ def ui_baro_lawyers(request):
     # Sıralama parametresi
     order_by = request.GET.get('order_by', '').strip()
 
-    # Database'den kayıtları çek
-    qs = BaroLawyer.objects.all()
+    # Tag filtresi
+    tag_filter = request.GET.get('tag_filter', '').strip()  # 'blacklist', 'whitelist', 'none', ''
+
+    # Database'den kayıtları çek (tag bilgisiyle birlikte)
+    qs = BaroLawyer.objects.select_related('tag').all()
 
     # Genel arama filtresi (tüm alanlarda)
     if q:
@@ -1163,9 +1186,23 @@ def ui_baro_lawyers(request):
         qs = qs.annotate(sicil_int=Cast('sicil_no', IntegerField())).order_by('sicil_int')
         order_by = 'sicil_no'
 
+    # Tag filtresi uygula
+    if tag_filter == 'blacklist':
+        qs = qs.filter(tag__tag_type='blacklist')
+    elif tag_filter == 'whitelist':
+        qs = qs.filter(tag__tag_type='whitelist')
+    elif tag_filter == 'none':
+        qs = qs.filter(tag__isnull=True)
+
     # İstatistikler
+    total = BaroLawyer.objects.count()
+    blacklist_count = BaroLawyerTag.objects.filter(tag_type='blacklist').count()
+    whitelist_count = BaroLawyerTag.objects.filter(tag_type='whitelist').count()
     stats = {
-        'total_records': BaroLawyer.objects.count(),
+        'total_records': total,
+        'blacklist_count': blacklist_count,
+        'whitelist_count': whitelist_count,
+        'untagged_count': total - blacklist_count - whitelist_count,
     }
 
     # Pagination
@@ -1183,5 +1220,79 @@ def ui_baro_lawyers(request):
         'sicil_min': sicil_min,
         'sicil_max': sicil_max,
         'order_by': order_by,
+        'tag_filter': tag_filter,
         'stats': stats,
     })
+
+
+@login_required_custom
+@require_http_methods(["POST"])
+def ui_baro_tag_toggle(request, sicil_no: str):
+    """
+    Baro kaydına kara liste / 'biz' etiketi ekle veya kaldır.
+    POST body: tag_type ('blacklist' | 'whitelist' | '' = kaldır), note (opsiyonel)
+    """
+    try:
+        baro_lawyer = BaroLawyer.objects.get(sicil_no=sicil_no)
+    except BaroLawyer.DoesNotExist:
+        return JsonResponse({'error': 'Baro kaydı bulunamadı'}, status=404)
+
+    tag_type = (request.POST.get('tag_type') or '').strip()
+    note = (request.POST.get('note') or '').strip() or None
+    actor = str(request.user) if request.user.is_authenticated else None
+
+    if not tag_type:
+        # Etiketi kaldır
+        deleted, _ = BaroLawyerTag.objects.filter(baro_lawyer=baro_lawyer).delete()
+        return JsonResponse({'ok': True, 'action': 'removed', 'tag_type': None})
+
+    if tag_type not in (BaroLawyerTag.BLACKLIST, BaroLawyerTag.WHITELIST):
+        return JsonResponse({'error': 'Geçersiz etiket türü'}, status=400)
+
+    tag, created = BaroLawyerTag.objects.update_or_create(
+        baro_lawyer=baro_lawyer,
+        defaults={'tag_type': tag_type, 'note': note, 'created_by': actor},
+    )
+    return JsonResponse({
+        'ok': True,
+        'action': 'created' if created else 'updated',
+        'tag_type': tag_type,
+        'note': tag.note or '',
+    })
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_baro_tag_stats(request):
+    """Blacklist/whitelist istatistikleri — dashboard grafik için."""
+    total = BaroLawyer.objects.count()
+    blacklist_count = BaroLawyerTag.objects.filter(tag_type='blacklist').count()
+    whitelist_count = BaroLawyerTag.objects.filter(tag_type='whitelist').count()
+    return JsonResponse({
+        'total': total,
+        'blacklist': blacklist_count,
+        'whitelist': whitelist_count,
+        'untagged': total - blacklist_count - whitelist_count,
+    })
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_baro_blacklist_detail(request):
+    """Kara listedeki kişilerin detay listesi (JSON)."""
+    tags = BaroLawyerTag.objects.filter(
+        tag_type='blacklist'
+    ).select_related('baro_lawyer').order_by('baro_lawyer__sicil_no')
+
+    data = [{
+        'sicil_no': t.baro_lawyer.sicil_no,
+        'ad': t.baro_lawyer.ad,
+        'soyad': t.baro_lawyer.soyad,
+        'mail': t.baro_lawyer.mail,
+        'tel': t.baro_lawyer.tel,
+        'note': t.note or '',
+        'created_by': t.created_by or '',
+        'created_at': t.created_at.strftime('%d.%m.%Y %H:%M'),
+    } for t in tags]
+
+    return JsonResponse({'ok': True, 'count': len(data), 'results': data})
