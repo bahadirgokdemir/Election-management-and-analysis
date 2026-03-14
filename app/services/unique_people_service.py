@@ -6,6 +6,7 @@ from django.db.models import Q, Count, Prefetch
 from collections import defaultdict
 
 from app.models import LawyerPerson, StatusOption
+from app.utils.search import apply_name_search
 
 
 class UniquePerson:
@@ -127,17 +128,11 @@ class UniquePeopleService:
             'cevap_status', 'lawyer'
         ).filter(active=True).order_by('kisi_sicilno', '-id')
 
-        # Filtreler
+        # Filtreler - Türkçe karakter ve ad+soyad destekli arama
         if search_query:
-            qs = qs.filter(
-                Q(kisi_sicilno__icontains=search_query) |
-                Q(ad__icontains=search_query) |
-                Q(soyad__icontains=search_query) |
-                Q(mail__icontains=search_query) |
-                Q(telno__icontains=search_query) |
-                Q(ilce__icontains=search_query) |
-                Q(notlar__icontains=search_query)
-            )
+            qs = apply_name_search(qs, search_query, extra_fields=[
+                'kisi_sicilno', 'mail', 'telno', 'ilce', 'notlar'
+            ])
 
         if status_key:
             qs = qs.filter(cevap_status__key=status_key)

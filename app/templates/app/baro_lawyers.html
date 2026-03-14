@@ -252,7 +252,7 @@
 <script>
 const CSRF_TOKEN = '{{ csrf_token }}';
 
-function showDetails(sicilNo, adSoyad, mail, tel, adres, tagType, tagNote) {
+async function showDetails(sicilNo, adSoyad, mail, tel, adres, tagType, tagNote) {
   const tagBadge = tagType === 'blacklist'
     ? `<span style="padding: 4px 10px; background: rgba(239,68,68,0.15); color: #ef4444; border-radius: 6px; font-weight: 600;">🚫 Kara Liste</span>`
     : tagType === 'whitelist'
@@ -262,6 +262,25 @@ function showDetails(sicilNo, adSoyad, mail, tel, adres, tagType, tagNote) {
   const tagNoteHtml = tagNote
     ? `<div style="margin-top: 6px; font-size: 12px; color: var(--text-muted); font-style: italic;">Not: ${tagNote}</div>`
     : '';
+
+  // Notları getir (kişi listelerindeki notlar)
+  let notlarHtml = '';
+  try {
+    const resp = await fetch(`/ui/unique-people/${sicilNo}/detail/`);
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.notes && data.notes.length > 0) {
+        const noteItems = data.notes.map(n =>
+          `<div style="padding: 8px 10px; background: var(--bg-content); border-radius: 6px; font-size: 13px; color: var(--text-primary);">${n}</div>`
+        ).join('');
+        notlarHtml = `
+          <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Avukat Notları (Kişi Listelerinden)</div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">${noteItems}</div>
+          </div>`;
+      }
+    }
+  } catch(e) {}
 
   const content = `
     <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -285,6 +304,8 @@ function showDetails(sicilNo, adSoyad, mail, tel, adres, tagType, tagNote) {
         </div>
       </div>
       ${adres ? `<div style="padding: 12px; background: var(--bg-content); border-radius: 8px;"><div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Adres</div><div style="font-size: 13px;">${adres}</div></div>` : ''}
+
+      ${notlarHtml}
 
       <!-- Mevcut etiket -->
       <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">

@@ -18,6 +18,7 @@ from .services.reports import report_overview
 from .services.unique_people_service import UniquePeopleService
 from .services.person_analytics_service import PersonAnalyticsService
 from .services.baro_loader import BaroLoader
+from .utils.search import apply_name_search
 
 from django.shortcuts import get_object_or_404
 
@@ -76,7 +77,7 @@ def ui_lawyers(request):
     q = (request.GET.get('q') or '').strip()
     qs = Lawyer.objects.all().order_by('-id')
     if q:
-        qs = qs.filter(Q(sicil_no__icontains=q) | Q(ad__icontains=q) | Q(soyad__icontains=q))
+        qs = apply_name_search(qs, q, extra_fields=['sicil_no'])
     page = Paginator(qs, 20).get_page(request.GET.get('page'))
     return render(request, 'app/lawyers_list.html', {'page': page, 'q': q})
 
@@ -106,18 +107,11 @@ def ui_people(request):
         'lawyer'
     ).filter(active=True).order_by('-id', 'lawyer__ad', 'lawyer__soyad')
 
-    # Genel arama (tüm alanlarda) - artık LawyerPerson alanlarında ara
+    # Genel arama (tüm alanlarda) - Türkçe karakter ve ad+soyad destekli
     if q:
-        qs = qs.filter(
-            Q(kisi_sicilno__icontains=q) |
-            Q(ad__icontains=q) |
-            Q(soyad__icontains=q) |
-            Q(mail__icontains=q) |
-            Q(ilce__icontains=q) |
-            Q(telno__icontains=q) |
-            Q(adres_aciklama__icontains=q) |
-            Q(notlar__icontains=q)
-        )
+        qs = apply_name_search(qs, q, extra_fields=[
+            'kisi_sicilno', 'mail', 'ilce', 'telno', 'adres_aciklama', 'notlar'
+        ])
 
     # Alan bazında gelişmiş aramalar - LawyerPerson alanları
     if adv_sicil:
@@ -333,16 +327,9 @@ def ui_people_export_preview(request):
     qs = LawyerPerson.objects.select_related('cevap_status', 'lawyer').filter(active=True)
 
     if q:
-        qs = qs.filter(
-            Q(kisi_sicilno__icontains=q) |
-            Q(ad__icontains=q) |
-            Q(soyad__icontains=q) |
-            Q(mail__icontains=q) |
-            Q(ilce__icontains=q) |
-            Q(telno__icontains=q) |
-            Q(adres_aciklama__icontains=q) |
-            Q(notlar__icontains=q)
-        )
+        qs = apply_name_search(qs, q, extra_fields=[
+            'kisi_sicilno', 'mail', 'ilce', 'telno', 'adres_aciklama', 'notlar'
+        ])
     if status_key and status_key not in ('None', '', 'null'):
         qs = qs.filter(cevap_status__key=status_key)
     if lawyer_id and lawyer_id not in ('None', '', 'null'):
@@ -426,16 +413,9 @@ def ui_people_export_download(request):
 
     # Filtreler
     if q:
-        qs = qs.filter(
-            Q(kisi_sicilno__icontains=q) |
-            Q(ad__icontains=q) |
-            Q(soyad__icontains=q) |
-            Q(mail__icontains=q) |
-            Q(ilce__icontains=q) |
-            Q(telno__icontains=q) |
-            Q(adres_aciklama__icontains=q) |
-            Q(notlar__icontains=q)
-        )
+        qs = apply_name_search(qs, q, extra_fields=[
+            'kisi_sicilno', 'mail', 'ilce', 'telno', 'adres_aciklama', 'notlar'
+        ])
     if status_key and status_key not in ('None', '', 'null'):
         qs = qs.filter(cevap_status__key=status_key)
     if lawyer_id and lawyer_id not in ('None', '', 'null'):
@@ -1136,16 +1116,9 @@ def ui_baro_lawyers(request):
     # Database'den kayıtları çek (tag bilgisiyle birlikte)
     qs = BaroLawyer.objects.select_related('tag').all()
 
-    # Genel arama filtresi (tüm alanlarda)
+    # Genel arama filtresi - Türkçe karakter ve ad+soyad destekli
     if q:
-        qs = qs.filter(
-            Q(sicil_no__icontains=q) |
-            Q(ad__icontains=q) |
-            Q(soyad__icontains=q) |
-            Q(mail__icontains=q) |
-            Q(tel__icontains=q) |
-            Q(adres__icontains=q)
-        )
+        qs = apply_name_search(qs, q, extra_fields=['sicil_no', 'mail', 'tel', 'adres'])
 
     # Alan bazında gelişmiş aramalar
     if adv_sicil:
