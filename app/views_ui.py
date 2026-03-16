@@ -1324,6 +1324,41 @@ def ui_baro_bulk_tag(request):
 
 @login_required_custom
 @require_http_methods(["GET"])
+def ui_baro_lawyer_detail(request, sicil_no: str):
+    """Baro avukatının tüm alanlarını JSON olarak döner (detay modal için)."""
+    try:
+        bl = BaroLawyer.objects.select_related('tag').get(sicil_no=sicil_no)
+    except BaroLawyer.DoesNotExist:
+        return JsonResponse({'ok': False, 'error': 'Bulunamadı'}, status=404)
+
+    tag = getattr(bl, 'tag', None)
+    memberships = list(bl.memberships.values_list('gorev', flat=True))
+
+    return JsonResponse({
+        'ok': True,
+        'sicil_no': bl.sicil_no,
+        'ad': bl.ad,
+        'soyad': bl.soyad,
+        'tel': bl.tel,
+        'mail': bl.mail,
+        'adres': bl.adres,
+        'uye': bl.uye,
+        'cinsiyet': bl.cinsiyet,
+        'mesleğe_baslama': getattr(bl, 'mesleğe_baslama', ''),
+        'ilce': bl.ilce,
+        'dogum_yeri': bl.dogum_yeri,
+        'dogum_tarihi': bl.dogum_tarihi,
+        'mahalle_koy': bl.mahalle_koy,
+        'nufus_ilce': bl.nufus_ilce,
+        'nufus_il': bl.nufus_il,
+        'tag_type': tag.tag_type if tag else '',
+        'tag_note': tag.note if tag else '',
+        'memberships': memberships,
+    })
+
+
+@login_required_custom
+@require_http_methods(["GET"])
 def ui_committee_memberships(request):
     """
     Kurul üyeliklerini listeler - Baro_Merkezler_vs.xlsx verisinden

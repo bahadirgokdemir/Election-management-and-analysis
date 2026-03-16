@@ -263,7 +263,7 @@
         </td>
         <td style="text-align: right;">
           <button class="btn" style="padding: 5px 10px; font-size: 12px;"
-            onclick="showDetails('{{ lawyer.sicil_no }}', '{{ lawyer.ad }} {{ lawyer.soyad }}', '{{ lawyer.mail|escapejs }}', '{{ lawyer.tel|escapejs }}', '{{ lawyer.adres|escapejs }}', '{{ tag.tag_type|default:'' }}', '{{ tag.note|default:''|escapejs }}')">
+            onclick="showDetails('{{ lawyer.sicil_no }}')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
               <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
               <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
@@ -308,92 +308,122 @@
 <script>
 const CSRF_TOKEN = '{{ csrf_token }}';
 
-async function showDetails(sicilNo, adSoyad, mail, tel, adres, tagType, tagNote) {
-  const tagBadge = tagType === 'blacklist'
-    ? `<span style="padding: 4px 10px; background: rgba(239,68,68,0.15); color: #ef4444; border-radius: 6px; font-weight: 600;">🚫 Kara Liste</span>`
-    : tagType === 'whitelist'
-      ? `<span style="padding: 4px 10px; background: rgba(16,185,129,0.15); color: #10b981; border-radius: 6px; font-weight: 600;">✅ Beyaz Liste</span>`
-      : `<span style="color: var(--text-muted); font-size: 12px;">Etiketsiz</span>`;
+function infoCell(label, value) {
+  return `<div style="padding: 10px 12px; background: var(--bg-content); border-radius: 8px;">
+    <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 3px;">${label}</div>
+    <div style="font-size: 13px; font-weight: 500;">${value || '<span style="color:var(--text-muted)">—</span>'}</div>
+  </div>`;
+}
 
-  const tagNoteHtml = tagNote
-    ? `<div style="margin-top: 6px; font-size: 12px; color: var(--text-muted); font-style: italic;">Not: ${tagNote}</div>`
-    : '';
+async function showDetails(sicilNo) {
+  openModal(`Avukat Detayı — ${sicilNo}`, `<div style="text-align:center;padding:40px;color:var(--text-muted);">Yükleniyor...</div>`);
 
-  // Notları getir (kişi listelerindeki notlar)
+  let d;
+  try {
+    const res = await fetch(`/ui/baro-lawyers/${sicilNo}/detail/`);
+    d = await res.json();
+    if (!d.ok) throw new Error(d.error);
+  } catch(e) {
+    openModal('Hata', `<p style="color:var(--error);">${e.message}</p>`);
+    return;
+  }
+
+  const tagBadge = d.tag_type === 'blacklist'
+    ? `<span style="padding:4px 10px;background:rgba(239,68,68,0.15);color:#ef4444;border-radius:6px;font-weight:600;">🚫 Kara Liste</span>`
+    : d.tag_type === 'whitelist'
+      ? `<span style="padding:4px 10px;background:rgba(16,185,129,0.15);color:#10b981;border-radius:6px;font-weight:600;">✅ Beyaz Liste</span>`
+      : `<span style="color:var(--text-muted);font-size:12px;">Etiketsiz</span>`;
+
+  const tagNoteHtml = d.tag_note
+    ? `<div style="margin-top:6px;font-size:12px;color:var(--text-muted);font-style:italic;">Not: ${d.tag_note}</div>` : '';
+
+  // Kurul üyelikleri
+  let kurulHtml = '';
+  if (d.memberships && d.memberships.length > 0) {
+    const items = d.memberships.map(g =>
+      `<div style="padding:6px 10px;background:var(--bg-content);border-radius:6px;font-size:12px;">${g}</div>`
+    ).join('');
+    kurulHtml = `<div style="padding:14px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border-color);">
+      <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Kurul Üyelikleri (${d.memberships.length})</div>
+      <div style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;">${items}</div>
+    </div>`;
+  }
+
+  // Avukat notları (kişi listelerinden)
   let notlarHtml = '';
   try {
     const resp = await fetch(`/ui/unique-people/${sicilNo}/detail/`);
     if (resp.ok) {
-      const data = await resp.json();
-      if (data.notes && data.notes.length > 0) {
-        const noteItems = data.notes.map(n =>
-          `<div style="padding: 8px 10px; background: var(--bg-content); border-radius: 6px; font-size: 13px; color: var(--text-primary);">${n}</div>`
+      const nd = await resp.json();
+      if (nd.notes && nd.notes.length > 0) {
+        const noteItems = nd.notes.map(n =>
+          `<div style="padding:8px 10px;background:var(--bg-content);border-radius:6px;font-size:13px;">${n}</div>`
         ).join('');
-        notlarHtml = `
-          <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-            <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Avukat Notları (Kişi Listelerinden)</div>
-            <div style="display: flex; flex-direction: column; gap: 6px;">${noteItems}</div>
-          </div>`;
+        notlarHtml = `<div style="padding:14px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border-color);">
+          <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Avukat Notları</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">${noteItems}</div>
+        </div>`;
       }
     }
   } catch(e) {}
 
   const content = `
-    <div style="display: flex; flex-direction: column; gap: 16px;">
-      <!-- Kişi bilgileri -->
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px;">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Sicil No</div>
-          <div style="font-weight: 700; font-family: monospace; color: var(--primary);">${sicilNo}</div>
-        </div>
-        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px;">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Ad Soyad</div>
-          <div style="font-weight: 600;">${adSoyad}</div>
-        </div>
-        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px;">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">E-posta</div>
-          <div style="font-size: 13px;">${mail || '-'}</div>
-        </div>
-        <div style="padding: 12px; background: var(--bg-content); border-radius: 8px;">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Telefon</div>
-          <div style="font-size: 13px;">${tel || '-'}</div>
-        </div>
-      </div>
-      ${adres ? `<div style="padding: 12px; background: var(--bg-content); border-radius: 8px;"><div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Adres</div><div style="font-size: 13px;">${adres}</div></div>` : ''}
+    <div style="display:flex;flex-direction:column;gap:16px;">
 
+      <!-- Kimlik -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${infoCell('Sicil No', `<span style="font-family:monospace;color:var(--primary);font-weight:700;">${d.sicil_no}</span>`)}
+        ${infoCell('Ad Soyad', `<strong>${d.ad} ${d.soyad}</strong>`)}
+        ${infoCell('Üye Durumu', d.uye)}
+        ${infoCell('Cinsiyet', d.cinsiyet === 'E' ? 'Erkek' : d.cinsiyet === 'K' ? 'Kadın' : d.cinsiyet)}
+      </div>
+
+      <!-- İletişim -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${infoCell('E-posta', d.mail ? `<a href="mailto:${d.mail}" style="color:var(--primary);">${d.mail}</a>` : '')}
+        ${infoCell('Telefon', d.tel ? `<a href="tel:${d.tel}" style="color:var(--primary);">${d.tel}</a>` : '')}
+        ${infoCell('İlçe (Çalışma)', d.ilce)}
+        ${infoCell('Mesleğe Başlama', d.mesleğe_baslama)}
+      </div>
+      ${d.adres ? `<div style="padding:10px 12px;background:var(--bg-content);border-radius:8px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Adres</div>
+        <div style="font-size:13px;">${d.adres}</div>
+      </div>` : ''}
+
+      <!-- Nüfus / Doğum -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        ${infoCell('Doğum Yeri', d.dogum_yeri)}
+        ${infoCell('Doğum Tarihi', d.dogum_tarihi)}
+        ${infoCell('Mahalle/Köy', d.mahalle_koy)}
+        ${infoCell('Nüfus İlçe / İl', d.nufus_ilce && d.nufus_il ? `${d.nufus_ilce} / ${d.nufus_il}` : (d.nufus_ilce || d.nufus_il))}
+      </div>
+
+      ${kurulHtml}
       ${notlarHtml}
 
-      <!-- Mevcut etiket -->
-      <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-        <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Mevcut Etiket</div>
-        ${tagBadge}
-        ${tagNoteHtml}
+      <!-- Etiket -->
+      <div style="padding:14px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border-color);">
+        <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Mevcut Etiket</div>
+        ${tagBadge}${tagNoteHtml}
       </div>
-
-      <!-- Etiketleme alanı -->
-      <div style="padding: 14px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-        <div style="font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">Etiket Değiştir</div>
-        <div class="form-group" style="margin-bottom: 10px;">
-          <label class="form-label" style="font-size: 11px;">Açıklama / Not (opsiyonel)</label>
-          <input type="text" id="tag-note-input" value="${tagNote}" placeholder="Neden ekliyorsunuz?" style="width: 100%; padding: 8px 10px;" />
+      <div style="padding:14px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border-color);">
+        <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:12px;">Etiket Değiştir</div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label" style="font-size:11px;">Not (opsiyonel)</label>
+          <input type="text" id="tag-note-input" value="${d.tag_note || ''}" placeholder="Neden ekliyorsunuz?" style="width:100%;padding:8px 10px;" />
         </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <button onclick="applyTag('${sicilNo}', 'blacklist')" class="btn" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); font-size: 13px;">
-            🚫 Kara Listeye Ekle
-          </button>
-          <button onclick="applyTag('${sicilNo}', 'whitelist')" class="btn" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3); font-size: 13px;">
-            ✅ Beyaz Liste Olarak İşaretle
-          </button>
-          ${tagType ? `<button onclick="applyTag('${sicilNo}', '')" class="btn" style="font-size: 13px;">Etiketi Kaldır</button>` : ''}
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button onclick="applyTag('${d.sicil_no}', 'blacklist')" class="btn" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);font-size:13px;">🚫 Kara Listeye Ekle</button>
+          <button onclick="applyTag('${d.sicil_no}', 'whitelist')" class="btn" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);font-size:13px;">✅ Beyaz Liste</button>
+          ${d.tag_type ? `<button onclick="applyTag('${d.sicil_no}', '')" class="btn" style="font-size:13px;">Etiketi Kaldır</button>` : ''}
         </div>
       </div>
 
-      <div style="display: flex; justify-content: flex-end;">
-        <button onclick="closeModal()" class="btn primary" style="padding: 10px 24px;">Kapat</button>
+      <div style="display:flex;justify-content:flex-end;">
+        <button onclick="closeModal()" class="btn primary" style="padding:10px 24px;">Kapat</button>
       </div>
-    </div>
-  `;
-  openModal(`Avukat Detayı — ${sicilNo} / ${adSoyad}`, content);
+    </div>`;
+  openModal(`Avukat Detayı — ${d.sicil_no} / ${d.ad} ${d.soyad}`, content);
 }
 
 async function applyTag(sicilNo, tagType) {
