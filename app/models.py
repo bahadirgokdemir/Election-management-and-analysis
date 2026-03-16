@@ -295,7 +295,7 @@ class CommitteeMembership(models.Model):
     Kurul üyelikleri - Baro_Merkezler_vs.xlsx dosyasından yüklenir
     Bir avukat birden fazla kurulda üye olabilir
     """
-    gorev = models.CharField(max_length=256, help_text="Görev/Kurul adı")
+    gorev = models.CharField(max_length=512, help_text="Görev/Kurul adı")
     sicil_no = models.CharField(max_length=64, db_index=True, help_text="Avukat sicil numarası")
     ad_soyad = models.CharField(max_length=256, help_text="Ad Soyad")
     baro_lawyer = models.ForeignKey(
