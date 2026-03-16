@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py setup_auth --admin-username=admin --admin-password=admin && python manage.py seed_baro && gunicorn core.wsgi --bind 0.0.0.0:$PORT",
+    "startCommand": "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py setup_auth --admin-username=admin --admin-password=admin && python manage.py seed_baro && python manage.py seed_committee && gunicorn core.wsgi --bind 0.0.0.0:$PORT",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }

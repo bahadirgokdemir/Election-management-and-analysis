@@ -1,6 +1,6 @@
 """
-Baro verilerini JSON dosyasindan yukler (sadece tablo bos ise).
-Railway ilk deploy'da otomatik calistirilir.
+Baro verilerini JSON dosyasindan yukler.
+Railway deploy'da otomatik calistirilir.
 """
 import json
 import os
@@ -9,7 +9,7 @@ from django.db import transaction
 
 
 class Command(BaseCommand):
-    help = 'BaroLawyer tablosu bos ise baro_data.json dosyasindan yukler'
+    help = 'BaroLawyer tablosunu baro_data.json dosyasindan yukler'
 
     def handle(self, *args, **options):
         from app.models import BaroLawyer
@@ -38,21 +38,36 @@ class Command(BaseCommand):
             skipped = 0
 
             for item in data:
-                fields = item.get('fields', {})
+                # Hem eski format (fields: {...}) hem yeni format ({sicil_no: ...}) desteklenir
+                if isinstance(item, dict) and 'fields' in item:
+                    fields = item.get('fields', {})
+                else:
+                    fields = item
+
                 sicil_no = fields.get('sicil_no', '')
                 if not sicil_no:
                     skipped += 1
                     continue
-                records_to_create.append(BaroLawyer(
+
+                obj = BaroLawyer(
                     sicil_no=sicil_no,
                     ad=fields.get('ad', ''),
                     soyad=fields.get('soyad', ''),
                     tel=fields.get('tel', ''),
                     mail=fields.get('mail', ''),
                     adres=fields.get('adres', ''),
-                ))
+                    uye=fields.get('uye', ''),
+                    cinsiyet=fields.get('cinsiyet', ''),
+                    ilce=fields.get('ilce', ''),
+                    dogum_yeri=fields.get('dogum_yeri', ''),
+                    dogum_tarihi=fields.get('dogum_tarihi', ''),
+                    mahalle_koy=fields.get('mahalle_koy', ''),
+                    nufus_ilce=fields.get('nufus_ilce', ''),
+                    nufus_il=fields.get('nufus_il', ''),
+                )
+                setattr(obj, 'mesleğe_baslama', fields.get('mesleğe_baslama', ''))
+                records_to_create.append(obj)
 
-            # Toplu ekleme - 1000'er batch
             with transaction.atomic():
                 batch_size = 1000
                 total = len(records_to_create)
