@@ -188,12 +188,19 @@
             {% endif %}
           </td>
           <td>
-            <button onclick="showPersonDetail('{{ person.kisi_sicilno }}')" class="icon-btn" title="Detay Gor" style="background: rgba(59, 130, 246, 0.1); color: var(--primary);">
-              <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-              </svg>
-            </button>
+            <div style="display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
+              <button onclick="showPersonDetail('{{ person.kisi_sicilno }}')" class="icon-btn" title="Detay Gor" style="background: rgba(59, 130, 246, 0.1); color: var(--primary);">
+                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+              <a href="{% url 'ui_committee_memberships' %}?sicil={{ person.kisi_sicilno }}" class="icon-btn" title="Kurul Üyelikleri" style="background: rgba(99, 102, 241, 0.1); color: #6366f1;">
+                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                </svg>
+              </a>
+            </div>
           </td>
         </tr>
       {% empty %}

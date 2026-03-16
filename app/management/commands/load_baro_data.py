@@ -52,6 +52,15 @@ class Command(BaseCommand):
                                 'tel': record.tel,
                                 'mail': record.mail,
                                 'adres': record.adres,
+                                'uye': record.uye,
+                                'cinsiyet': record.cinsiyet,
+                                'mesleğe_baslama': record.mesleğe_baslama,
+                                'ilce': record.ilce,
+                                'dogum_yeri': record.dogum_yeri,
+                                'dogum_tarihi': record.dogum_tarihi,
+                                'mahalle_koy': record.mahalle_koy,
+                                'nufus_ilce': record.nufus_ilce,
+                                'nufus_il': record.nufus_il,
                             }
                         )
                         if created_flag:
@@ -84,12 +93,18 @@ class Command(BaseCommand):
             with_email = BaroLawyer.objects.exclude(mail='').count()
             with_phone = BaroLawyer.objects.exclude(tel='').count()
             with_address = BaroLawyer.objects.exclude(adres='').count()
+            with_cinsiyet = BaroLawyer.objects.exclude(cinsiyet='').count()
+            with_ilce = BaroLawyer.objects.exclude(ilce='').count()
+            with_dogum = BaroLawyer.objects.exclude(dogum_tarihi='').count()
 
             self.stdout.write('\nVERİTABANI İSTATİSTİKLERİ:')
             self.stdout.write(f'Toplam kayıt: {total}')
             self.stdout.write(f'E-posta olan: {with_email} ({with_email*100/total:.1f}%)')
             self.stdout.write(f'Telefon olan: {with_phone} ({with_phone*100/total:.1f}%)')
             self.stdout.write(f'Adres olan: {with_address} ({with_address*100/total:.1f}%)')
+            self.stdout.write(f'Cinsiyet olan: {with_cinsiyet} ({with_cinsiyet*100/total:.1f}%)')
+            self.stdout.write(f'İlçe olan: {with_ilce} ({with_ilce*100/total:.1f}%)')
+            self.stdout.write(f'Doğum tarihi olan: {with_dogum} ({with_dogum*100/total:.1f}%)')
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f'Kritik hata: {e}'))

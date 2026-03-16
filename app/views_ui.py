@@ -9,7 +9,7 @@ from django.db import transaction
 import csv
 from io import BytesIO
 
-from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election, BaroLawyer, BaroLawyerTag
+from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election, BaroLawyer, BaroLawyerTag, CommitteeMembership
 from .permissions import login_required_custom, admin_required, uploader_required
 from .services.importer import parse_and_stage
 from .services.diff_service import compute_diff
@@ -1114,7 +1114,8 @@ def ui_baro_lawyers(request):
     tag_filter = request.GET.get('tag_filter', '').strip()  # 'blacklist', 'whitelist', 'none', ''
 
     # Database'den kayıtları çek (tag bilgisiyle birlikte)
-    qs = BaroLawyer.objects.select_related('tag').all()
+    from django.db.models import Count as _Count
+    qs = BaroLawyer.objects.select_related('tag').annotate(membership_count=_Count('memberships')).all()
 
     # Genel arama filtresi - Türkçe karakter ve ad+soyad destekli
     if q:
@@ -1318,4 +1319,55 @@ def ui_baro_bulk_tag(request):
         'updated': updated,
         'not_found': not_found,
         'not_found_count': len(not_found),
+    })
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_committee_memberships(request):
+    """
+    Kurul üyeliklerini listeler - Baro_Merkezler_vs.xlsx verisinden
+    """
+    q = (request.GET.get('q') or '').strip()
+    adv_sicil = (request.GET.get('sicil') or '').strip()
+    adv_ad_soyad = (request.GET.get('ad_soyad') or '').strip()
+    adv_gorev = (request.GET.get('gorev') or '').strip()
+    order_by = request.GET.get('order_by', 'ad_soyad').strip()
+
+    qs = CommitteeMembership.objects.select_related('baro_lawyer').all()
+
+    if q:
+        qs = qs.filter(
+            Q(ad_soyad__icontains=q) |
+            Q(sicil_no__icontains=q) |
+            Q(gorev__icontains=q)
+        )
+    if adv_sicil:
+        qs = qs.filter(sicil_no__icontains=adv_sicil)
+    if adv_ad_soyad:
+        qs = qs.filter(ad_soyad__icontains=adv_ad_soyad)
+    if adv_gorev:
+        qs = qs.filter(gorev__icontains=adv_gorev)
+
+    allowed_orders = ['ad_soyad', '-ad_soyad', 'sicil_no', '-sicil_no', 'gorev', '-gorev']
+    if order_by not in allowed_orders:
+        order_by = 'ad_soyad'
+    qs = qs.order_by(order_by)
+
+    # İstatistikler
+    from django.db.models import Count
+    total = CommitteeMembership.objects.count()
+    gorev_list = CommitteeMembership.objects.values('gorev').annotate(count=Count('id')).order_by('gorev')
+
+    page = Paginator(qs, 25).get_page(request.GET.get('page'))
+
+    return render(request, 'app/committee_memberships.html', {
+        'page': page,
+        'q': q,
+        'adv_sicil': adv_sicil,
+        'adv_ad_soyad': adv_ad_soyad,
+        'adv_gorev': adv_gorev,
+        'order_by': order_by,
+        'total': total,
+        'gorev_list': gorev_list,
     })

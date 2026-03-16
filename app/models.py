@@ -229,6 +229,15 @@ class BaroLawyer(models.Model):
     tel = models.CharField(max_length=64, blank=True, default='', help_text="Telefon numarası")
     mail = models.EmailField(max_length=256, blank=True, default='', help_text="E-posta adresi")
     adres = models.TextField(blank=True, default='', help_text="Adres bilgisi")
+    uye = models.CharField(max_length=64, blank=True, default='', help_text="Üyelik durumu (Aktif/Pasif)")
+    cinsiyet = models.CharField(max_length=8, blank=True, default='', help_text="Cinsiyeti (E/K)")
+    mesleğe_baslama = models.CharField(max_length=64, blank=True, default='', help_text="Mesleğe başlama tarihi")
+    ilce = models.CharField(max_length=128, blank=True, default='', help_text="İlçe")
+    dogum_yeri = models.CharField(max_length=128, blank=True, default='', help_text="Doğum yeri")
+    dogum_tarihi = models.CharField(max_length=64, blank=True, default='', help_text="Doğum tarihi")
+    mahalle_koy = models.CharField(max_length=128, blank=True, default='', help_text="Mahalle/Köy")
+    nufus_ilce = models.CharField(max_length=128, blank=True, default='', help_text="Nüfus ilçe")
+    nufus_il = models.CharField(max_length=128, blank=True, default='', help_text="Nüfus il")
 
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
@@ -279,6 +288,33 @@ class BaroLawyerTag(models.Model):
 
     def __str__(self):
         return f"{self.baro_lawyer.sicil_no} - {self.get_tag_type_display()}"
+
+
+class CommitteeMembership(models.Model):
+    """
+    Kurul üyelikleri - Baro_Merkezler_vs.xlsx dosyasından yüklenir
+    Bir avukat birden fazla kurulda üye olabilir
+    """
+    gorev = models.CharField(max_length=256, help_text="Görev/Kurul adı")
+    sicil_no = models.CharField(max_length=64, db_index=True, help_text="Avukat sicil numarası")
+    ad_soyad = models.CharField(max_length=256, help_text="Ad Soyad")
+    baro_lawyer = models.ForeignKey(
+        BaroLawyer, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='memberships', help_text="Baro kaydı (varsa)"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['ad_soyad', 'gorev']
+        indexes = [
+            models.Index(fields=['sicil_no']),
+            models.Index(fields=['gorev']),
+        ]
+        verbose_name = 'Kurul Üyeliği'
+        verbose_name_plural = 'Kurul Üyelikleri'
+
+    def __str__(self):
+        return f"{self.sicil_no} - {self.ad_soyad} - {self.gorev}"
 
 
 class UserProfile(models.Model):

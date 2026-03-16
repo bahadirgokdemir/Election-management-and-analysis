@@ -1,0 +1,181 @@
+{% extends 'app/base.html' %}
+{% block title %}Kurul Üyelikleri{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Kurul Üyelikleri</h1>
+    <p style="font-size: 14px; color: var(--text-muted); margin-top: 4px;">
+      Toplam <strong>{{ total }}</strong> kurul üyeliği kaydı
+    </p>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start;">
+
+  <!-- Görev Filtre Paneli (Sidebar) -->
+  <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; position: sticky; top: 20px;">
+    <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Kurul / Görev Filtresi</div>
+    <div style="max-height: 480px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;">
+      <a href="?q={{ q }}&sicil={{ adv_sicil }}&ad_soyad={{ adv_ad_soyad }}&order_by={{ order_by }}"
+         style="padding: 7px 10px; border-radius: 6px; font-size: 13px; color: {% if not adv_gorev %}var(--primary){% else %}var(--text-secondary){% endif %}; background: {% if not adv_gorev %}rgba(59,130,246,0.08){% else %}transparent{% endif %}; text-decoration: none; display: block;">
+        Tümü
+      </a>
+      {% for g in gorev_list %}
+      <a href="?q={{ q }}&sicil={{ adv_sicil }}&ad_soyad={{ adv_ad_soyad }}&gorev={{ g.gorev|urlencode }}&order_by={{ order_by }}"
+         style="padding: 7px 10px; border-radius: 6px; font-size: 12px; color: {% if adv_gorev == g.gorev %}var(--primary){% else %}var(--text-secondary){% endif %}; background: {% if adv_gorev == g.gorev %}rgba(59,130,246,0.08){% else %}transparent{% endif %}; text-decoration: none; display: flex; justify-content: space-between; align-items: center; gap: 8px;"
+         title="{{ g.gorev }}">
+        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ g.gorev }}</span>
+        <span style="font-size: 11px; color: var(--text-muted); flex-shrink: 0;">{{ g.count }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Ana İçerik -->
+  <div>
+
+    <!-- Arama ve Filtreler -->
+    <div class="filter-panel" style="margin-bottom: 16px;">
+      <form method="get">
+        <div class="filter-grid">
+          <div class="form-group">
+            <label class="form-label">Genel Arama</label>
+            <input type="text" name="q" placeholder="Ad Soyad, Sicil No, Görev..." value="{{ q }}" />
+          </div>
+
+          <details style="grid-column: 1 / -1;">
+            <summary style="cursor: pointer; color: var(--text-muted); font-size: 12px; padding: 8px; margin-bottom: 12px;">
+              Gelişmiş Arama (Alan bazlı filtreleme)
+            </summary>
+            <div class="filter-grid" style="margin-top: 12px;">
+              <div class="form-group">
+                <label class="form-label">Sicil No</label>
+                <input type="text" name="sicil" placeholder="Sicil No" value="{{ adv_sicil }}" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Ad Soyad</label>
+                <input type="text" name="ad_soyad" placeholder="Ad Soyad" value="{{ adv_ad_soyad }}" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Görev / Kurul</label>
+                <input type="text" name="gorev" placeholder="Görev adı" value="{{ adv_gorev }}" />
+              </div>
+            </div>
+          </details>
+
+          <input type="hidden" name="order_by" value="{{ order_by }}" />
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button class="btn primary" type="submit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            Ara
+          </button>
+          {% if q or adv_sicil or adv_ad_soyad or adv_gorev %}
+          <a class="btn" href="{% url 'ui_committee_memberships' %}">Temizle</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+
+    <!-- Sıralama -->
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+      <span style="font-size: 12px; color: var(--text-muted);">Sırala:</span>
+
+      <a href="?q={{ q }}&sicil={{ adv_sicil }}&ad_soyad={{ adv_ad_soyad }}&gorev={{ adv_gorev }}&order_by={% if order_by == 'ad_soyad' %}-ad_soyad{% else %}ad_soyad{% endif %}"
+         class="btn" style="padding: 5px 12px; font-size: 12px; {% if order_by == 'ad_soyad' or order_by == '-ad_soyad' %}background: rgba(59,130,246,0.1); color: var(--primary); border-color: rgba(59,130,246,0.3);{% endif %}">
+        Ad Soyad
+        {% if order_by == 'ad_soyad' %}↑{% elif order_by == '-ad_soyad' %}↓{% endif %}
+      </a>
+
+      <a href="?q={{ q }}&sicil={{ adv_sicil }}&ad_soyad={{ adv_ad_soyad }}&gorev={{ adv_gorev }}&order_by={% if order_by == 'sicil_no' %}-sicil_no{% else %}sicil_no{% endif %}"
+         class="btn" style="padding: 5px 12px; font-size: 12px; {% if order_by == 'sicil_no' or order_by == '-sicil_no' %}background: rgba(59,130,246,0.1); color: var(--primary); border-color: rgba(59,130,246,0.3);{% endif %}">
+        Sicil No
+        {% if order_by == 'sicil_no' %}↑{% elif order_by == '-sicil_no' %}↓{% endif %}
+      </a>
+
+      <a href="?q={{ q }}&sicil={{ adv_sicil }}&ad_soyad={{ adv_ad_soyad }}&gorev={{ adv_gorev }}&order_by={% if order_by == 'gorev' %}-gorev{% else %}gorev{% endif %}"
+         class="btn" style="padding: 5px 12px; font-size: 12px; {% if order_by == 'gorev' or order_by == '-gorev' %}background: rgba(59,130,246,0.1); color: var(--primary); border-color: rgba(59,130,246,0.3);{% endif %}">
+        Görev
+        {% if order_by == 'gorev' %}↑{% elif order_by == '-gorev' %}↓{% endif %}
+      </a>
+
+      <span style="margin-left: auto; font-size: 12px; color: var(--text-muted);">
+        {{ page.paginator.count }} sonuç
+      </span>
+    </div>
+
+    <!-- Tablo -->
+    <div class="table-container">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Görev / Kurul</th>
+            <th>Sicil No</th>
+            <th>Ad Soyad</th>
+            <th>Baro Kaydı</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for membership in page.object_list %}
+          <tr>
+            <td>
+              <span style="font-size: 13px; font-weight: 500;">{{ membership.gorev }}</span>
+            </td>
+            <td>
+              <strong style="font-family: monospace; color: var(--primary);">{{ membership.sicil_no }}</strong>
+            </td>
+            <td>
+              {{ membership.ad_soyad }}
+            </td>
+            <td>
+              {% if membership.baro_lawyer %}
+                <a href="{% url 'ui_baro_lawyers' %}?sicil={{ membership.sicil_no }}"
+                   style="color: var(--primary); font-size: 13px; text-decoration: none;">
+                  <svg style="width:13px;height:13px;vertical-align:middle;margin-right:3px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                  </svg>
+                  Baro Kaydı
+                </a>
+              {% else %}
+                <span style="color: var(--text-muted); font-size: 12px;">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-muted);">
+              Kayıt bulunamadı.
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page.paginator.num_pages > 1 %}
+    <div class="pager">
+      {% if page.has_previous %}
+        <a class="btn" href="?q={{ q }}&sicil={{ adv_sicil }}&ad_soyad={{ adv_ad_soyad }}&gorev={{ adv_gorev }}&order_by={{ order_by }}&page={{ page.previous_page_number }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 19l-7-7 7-7"/></svg>
+          Önceki
+        </a>
+      {% endif %}
+      <span>Sayfa {{ page.number }} / {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}
+        <a class="btn" href="?q={{ q }}&sicil={{ adv_sicil }}&ad_soyad={{ adv_ad_soyad }}&gorev={{ adv_gorev }}&order_by={{ order_by }}&page={{ page.next_page_number }}">
+          Sonraki
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
+        </a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div><!-- /Ana İçerik -->
+</div><!-- /grid -->
+
+{% endblock %}

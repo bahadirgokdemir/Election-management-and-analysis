@@ -202,6 +202,7 @@
         <th>Telefon</th>
         <th>Adres</th>
         <th style="text-align: center; width: 80px;">Etiket</th>
+        <th style="text-align: center;">Kurul</th>
         <th style="text-align: right;">İşlemler</th>
       </tr>
     </thead>
@@ -250,6 +251,16 @@
             <span style="color: var(--text-muted); font-size: 12px;">—</span>
           {% endif %}
         </td>
+        <td style="text-align: center;">
+          {% if lawyer.membership_count %}
+            <a href="{% url 'ui_committee_memberships' %}?sicil={{ lawyer.sicil_no }}"
+               style="color: var(--primary); font-size: 12px; text-decoration: none; font-weight: 600;">
+              {{ lawyer.membership_count }}
+            </a>
+          {% else %}
+            <span style="color: var(--text-muted); font-size: 12px;">—</span>
+          {% endif %}
+        </td>
         <td style="text-align: right;">
           <button class="btn" style="padding: 5px 10px; font-size: 12px;"
             onclick="showDetails('{{ lawyer.sicil_no }}', '{{ lawyer.ad }} {{ lawyer.soyad }}', '{{ lawyer.mail|escapejs }}', '{{ lawyer.tel|escapejs }}', '{{ lawyer.adres|escapejs }}', '{{ tag.tag_type|default:'' }}', '{{ tag.note|default:''|escapejs }}')">
@@ -264,7 +275,7 @@
       {% endwith %}
     {% empty %}
       <tr>
-        <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-muted);">
+        <td colspan="8" style="text-align: center; padding: 40px; color: var(--text-muted);">
           Kayıt bulunamadı.
         </td>
       </tr>
