@@ -8,6 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.db import transaction
 import csv
 from io import BytesIO
+from datetime import date as date_obj
 
 from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election, BaroLawyer, BaroLawyerTag, CommitteeMembership
 from .permissions import login_required_custom, admin_required, uploader_required
@@ -1354,6 +1355,26 @@ def ui_baro_lawyer_detail(request, sicil_no: str):
         'tag_type': tag.tag_type if tag else '',
         'tag_note': tag.note if tag else '',
         'memberships': memberships,
+    })
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_birthdays_today(request):
+    """Bugün doğum günü olan baro avukatlarını döner"""
+    today = date_obj.today()
+    suffix = f"-{today.month:02d}-{today.day:02d}"
+    lawyers = BaroLawyer.objects.filter(
+        dogum_tarihi__endswith=suffix
+    ).exclude(dogum_tarihi='').values(
+        'sicil_no', 'ad', 'soyad', 'dogum_tarihi', 'tel', 'mail'
+    ).order_by('ad', 'soyad')
+
+    return JsonResponse({
+        'ok': True,
+        'date': today.isoformat(),
+        'count': lawyers.count(),
+        'lawyers': list(lawyers),
     })
 
 

@@ -115,6 +115,16 @@
           </div>
         </div>
       </div>
+      <!-- Birthday notification bell -->
+      <div id="birthday-bell-container" style="display:none; margin: 8px 0; padding: 8px 12px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 8px; cursor:pointer;" onclick="showBirthdayPanel()">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <svg style="width:18px;height:18px;color:#f59e0b;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a7 7 0 017 7c0 4.5-3 6-3 9H8c0-3-3-4.5-3-9a7 7 0 017-7z"/><path d="M9 21h6"/><path d="M12 2v1"/>
+          </svg>
+          <span style="font-size:12px;color:#f59e0b;font-weight:600;" id="birthday-bell-text">Doğum Günü</span>
+          <span id="birthday-bell-badge" style="background:#f59e0b;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;min-width:18px;text-align:center;"></span>
+        </div>
+      </div>
       <a href="{% url 'auth_logout' %}" class="nav-item" style="margin-top: 0.5rem; color: var(--text-secondary);">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -261,6 +271,77 @@
         }
       }
     });
+
+    // Birthday notifications
+    async function checkBirthdays() {
+      // Only check once per session
+      const key = 'birthdays_checked_' + new Date().toISOString().slice(0, 10);
+      try {
+        const res = await fetch('/ui/birthdays/today/');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.ok || data.count === 0) return;
+
+        // Show bell
+        const bell = document.getElementById('birthday-bell-container');
+        const badge = document.getElementById('birthday-bell-badge');
+        const text = document.getElementById('birthday-bell-text');
+        if (bell) {
+          bell.style.display = 'block';
+          badge.textContent = data.count;
+          text.textContent = 'Doğum Günleri';
+        }
+
+        // Store data globally
+        window._birthdayData = data;
+
+        // Show popup once per session
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          setTimeout(() => showBirthdayPopup(data), 1000);
+        }
+      } catch(e) {}
+    }
+
+    function showBirthdayPanel() {
+      if (window._birthdayData) showBirthdayPopup(window._birthdayData);
+    }
+
+    function showBirthdayPopup(data) {
+      const today = new Date().toLocaleDateString('tr-TR', {day:'numeric', month:'long'});
+      const rows = data.lawyers.map(l => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-content);border-radius:8px;">
+          <div>
+            <div style="font-weight:600;font-size:13px;">${l.ad} ${l.soyad}</div>
+            <div style="font-size:11px;color:var(--text-muted);font-family:monospace;">Sicil: ${l.sicil_no} · Doğum: ${l.dogum_tarihi}</div>
+            ${l.tel ? `<div style="font-size:11px;color:var(--text-secondary);">${l.tel}</div>` : ''}
+          </div>
+          <span style="font-size:22px;">🎂</span>
+        </div>
+      `).join('');
+
+      const content = `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <p style="font-size:13px;color:var(--text-secondary);margin:0;">
+            <strong>${today}</strong> tarihinde <strong style="color:#f59e0b;">${data.count}</strong> avukatın doğum günü!
+          </p>
+          <div style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;">
+            ${rows}
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <button onclick="closeModal()" class="btn primary" style="padding:10px 24px;">Kapat</button>
+          </div>
+        </div>
+      `;
+      openModal('🎂 Bugünün Doğum Günleri', content);
+    }
+
+    // Check on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', checkBirthdays);
+    } else {
+      checkBirthdays();
+    }
   </script>
 </body>
 </html>

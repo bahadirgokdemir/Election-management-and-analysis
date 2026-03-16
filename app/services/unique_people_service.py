@@ -24,10 +24,13 @@ class UniquePerson:
         self.statuses = set()
         self.lawyers = []
         self.record_count = 0
+        self.first_record_id = None
 
     def add_record(self, lp: LawyerPerson):
         """LawyerPerson kaydını benzersiz kişiye ekle"""
         self.record_count += 1
+        if self.first_record_id is None:
+            self.first_record_id = lp.id
 
         # İsim (en güncel/dolu olanı al)
         if lp.ad and lp.ad.strip():
@@ -89,6 +92,7 @@ class UniquePerson:
             'statuses': sorted(list(self.statuses)),
             'lawyers': self.lawyers,
             'record_count': self.record_count,
+            'first_record_id': self.first_record_id,
             'lawyer_count': len(self.lawyers),
             # Display strings
             'email_display': ', '.join(sorted(self.emails)) if self.emails else '',

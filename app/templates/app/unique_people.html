@@ -189,6 +189,19 @@
           </td>
           <td>
             <div style="display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap;">
+              {% if person.record_count == 1 %}
+              <button onclick="editRecord({{ person.first_record_id }})" class="icon-btn" title="Düzenle" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">
+                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              {% else %}
+              <button onclick="showPersonDetail('{{ person.kisi_sicilno }}')" class="icon-btn" title="Düzenle ({{ person.record_count }} kayıt)" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+                <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+              {% endif %}
               <button onclick="showPersonDetail('{{ person.kisi_sicilno }}')" class="icon-btn" title="Detay Gor" style="background: rgba(59, 130, 246, 0.1); color: var(--primary);">
                 <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>

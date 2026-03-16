@@ -11,6 +11,7 @@ from .views_ui import (
     ui_baro_tag_toggle, ui_baro_tag_stats, ui_baro_blacklist_detail,
     ui_baro_whitelist_detail, ui_baro_bulk_tag,
     ui_baro_lawyer_detail, ui_committee_memberships,
+    ui_birthdays_today,
 )
 from .views_election import (
     ui_elections, ui_election_create, ui_election_activate,
@@ -63,6 +64,9 @@ urlpatterns = [
 
     # Kurul üyelikleri
     path('committee-memberships/', ui_committee_memberships, name='ui_committee_memberships'),
+
+    # Doğum günü bildirimleri
+    path('birthdays/today/', ui_birthdays_today, name='ui_birthdays_today'),
 
     # Seçim günü yönetimi
     path('elections/', ui_elections, name='ui_elections'),

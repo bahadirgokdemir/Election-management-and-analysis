@@ -371,6 +371,16 @@ def parse_and_stage(uploaded_file, lawyer_id: int, created_by: str = None) -> Tu
             # Excel'den bilgileri al
             excel_ad = _clean_value(r.get('ad'))
             excel_soyad = _clean_value(r.get('soyad'))
+
+            # Fix: Bazı listelerde "Ad Soyad" full name ad kolonuna, "Soyad" ise soyad kolonuna yazılır.
+            # Örn: ad="AHMET YILMAZ", soyad="YILMAZ" → ad="AHMET", soyad="YILMAZ"
+            if excel_ad and excel_soyad:
+                norm_ad = _normalize_name(excel_ad).upper().strip()
+                norm_soyad = _normalize_name(excel_soyad).upper().strip()
+                if norm_ad.endswith(' ' + norm_soyad) and len(norm_ad) > len(norm_soyad) + 1:
+                    # ad alanı "FirstName LastName" formatında, son kelimesi soyad ile aynı
+                    excel_ad = excel_ad.strip()[:-(len(excel_soyad))].strip()
+
             excel_telno = _clean_value(r.get('telno'))
             excel_mail = _clean_value(r.get('mail'))
             excel_ilce = _clean_value(r.get('ilce'))
