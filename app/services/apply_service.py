@@ -8,7 +8,11 @@ from app.models import (
 
 
 @transaction.atomic
-def apply_diff(batch_id: int, actor: str = None) -> Dict:
+def apply_diff(batch_id: int, actor: str = None, merge_mode: bool = False) -> Dict:
+    """
+    merge_mode=True → yeni yüklemede sadece ekleme/güncelleme yapılır,
+    yeni listede olmayan eski kayıtlar korunur (silinmez).
+    """
     batch = UploadBatch.objects.select_for_update().select_related('lawyer').get(id=batch_id)
     if batch.status != UploadBatch.STAGED:
         return {"ok": False, "message": "Batch zaten uygulanmış veya reddedilmiş."}
@@ -57,11 +61,12 @@ def apply_diff(batch_id: int, actor: str = None) -> Dict:
             }
         )
 
-    # 2) REMOVED → Bu avukattan soft-delete et (active=False), kayıtları koru
-    # Hard delete yerine soft delete: eski veriler silinmez, tekrar eklenirse reaktive edilir
+    # 2) REMOVED → Yeni listede olmayanlar
+    # merge_mode=True ise eski kayıtları koru (sil); False ise soft-delete yap
     removed_ks_list = [row['kisi_sicilno'] for row in removed]
-    if removed_ks_list:
-        LawyerPerson.objects.filter(
+    actually_removed = 0
+    if removed_ks_list and not merge_mode:
+        actually_removed = LawyerPerson.objects.filter(
             lawyer_id=batch.lawyer_id,
             kisi_sicilno__in=removed_ks_list
         ).update(active=False)
@@ -107,4 +112,14 @@ def apply_diff(batch_id: int, actor: str = None) -> Dict:
     batch.status = UploadBatch.APPLIED
     batch.save(update_fields=['status'])
 
-    return {"ok": True, "message": "Uygulandı", "counts": diff.get('counts', {})}
+    base_counts = diff.get('counts', {})
+    return {
+        "ok": True,
+        "message": "Uygulandı",
+        "counts": {
+            "added": base_counts.get("added", 0),
+            "changed": base_counts.get("changed", 0),
+            "removed": actually_removed,
+            "would_remove": len(removed_ks_list) if merge_mode else 0,
+        }
+    }

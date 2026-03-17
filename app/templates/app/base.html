@@ -309,16 +309,33 @@
 
     function showBirthdayPopup(data) {
       const today = new Date().toLocaleDateString('tr-TR', {day:'numeric', month:'long'});
-      const rows = data.lawyers.map(l => `
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg-content);border-radius:8px;">
+      const rows = data.lawyers.map(l => {
+        // Renk: listedeyse → duruma göre; listede değilse → amber
+        let border = 'rgba(245,158,11,0.35)'; // amber (listede yok)
+        let bg = 'rgba(245,158,11,0.06)';
+        let badge = '';
+        if (l.in_list) {
+          const s = (l.status || '').toLowerCase();
+          if (s.includes('olumlu') || s === 'olumlu') {
+            border = 'rgba(16,185,129,0.45)'; bg = 'rgba(16,185,129,0.07)';
+          } else if (s.includes('olumsuz') || s === 'olumsuz') {
+            border = 'rgba(239,68,68,0.45)'; bg = 'rgba(239,68,68,0.07)';
+          } else {
+            border = 'rgba(59,130,246,0.45)'; bg = 'rgba(59,130,246,0.07)';
+          }
+          if (l.status_label) badge += `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${border};margin-left:6px;">${l.status_label}</span>`;
+          if (l.lawyer_name) badge += `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(${l.lawyer_name})</span>`;
+        }
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:${bg};border-radius:8px;border-left:3px solid ${border};">
           <div>
-            <div style="font-weight:600;font-size:13px;">${l.ad} ${l.soyad}</div>
+            <div style="font-weight:600;font-size:13px;">${l.ad} ${l.soyad}${badge}</div>
             <div style="font-size:11px;color:var(--text-muted);font-family:monospace;">Sicil: ${l.sicil_no} · Doğum: ${l.dogum_tarihi}</div>
             ${l.tel ? `<div style="font-size:11px;color:var(--text-secondary);">${l.tel}</div>` : ''}
           </div>
           <span style="font-size:22px;">🎂</span>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
 
       const content = `
         <div style="display:flex;flex-direction:column;gap:12px;">

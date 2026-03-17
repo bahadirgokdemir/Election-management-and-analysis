@@ -147,6 +147,22 @@
             <label class="form-label">Adres</label>
             <input type="text" name="adres" placeholder="Adres" value="{{ adv_adres }}" />
           </div>
+          <div class="form-group">
+            <label class="form-label">Doğum Yeri</label>
+            <input type="text" name="dogum_yeri" placeholder="Doğum Yeri" value="{{ adv_dogum_yeri }}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nüfusa Kayıtlı İl</label>
+            <input type="text" name="nufus_il" placeholder="Nüfus İl" value="{{ adv_nufus_il }}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cinsiyet</label>
+            <input type="text" name="cinsiyet" placeholder="E / K" value="{{ adv_cinsiyet }}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">İlçe (Baro)</label>
+            <input type="text" name="ilce" placeholder="İlçe" value="{{ adv_ilce }}" />
+          </div>
         </div>
       </details>
 
@@ -163,7 +179,7 @@
         </svg>
         Ara
       </button>
-      {% if q or adv_sicil or adv_ad or adv_soyad or adv_mail or adv_tel or adv_adres or tag_filter %}
+      {% if q or adv_sicil or adv_ad or adv_soyad or adv_mail or adv_tel or adv_adres or adv_dogum_yeri or adv_nufus_il or adv_cinsiyet or adv_ilce or tag_filter %}
       <a class="btn" href="{% url 'ui_baro_lawyers' %}">Temizle</a>
       {% endif %}
     </div>

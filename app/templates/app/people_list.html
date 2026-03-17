@@ -401,6 +401,20 @@ function openAdvancedSearch_OLD() {
             <label class="form-label">Notlar</label>
             <input type="text" id="adv-notlar" placeholder="Notlarda ara..." value="{{ request.GET.notlar|default:'' }}" />
           </div>
+
+          <div style="grid-column: span 2; padding: 8px 0; border-top: 1px solid var(--border-color); margin-top: 4px;">
+            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 8px;">BARO KAYIT BİLGİLERİ</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" style="font-size: 11px;">Doğum Yeri</label>
+                <input type="text" id="adv-dogum-yeri" placeholder="Doğum yeri ara..." value="{{ request.GET.dogum_yeri|default:'' }}" style="padding: 6px 10px; font-size: 12px;" />
+              </div>
+              <div class="form-group" style="margin: 0;">
+                <label class="form-label" style="font-size: 11px;">Nüfusa Kayıtlı İl</label>
+                <input type="text" id="adv-nufus-il" placeholder="Nüfus il ara..." value="{{ request.GET.nufus_il|default:'' }}" style="padding: 6px 10px; font-size: 12px;" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
@@ -440,6 +454,8 @@ function applyAdvancedSearch() {
   const ilce = document.getElementById('adv-ilce').value.trim();
   const adres = document.getElementById('adv-adres').value.trim();
   const notlar = document.getElementById('adv-notlar').value.trim();
+  const dogumYeri = (document.getElementById('adv-dogum-yeri') || {}).value?.trim() || '';
+  const nufusIl = (document.getElementById('adv-nufus-il') || {}).value?.trim() || '';
 
   if (sicil) params.set('sicil', sicil);
   if (ad) params.set('ad', ad);
@@ -449,6 +465,8 @@ function applyAdvancedSearch() {
   if (ilce) params.set('ilce_search', ilce);
   if (adres) params.set('adres', adres);
   if (notlar) params.set('notlar', notlar);
+  if (dogumYeri) params.set('dogum_yeri', dogumYeri);
+  if (nufusIl) params.set('nufus_il', nufusIl);
 
   // Keep existing filters
   const currentParams = new URLSearchParams(window.location.search);
@@ -467,6 +485,8 @@ function clearAdvancedSearch() {
   document.getElementById('adv-ilce').value = '';
   document.getElementById('adv-adres').value = '';
   document.getElementById('adv-notlar').value = '';
+  const dy = document.getElementById('adv-dogum-yeri'); if (dy) dy.value = '';
+  const ni = document.getElementById('adv-nufus-il'); if (ni) ni.value = '';
 }
 
 // Edit Person Modal

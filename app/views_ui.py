@@ -100,6 +100,9 @@ def ui_people(request):
     adv_ilce = (request.GET.get('ilce_search') or '').strip()
     adv_adres = (request.GET.get('adres') or '').strip()
     adv_notlar = (request.GET.get('notlar') or '').strip()
+    # Baro kayıt alanları (BaroLawyer'den)
+    adv_dogum_yeri = (request.GET.get('dogum_yeri') or '').strip()
+    adv_nufus_il = (request.GET.get('nufus_il') or '').strip()
 
     # LawyerPerson ilişkilerini getir - her ilişki ayrı satır olacak
     # KRITIK: Artık tüm veriler LawyerPerson'da, Person'a bakmıyoruz
@@ -114,13 +117,14 @@ def ui_people(request):
             'kisi_sicilno', 'mail', 'ilce', 'telno', 'adres_aciklama', 'notlar'
         ])
 
-    # Alan bazında gelişmiş aramalar - LawyerPerson alanları
+    # Alan bazında gelişmiş aramalar - LawyerPerson alanları (Türkçe karakter destekli)
+    from app.utils.search import normalize_tr, _normalize_db_expr
     if adv_sicil:
         qs = qs.filter(kisi_sicilno__icontains=adv_sicil)
     if adv_ad:
-        qs = qs.filter(ad__icontains=adv_ad)
+        qs = qs.annotate(_adv_ad=_normalize_db_expr('ad')).filter(_adv_ad__icontains=normalize_tr(adv_ad))
     if adv_soyad:
-        qs = qs.filter(soyad__icontains=adv_soyad)
+        qs = qs.annotate(_adv_soyad=_normalize_db_expr('soyad')).filter(_adv_soyad__icontains=normalize_tr(adv_soyad))
     if adv_mail:
         qs = qs.filter(mail__icontains=adv_mail)
     if adv_telno:
@@ -131,6 +135,13 @@ def ui_people(request):
         qs = qs.filter(adres_aciklama__icontains=adv_adres)
     if adv_notlar:
         qs = qs.filter(notlar__icontains=adv_notlar)
+    # Baro kayıt alanlarına göre filtrele (kisi_sicilno üzerinden BaroLawyer'e join)
+    if adv_dogum_yeri:
+        matching = BaroLawyer.objects.filter(dogum_yeri__icontains=adv_dogum_yeri).values_list('sicil_no', flat=True)
+        qs = qs.filter(kisi_sicilno__in=matching)
+    if adv_nufus_il:
+        matching = BaroLawyer.objects.filter(nufus_il__icontains=adv_nufus_il).values_list('sicil_no', flat=True)
+        qs = qs.filter(kisi_sicilno__in=matching)
 
     # İlçe dropdown filtresi
     if selected_ilce and selected_ilce != 'None':
@@ -160,6 +171,8 @@ def ui_people(request):
         'districts': districts,
         'statuses': statuses,
         'lawyers': lawyers,
+        'adv_dogum_yeri': adv_dogum_yeri,
+        'adv_nufus_il': adv_nufus_il,
     })
 
 
@@ -263,23 +276,27 @@ def ui_upload(request):
             if len(name_mismatches) > 15:
                 messages.warning(request, f'... ve {len(name_mismatches) - 15} kişi daha.')
 
-        # 2) Otomatik olarak uygula
+        # 2) Otomatik olarak uygula — merge_mode=True: eski kayıtları silme
         actor = str(request.user) if request.user.is_authenticated else None
-        result = apply_diff(batch_id, actor=actor)
+        result = apply_diff(batch_id, actor=actor, merge_mode=True)
 
         if result.get('ok'):
             counts = result.get('counts', {})
             added = counts.get('added', 0)
             changed = counts.get('changed', 0)
-            removed = counts.get('removed', 0)
+            would_remove = counts.get('would_remove', 0)
             rejection_note = f', {len(name_mismatches)} kişi isim uyuşmazlığı nedeniyle reddedildi' if name_mismatches else ''
-            removed_note = f', {removed} kayıt pasife alındı' if removed else ''
             messages.success(
                 request,
                 f'Yükleme başarılı! {row_count} satır işlendi. '
-                f'{added} yeni kayıt eklendi, {changed} kayıt güncellendi'
-                f'{removed_note}{rejection_note}.'
+                f'{added} yeni kayıt eklendi, {changed} kayıt güncellendi{rejection_note}.'
             )
+            if would_remove:
+                messages.warning(
+                    request,
+                    f'{would_remove} kayıt yeni listede yer almıyor ancak korundu (silinmedi). '
+                    f'Bu kayıtları silmek için ilgili kişiyi manuel olarak pasifleştirebilirsiniz.'
+                )
         else:
             messages.warning(request, f'Yükleme tamamlandı ancak uygulama sırasında sorun oluştu: {result.get("message")}')
 
@@ -1103,6 +1120,10 @@ def ui_baro_lawyers(request):
     adv_mail = (request.GET.get('mail') or '').strip()
     adv_tel = (request.GET.get('tel') or '').strip()
     adv_adres = (request.GET.get('adres') or '').strip()
+    adv_dogum_yeri = (request.GET.get('dogum_yeri') or '').strip()
+    adv_nufus_il = (request.GET.get('nufus_il') or '').strip()
+    adv_cinsiyet = (request.GET.get('cinsiyet') or '').strip()
+    adv_ilce = (request.GET.get('ilce') or '').strip()
 
     # Sicil aralığı parametreleri
     sicil_min = request.GET.get('sicil_min', '').strip()
@@ -1122,19 +1143,28 @@ def ui_baro_lawyers(request):
     if q:
         qs = apply_name_search(qs, q, extra_fields=['sicil_no', 'mail', 'tel', 'adres'])
 
-    # Alan bazında gelişmiş aramalar
+    # Alan bazında gelişmiş aramalar (Türkçe karakter destekli ad/soyad)
+    from app.utils.search import normalize_tr, _normalize_db_expr as _ndb
     if adv_sicil:
         qs = qs.filter(sicil_no__icontains=adv_sicil)
     if adv_ad:
-        qs = qs.filter(ad__icontains=adv_ad)
+        qs = qs.annotate(_baro_adv_ad=_ndb('ad')).filter(_baro_adv_ad__icontains=normalize_tr(adv_ad))
     if adv_soyad:
-        qs = qs.filter(soyad__icontains=adv_soyad)
+        qs = qs.annotate(_baro_adv_soyad=_ndb('soyad')).filter(_baro_adv_soyad__icontains=normalize_tr(adv_soyad))
     if adv_mail:
         qs = qs.filter(mail__icontains=adv_mail)
     if adv_tel:
         qs = qs.filter(tel__icontains=adv_tel)
     if adv_adres:
         qs = qs.filter(adres__icontains=adv_adres)
+    if adv_dogum_yeri:
+        qs = qs.filter(dogum_yeri__icontains=adv_dogum_yeri)
+    if adv_nufus_il:
+        qs = qs.filter(nufus_il__icontains=adv_nufus_il)
+    if adv_cinsiyet:
+        qs = qs.filter(cinsiyet__icontains=adv_cinsiyet)
+    if adv_ilce:
+        qs = qs.filter(ilce__icontains=adv_ilce)
 
     # Sicil aralığı filtresi ve sıralama için import
     from django.db.models.functions import Cast
@@ -1192,6 +1222,10 @@ def ui_baro_lawyers(request):
         'adv_mail': adv_mail,
         'adv_tel': adv_tel,
         'adv_adres': adv_adres,
+        'adv_dogum_yeri': adv_dogum_yeri,
+        'adv_nufus_il': adv_nufus_il,
+        'adv_cinsiyet': adv_cinsiyet,
+        'adv_ilce': adv_ilce,
         'sicil_min': sicil_min,
         'sicil_max': sicil_max,
         'order_by': order_by,
@@ -1361,20 +1395,42 @@ def ui_baro_lawyer_detail(request, sicil_no: str):
 @login_required_custom
 @require_http_methods(["GET"])
 def ui_birthdays_today(request):
-    """Bugün doğum günü olan baro avukatlarını döner"""
+    """Bugün doğum günü olan baro avukatlarını döner (liste ataması bilgisiyle)"""
     today = date_obj.today()
     suffix = f"-{today.month:02d}-{today.day:02d}"
-    lawyers = BaroLawyer.objects.filter(
+    lawyers_qs = BaroLawyer.objects.filter(
         dogum_tarihi__endswith=suffix
     ).exclude(dogum_tarihi='').values(
         'sicil_no', 'ad', 'soyad', 'dogum_tarihi', 'tel', 'mail'
     ).order_by('ad', 'soyad')
 
+    lawyers_list = list(lawyers_qs)
+    birthday_sicils = [l['sicil_no'] for l in lawyers_list]
+
+    # Her kişi için en güncel LawyerPerson bilgisini al
+    lp_map = {}
+    for lp in LawyerPerson.objects.filter(
+        kisi_sicilno__in=birthday_sicils, active=True
+    ).select_related('cevap_status', 'lawyer').order_by('kisi_sicilno', '-id'):
+        if lp.kisi_sicilno not in lp_map:
+            lp_map[lp.kisi_sicilno] = {
+                'in_list': True,
+                'status': lp.cevap_status.key if lp.cevap_status else None,
+                'status_label': lp.cevap_status.label if lp.cevap_status else None,
+                'lawyer_name': f"{lp.lawyer.ad} {lp.lawyer.soyad}",
+            }
+
+    for l in lawyers_list:
+        info = lp_map.get(l['sicil_no'], {
+            'in_list': False, 'status': None, 'status_label': None, 'lawyer_name': None,
+        })
+        l.update(info)
+
     return JsonResponse({
         'ok': True,
         'date': today.isoformat(),
-        'count': lawyers.count(),
-        'lawyers': list(lawyers),
+        'count': len(lawyers_list),
+        'lawyers': lawyers_list,
     })
 
 

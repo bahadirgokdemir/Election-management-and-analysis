@@ -9,19 +9,17 @@ def report_overview() -> Dict:
     total_relations = LawyerPerson.objects.filter(active=True).count()
 
     # Benzersiz kişi sayısı
-    unique_people = Person.objects.filter(
-        lawyerperson__active=True
-    ).distinct().count()
+    unique_people = LawyerPerson.objects.filter(active=True).values('kisi_sicilno').distinct().count()
 
-    # Durum bazında sayılar (ilişki bazında, aynı kişi birden fazla sayılabilir)
+    # Durum bazında sayılar (LawyerPerson.cevap_status kullanılıyor - doğru alan)
     status_counts = (
         LawyerPerson.objects
         .filter(active=True)
-        .values('person__cevap_status__key')
+        .values('cevap_status__key')
         .annotate(cnt=Count('id'))
         .order_by()
     )
-    by_status = {(r['person__cevap_status__key'] or 'bos'): r['cnt'] for r in status_counts}
+    by_status = {(r['cevap_status__key'] or 'bos'): r['cnt'] for r in status_counts}
 
     # Avukat başına istatistikler
     lawyer_stats = (
@@ -118,16 +116,16 @@ def get_unique_people_statistics() -> Dict:
     else:
         max_duplicate_person = None
 
-    # Benzersiz kişilerde durum dağılımı
+    # Benzersiz kişilerde durum dağılımı: her kişi için en son durum (id'ye göre)
     unique_status_counts = defaultdict(int)
-    processed_sicil_status = set()
+    sicil_status_map = {}
 
-    for lp in LawyerPerson.objects.filter(active=True).select_related('cevap_status'):
-        key = (lp.kisi_sicilno, lp.cevap_status.key if lp.cevap_status else 'bos')
-        if key not in processed_sicil_status:
-            processed_sicil_status.add(key)
-            status_key = lp.cevap_status.label if lp.cevap_status else 'Belirtilmemiş'
-            unique_status_counts[status_key] += 1
+    for lp in LawyerPerson.objects.filter(active=True).select_related('cevap_status').order_by('kisi_sicilno', '-id'):
+        if lp.kisi_sicilno not in sicil_status_map:
+            sicil_status_map[lp.kisi_sicilno] = lp.cevap_status.label if lp.cevap_status else 'Belirtilmemiş'
+
+    for label in sicil_status_map.values():
+        unique_status_counts[label] += 1
 
     return {
         'total_unique': total_unique,
@@ -191,31 +189,38 @@ def get_district_statistics() -> Dict:
 
 def get_lawyer_performance() -> Dict:
     """
-    Avukat performans analizi
+    Avukat performans analizi — kişiler arası kesişim (shared) bilgisi ile.
+    unique_people = sadece bu avukatın listesinde olan kişi sayısı (exclusive)
+    shared_people = birden fazla avukat listesinde bulunan kişi sayısı
+    total_records = bu avukatın toplam kişi sayısı
     """
-    # Her avukat için benzersiz kişi sayısı
+    # Tüm aktif kayıtları çek: sicil → avukat kümesi
+    sicil_lawyer_map = defaultdict(set)
+    for item in LawyerPerson.objects.filter(active=True).values('kisi_sicilno', 'lawyer_id'):
+        sicil_lawyer_map[item['kisi_sicilno']].add(item['lawyer_id'])
+
     lawyer_unique_counts = {}
     for lawyer in Lawyer.objects.all():
-        unique_people = LawyerPerson.objects.filter(
-            lawyer=lawyer, active=True
-        ).values_list('kisi_sicilno', flat=True).distinct().count()
-
-        total_records = LawyerPerson.objects.filter(
-            lawyer=lawyer, active=True
-        ).count()
+        lawyer_sicils = set(
+            LawyerPerson.objects.filter(lawyer=lawyer, active=True).values_list('kisi_sicilno', flat=True)
+        )
+        total_records = len(lawyer_sicils)
+        # Paylaşılan: başka avukat listesinde de olan kişiler
+        shared = sum(1 for s in lawyer_sicils if len(sicil_lawyer_map.get(s, set())) > 1)
+        exclusive = total_records - shared
 
         lawyer_unique_counts[lawyer.id] = {
             'lawyer_name': f"{lawyer.ad} {lawyer.soyad}",
             'sicil_no': lawyer.sicil_no,
-            'unique_people': unique_people,
+            'unique_people': exclusive,    # Sadece bu listede
+            'shared_people': shared,       # Başka listede de var
             'total_records': total_records,
-            'duplicate_rate': round(((total_records - unique_people) / total_records * 100) if total_records > 0 else 0, 1),
+            'duplicate_rate': round((shared / total_records * 100) if total_records > 0 else 0, 1),
         }
 
-    # En çok benzersiz kişi olan avukat
     top_performer = max(
         lawyer_unique_counts.values(),
-        key=lambda x: x['unique_people']
+        key=lambda x: x['total_records']
     ) if lawyer_unique_counts else None
 
     return {
