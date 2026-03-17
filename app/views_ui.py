@@ -1396,7 +1396,8 @@ def ui_baro_lawyer_detail(request, sicil_no: str):
 @require_http_methods(["GET"])
 def ui_birthdays_today(request):
     """Bugün doğum günü olan baro avukatlarını döner (liste ataması bilgisiyle)"""
-    today = date_obj.today()
+    from django.utils import timezone as _tz
+    today = _tz.localdate()  # Django TIME_ZONE ayarını kullan (Europe/Istanbul)
     suffix = f"-{today.month:02d}-{today.day:02d}"
     lawyers_qs = BaroLawyer.objects.filter(
         dogum_tarihi__endswith=suffix
@@ -1420,11 +1421,19 @@ def ui_birthdays_today(request):
                 'lawyer_name': f"{lp.lawyer.ad} {lp.lawyer.soyad}",
             }
 
+    # Kara/beyaz liste bilgisi
+    tag_map = {}
+    for tag in BaroLawyerTag.objects.filter(
+        baro_lawyer__sicil_no__in=birthday_sicils
+    ).select_related('baro_lawyer'):
+        tag_map[tag.baro_lawyer.sicil_no] = tag.tag_type
+
     for l in lawyers_list:
         info = lp_map.get(l['sicil_no'], {
             'in_list': False, 'status': None, 'status_label': None, 'lawyer_name': None,
         })
         l.update(info)
+        l['tag_type'] = tag_map.get(l['sicil_no'])
 
     return JsonResponse({
         'ok': True,

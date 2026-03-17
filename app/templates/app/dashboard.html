@@ -3,27 +3,16 @@
 {% block content %}
 
 <style>
-.dashboard-widget {
-  position: relative;
-  transition: opacity 0.15s;
-}
-.dashboard-widget.drag-over {
-  outline: 2px dashed var(--primary);
-  outline-offset: 4px;
-  border-radius: 8px;
-}
-.drag-handle {
-  cursor: grab;
-  color: var(--text-muted);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 14px;
-  line-height: 1;
-  user-select: none;
-  transition: color 0.15s;
-}
+.dashboard-widget { position: relative; transition: opacity 0.15s; }
+.dashboard-widget.drag-over { outline: 2px dashed var(--primary); outline-offset: 4px; border-radius: 8px; }
+.drag-handle { cursor: grab; color: var(--text-muted); padding: 2px 6px; border-radius: 4px; font-size: 14px; line-height: 1; user-select: none; transition: color 0.15s; }
 .drag-handle:hover { color: var(--text-secondary); }
 .drag-handle:active { cursor: grabbing; }
+.widget-hdr { display:flex; align-items:center; gap:8px; padding:6px 0 4px 0; }
+.widget-hdr h4 { margin:0; font-size:13px; font-weight:700; color:var(--text-secondary); flex:1; letter-spacing:.3px; }
+.wtoggle { background:none; border:1px solid var(--border-color); border-radius:4px; color:var(--text-muted); cursor:pointer; font-size:11px; padding:2px 7px; transition:all .15s; }
+.wtoggle:hover { color:var(--primary); border-color:var(--primary); }
+.wbody.hidden { display:none !important; }
 </style>
 
 <div class="page-header">
@@ -32,34 +21,42 @@
     <p>Seçmen listesi genel görünümü ve istatistikleri</p>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
-    <button onclick="resetWidgetOrder()" class="btn" style="font-size:12px;padding:6px 10px;" title="Widget sıralamasını sıfırla">↺ Düzeni Sıfırla</button>
+    <button onclick="resetWidgetOrder()" class="btn" style="font-size:12px;padding:6px 10px;">↺ Düzeni Sıfırla</button>
     <a class="btn primary" href="{% url 'ui_upload' %}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-      </svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
       Yeni Liste Yükle
     </a>
   </div>
 </div>
 
-<!-- Stats Grid (sabit, sürüklenmiyor) -->
+<!-- Stats Grid (sabit) -->
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="label">BRÜT AVUKAT SAYISI</div>
+    <div class="label">BRÜT KAYIT SAYISI</div>
     <div class="value">{{ data.total|default:0 }}</div>
-    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Avukat-Kişi bağlantıları</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Avukat-Kişi bağlantıları</div>
   </div>
   <div class="stat-card">
-    <div class="label">NET AVUKAT SAYISI</div>
+    <div class="label">NET KİŞİ SAYISI</div>
     <div class="value">{{ data.unique_people|default:0 }}</div>
-    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Farklı kişi sayısı</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Farklı kişi sayısı</div>
   </div>
   <div class="stat-card">
-    <div class="label">LİSTE Veren Avukat</div>
+    <div class="label">LİSTE VEREN AVUKAT</div>
     <div class="value">{{ data.lawyer_stats|length|default:0 }}</div>
-    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Sistemdeki avukat sayısı</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Sistemdeki avukat sayısı</div>
   </div>
-  <!-- Kompakt Etiket Özeti -->
+  <div class="stat-card">
+    <div class="label">BARO KAYDI</div>
+    <div class="value">{{ data.baro_stats.total_baro_lawyers|default:0 }}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+      Ulaşılan: {{ data.baro_stats.system_lawyers|default:0 }} · %{{ data.baro_stats.reach_percentage|default:0 }}
+    </div>
+  </div>
+</div>
+
+<!-- Kompakt durum: ETİKETLEME + KURUL -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;margin-top:16px;">
   <div class="stat-card" style="cursor:default;">
     <div class="label">ETİKETLEME</div>
     <div style="display:flex;gap:12px;margin-top:6px;">
@@ -81,347 +78,400 @@
     </div>
     <a href="{% url 'ui_baro_lawyers' %}" style="font-size:10px;color:var(--text-muted);margin-top:6px;display:block;text-align:right;">Tüm kayıtlar →</a>
   </div>
+  {% if data.baro_analytics %}
+  <div class="stat-card" style="cursor:default;">
+    <div class="label">KURUL ÜYELİKLERİ</div>
+    <div class="value" style="margin-top:8px;">{{ data.baro_analytics.total_memberships|default:0 }}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Toplam üyelik kaydı</div>
+    <a href="{% url 'ui_committee_memberships' %}" style="font-size:10px;color:var(--text-muted);margin-top:6px;display:block;text-align:right;">Detay →</a>
+  </div>
+  <div class="stat-card" style="cursor:default;">
+    <div class="label">CİNSİYET DAĞILIMI</div>
+    {% for cinsiyet, sayi in data.baro_analytics.cinsiyet_distribution.items %}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+      <span style="font-size:12px;color:var(--text-secondary);">{{ cinsiyet }}</span>
+      <span style="font-size:14px;font-weight:700;color:var(--primary);">{{ sayi }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="stat-card" style="cursor:default;">
+    <div class="label">BÜYÜME</div>
+    <div style="margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:11px;color:var(--text-muted);">Kişi/Kayıt Ort.</span>
+        <span style="font-size:13px;font-weight:700;color:var(--primary);">{{ data.growth_trend.average_relations_per_person|default:0 }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+        <span style="font-size:11px;color:var(--text-muted);">Paylaşılan Kişi</span>
+        <span style="font-size:13px;font-weight:700;color:#f59e0b;">{{ data.unique_stats.duplicate_count|default:0 }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+        <span style="font-size:11px;color:var(--text-muted);">Tek Listede</span>
+        <span style="font-size:13px;font-weight:700;color:#10b981;">{{ data.unique_stats.single_count|default:0 }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Sürüklenebilir Widget Alanı -->
 <div id="widget-container" style="margin-top:24px;">
 
-  <!-- Widget: Baro Coverage & Response -->
+  <!-- W1: Baro Ulaşım + Cevap -->
   {% if data.baro_stats and data.response_stats %}
-  <div class="dashboard-widget" data-widget-id="baro-response" draggable="true">
+  <div class="dashboard-widget" data-widget-id="baro-response" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Baro Ulaşım & Cevap İstatistikleri</h4><button class="wtoggle" onclick="wtg('wb-baro-response',this)">▼</button></div>
+    <div class="wbody" id="wb-baro-response">
     <div class="cards mt">
-      <!-- Baro Coverage -->
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Baro Avukatlarına Ulaşım</h3>
+        <h3 style="margin:0 0 16px 0;">Baro Avukatlarına Ulaşım</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">Ulaşılan Avukat</span>
+          <span style="font-size:20px;font-weight:700;color:var(--primary);">{{ data.baro_stats.system_lawyers }} / {{ data.baro_stats.total_baro_lawyers }}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Ulaşılan Avukat</span>
-          <span style="font-size: 20px; font-weight: 700; color: var(--primary);">
-            {{ data.baro_stats.system_lawyers }} / {{ data.baro_stats.total_baro_lawyers }}
-          </span>
-        </div>
-        <div style="background: var(--bg-content); border-radius: 8px; height: 32px; overflow: hidden; margin-bottom: 16px;">
-          <div style="background: linear-gradient(90deg, #3b82f6, #06b6d4); height: 100%; width: {{ data.baro_stats.reach_percentage }}%; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-            <span style="color: white; font-weight: 700; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">%{{ data.baro_stats.reach_percentage }}</span>
+        <div style="background:var(--bg-content);border-radius:8px;height:32px;overflow:hidden;margin-bottom:16px;">
+          <div style="background:linear-gradient(90deg,#3b82f6,#06b6d4);height:100%;width:{{ data.baro_stats.reach_percentage }}%;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+            <span style="color:white;font-weight:700;font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,.3);">%{{ data.baro_stats.reach_percentage }}</span>
           </div>
         </div>
-        <div style="display: flex; gap: 12px; margin-top: 12px;">
-          <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #10b981;">
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Toplam Baro</div>
-            <div style="font-size: 18px; font-weight: 700;">{{ data.baro_stats.total_baro_lawyers }}</div>
+        <div style="display:flex;gap:12px;margin-top:12px;">
+          <div style="flex:1;padding:12px;background:var(--bg-content);border-radius:8px;border-left:3px solid #10b981;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Toplam Baro</div>
+            <div style="font-size:18px;font-weight:700;">{{ data.baro_stats.total_baro_lawyers }}</div>
           </div>
-          <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #3b82f6;">
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Ulaşılan</div>
-            <div style="font-size: 18px; font-weight: 700; color: var(--primary);">{{ data.baro_stats.system_lawyers }}</div>
+          <div style="flex:1;padding:12px;background:var(--bg-content);border-radius:8px;border-left:3px solid #3b82f6;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Ulaşılan</div>
+            <div style="font-size:18px;font-weight:700;color:var(--primary);">{{ data.baro_stats.system_lawyers }}</div>
           </div>
-          <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #ef4444;">
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Ulaşılamayan</div>
-            <div style="font-size: 18px; font-weight: 700; color: var(--error);">{{ data.baro_stats.not_reached }}</div>
+          <div style="flex:1;padding:12px;background:var(--bg-content);border-radius:8px;border-left:3px solid #ef4444;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Ulaşılamayan</div>
+            <div style="font-size:18px;font-weight:700;color:var(--error);">{{ data.baro_stats.not_reached }}</div>
           </div>
         </div>
-        <div style="margin-top: 16px; padding: 12px; background: var(--bg-content); border-radius: 8px; border: 1px solid var(--border-color);">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 12px; color: var(--text-secondary);">Toplam Net Kişi</span>
-            <span style="font-size: 16px; font-weight: 700; color: var(--primary);">{{ data.baro_stats.unique_people_count }}</span>
+        <div style="margin-top:16px;padding:12px;background:var(--bg-content);border-radius:8px;border:1px solid var(--border-color);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;color:var(--text-secondary);">Toplam Net Kişi</span>
+            <span style="font-size:16px;font-weight:700;color:var(--primary);">{{ data.baro_stats.unique_people_count }}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
-            <span style="font-size: 12px; color: var(--text-secondary);">Baro'ya Oranı</span>
-            <span style="font-size: 16px; font-weight: 700; color: var(--success);">%{{ data.baro_stats.people_percentage }}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <span style="font-size:12px;color:var(--text-secondary);">Baro'ya Oranı</span>
+            <span style="font-size:16px;font-weight:700;color:var(--success);">%{{ data.baro_stats.people_percentage }}</span>
           </div>
         </div>
       </div>
-
-      <!-- Response Statistics -->
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Cevap İstatistikleri</h3>
+        <h3 style="margin:0 0 16px 0;">Cevap İstatistikleri</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">Cevap Veren Kişi</span>
+          <span style="font-size:20px;font-weight:700;color:var(--success);">{{ data.response_stats.responded_count }} / {{ data.response_stats.unique_people }}</span>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Cevap Veren Kişi</span>
-          <span style="font-size: 20px; font-weight: 700; color: var(--success);">
-            {{ data.response_stats.responded_count }} / {{ data.response_stats.unique_people }}
-          </span>
-        </div>
-        <div style="background: var(--bg-content); border-radius: 8px; height: 32px; overflow: hidden; margin-bottom: 16px;">
-          <div style="background: linear-gradient(90deg, #10b981, #06b6d4); height: 100%; width: {{ data.response_stats.response_percentage }}%; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-            <span style="color: white; font-weight: 700; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">%{{ data.response_stats.response_percentage }}</span>
+        <div style="background:var(--bg-content);border-radius:8px;height:32px;overflow:hidden;margin-bottom:16px;">
+          <div style="background:linear-gradient(90deg,#10b981,#06b6d4);height:100%;width:{{ data.response_stats.response_percentage }}%;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+            <span style="color:white;font-weight:700;font-size:14px;text-shadow:0 1px 2px rgba(0,0,0,.3);">%{{ data.response_stats.response_percentage }}</span>
           </div>
         </div>
-        <div style="display: flex; gap: 12px; margin-top: 12px;">
-          <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #10b981;">
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Cevap Veren</div>
-            <div style="font-size: 18px; font-weight: 700; color: var(--success);">{{ data.response_stats.responded_count }}</div>
+        <div style="display:flex;gap:12px;margin-top:12px;">
+          <div style="flex:1;padding:12px;background:var(--bg-content);border-radius:8px;border-left:3px solid #10b981;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Cevap Veren</div>
+            <div style="font-size:18px;font-weight:700;color:var(--success);">{{ data.response_stats.responded_count }}</div>
           </div>
-          <div style="flex: 1; padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid #94a3b8;">
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Cevap Vermeyen</div>
-            <div style="font-size: 18px; font-weight: 700; color: var(--text-muted);">{{ data.response_stats.no_response_count }}</div>
+          <div style="flex:1;padding:12px;background:var(--bg-content);border-radius:8px;border-left:3px solid #94a3b8;">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Cevap Vermeyen</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text-muted);">{{ data.response_stats.no_response_count }}</div>
           </div>
         </div>
         {% if data.response_stats.most_common_response %}
-        <div style="margin-top: 16px; padding: 12px; background: var(--bg-content); border-radius: 8px; border: 1px solid var(--border-color);">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">En Çok Verilen Cevap</div>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 14px; font-weight: 600; color: var(--primary);">{{ data.response_stats.most_common_response.status }}</span>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <span style="font-size: 16px; font-weight: 700;">{{ data.response_stats.most_common_response.count }}</span>
-              <span style="font-size: 13px; font-weight: 600; color: var(--success);">(%{{ data.response_stats.most_common_response.percentage }})</span>
+        <div style="margin-top:16px;padding:12px;background:var(--bg-content);border-radius:8px;border:1px solid var(--border-color);">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">En Çok Verilen Cevap</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:14px;font-weight:600;color:var(--primary);">{{ data.response_stats.most_common_response.status }}</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <span style="font-size:16px;font-weight:700;">{{ data.response_stats.most_common_response.count }}</span>
+              <span style="font-size:13px;font-weight:600;color:var(--success);">(%{{ data.response_stats.most_common_response.percentage }})</span>
             </div>
           </div>
         </div>
         {% endif %}
       </div>
     </div>
+    </div>
   </div>
   {% endif %}
 
-  <!-- Widget: Cevap Dağılımı Tablosu -->
+  <!-- W2: Cevap Durumu Dağılım Tablosu -->
   {% if data.response_stats %}
   <div class="dashboard-widget" data-widget-id="response-table" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Cevap Durumu Detaylı Dağılımı</h4><button class="wtoggle" onclick="wtg('wb-response-table',this)">▼</button></div>
+    <div class="wbody" id="wb-response-table">
     <div class="card mt">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <span class="drag-handle" title="Sürükle">⠿</span>
-        <h3 style="margin:0;">Cevap Durumu Detaylı Dağılımı</h3>
-      </div>
       <div class="table-container">
         <table class="table">
-          <thead>
-            <tr>
-              <th>Durum</th>
-              <th style="text-align: right;">Kişi Sayısı</th>
-              <th style="text-align: right;">Yüzde</th>
-              <th>Dağılım</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Durum</th><th style="text-align:right;">Kişi Sayısı</th><th style="text-align:right;">Yüzde</th><th>Dağılım</th></tr></thead>
           <tbody>
             {% for status, count in data.response_stats.status_distribution.items %}
             <tr>
-              <td><strong style="color: {% if status == 'Cevap Yok' %}var(--text-muted){% else %}var(--primary){% endif %};">{{ status }}</strong></td>
-              <td style="text-align: right; font-weight: 700; font-size: 16px; color: {% if status == 'Cevap Yok' %}var(--text-muted){% else %}var(--primary){% endif %};">{{ count }}</td>
-              <td style="text-align: right; font-weight: 600;">{% widthratio count data.response_stats.unique_people 100 %}%</td>
-              <td>
-                <div style="background: var(--bg-content); border-radius: 6px; height: 20px; overflow: hidden;">
-                  <div style="background: {% if status == 'Cevap Yok' %}linear-gradient(90deg, #64748b, #94a3b8){% else %}linear-gradient(90deg, var(--primary), var(--secondary)){% endif %}; height: 100%; width: {% widthratio count data.response_stats.unique_people 100 %}%; border-radius: 6px;"></div>
-                </div>
-              </td>
+              <td><strong style="color:{% if status == 'Cevap Yok' %}var(--text-muted){% else %}var(--primary){% endif %};">{{ status }}</strong></td>
+              <td style="text-align:right;font-weight:700;font-size:16px;color:{% if status == 'Cevap Yok' %}var(--text-muted){% else %}var(--primary){% endif %};">{{ count }}</td>
+              <td style="text-align:right;font-weight:600;">{% widthratio count data.response_stats.unique_people 100 %}%</td>
+              <td><div style="background:var(--bg-content);border-radius:6px;height:20px;overflow:hidden;"><div style="background:{% if status == 'Cevap Yok' %}linear-gradient(90deg,#64748b,#94a3b8){% else %}linear-gradient(90deg,var(--primary),var(--secondary)){% endif %};height:100%;width:{% widthratio count data.response_stats.unique_people 100 %}%;border-radius:6px;"></div></div></td>
             </tr>
-            {% empty %}
-            <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted);">Henüz veri bulunmamaktadır.</td></tr>
-            {% endfor %}
+            {% empty %}<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted);">Henüz veri bulunmamaktadır.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+    </div>
   </div>
   {% endif %}
 
-  <!-- Widget: Durum Grafikleri -->
+  <!-- W3: Durum Grafikleri (Tüm Kayıtlar) -->
   <div class="dashboard-widget" data-widget-id="status-charts" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Durum Grafikleri (Tüm Kayıtlar)</h4><button class="wtoggle" onclick="wtg('wb-status-charts',this)">▼</button></div>
+    <div class="wbody" id="wb-status-charts">
     <div class="cards mt">
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Durum Dağılımı (Tüm Kayıtlar)</h3>
-        </div>
+        <h3 style="margin:0 0 8px 0;">Durum Dağılımı (Tüm Kayıtlar)</h3>
         <div class="chart-container"><canvas id="pieStatus"></canvas></div>
       </div>
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Kişi Sayıları (Tüm Kayıtlar)</h3>
-        </div>
+        <h3 style="margin:0 0 8px 0;">Kişi Sayıları (Tüm Kayıtlar)</h3>
         <div class="chart-container"><canvas id="barStatus"></canvas></div>
       </div>
     </div>
+    </div>
   </div>
 
-  <!-- Widget: Net Kişi Grafikleri -->
+  <!-- W4: Net Kişi Grafikleri -->
   {% if data.unique_stats %}
   <div class="dashboard-widget" data-widget-id="unique-charts" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Net Kişi Analizleri</h4><button class="wtoggle" onclick="wtg('wb-unique-charts',this)">▼</button></div>
+    <div class="wbody" id="wb-unique-charts">
     <div class="cards mt">
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Net Kişi Durum Dağılımı</h3>
-        </div>
+        <h3 style="margin:0 0 8px 0;">Net Kişi Durum Dağılımı</h3>
         <div class="chart-container"><canvas id="pieUniqueStatus"></canvas></div>
       </div>
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Avukat Net/Brüt Karşılaştırması</h3>
-        </div>
+        <h3 style="margin:0 0 8px 0;">Avukat Net/Brüt Karşılaştırması</h3>
         <div class="chart-container"><canvas id="barLawyerPerformance"></canvas></div>
       </div>
     </div>
+    </div>
   </div>
   {% endif %}
 
-  <!-- Widget: İlçe Grafikleri -->
+  <!-- W5: İlçe Grafikleri (Seçmen) -->
   {% if data.district_stats %}
   <div class="dashboard-widget" data-widget-id="district-charts" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Seçmen İlçe Dağılımı</h4><button class="wtoggle" onclick="wtg('wb-district-charts',this)">▼</button></div>
+    <div class="wbody" id="wb-district-charts">
     <div class="cards mt">
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">En Çok Kişi Olan İlçeler</h3>
-        </div>
+        <h3 style="margin:0 0 8px 0;">En Çok Kişi Olan İlçeler</h3>
         <div class="chart-container"><canvas id="barDistricts"></canvas></div>
       </div>
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Benzersiz Kişi Bazlı İlçeler</h3>
-        </div>
+        <h3 style="margin:0 0 8px 0;">Benzersiz Kişi Bazlı İlçeler</h3>
         <div class="chart-container"><canvas id="barUniqueDistricts"></canvas></div>
       </div>
+    </div>
     </div>
   </div>
   {% endif %}
 
-  <!-- Widget: Detaylı Durum Analizi -->
-  <div class="dashboard-widget" data-widget-id="status-table" draggable="true" style="margin-top:24px;">
+  <!-- W6: Baro İlçe Dağılımı -->
+  {% if data.baro_analytics and data.baro_analytics.baro_ilce %}
+  <div class="dashboard-widget" data-widget-id="baro-district" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Baro İlçe & Cinsiyet Dağılımı</h4><button class="wtoggle" onclick="wtg('wb-baro-district',this)">▼</button></div>
+    <div class="wbody" id="wb-baro-district">
+    <div class="cards mt">
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Baro İlçe Dağılımı (Top 12)</h3>
+        <div class="chart-container"><canvas id="barBaroIlce"></canvas></div>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Cinsiyet Dağılımı</h3>
+        <div class="chart-container"><canvas id="pieCinsiyet"></canvas></div>
+      </div>
+    </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- W7: Doğum Yeri + Nüfus İl -->
+  {% if data.baro_analytics and data.baro_analytics.dogum_yeri %}
+  <div class="dashboard-widget" data-widget-id="baro-geo" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Coğrafi Dağılım Analizi</h4><button class="wtoggle" onclick="wtg('wb-baro-geo',this)">▼</button></div>
+    <div class="wbody" id="wb-baro-geo">
+    <div class="cards mt">
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Doğum Yeri Dağılımı (Top 12)</h3>
+        <div class="chart-container"><canvas id="barDogumYeri"></canvas></div>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px 0;">Nüfusa Kayıtlı İl (Top 12)</h3>
+        <div class="chart-container"><canvas id="barNufusIl"></canvas></div>
+      </div>
+    </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- W8: Mesleğe Başlama Yılı -->
+  {% if data.baro_analytics and data.baro_analytics.meslek_dist %}
+  <div class="dashboard-widget" data-widget-id="meslek-yili" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Mesleğe Başlama Yılı Dağılımı</h4><button class="wtoggle" onclick="wtg('wb-meslek-yili',this)">▼</button></div>
+    <div class="wbody" id="wb-meslek-yili">
     <div class="card mt">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <span class="drag-handle" title="Sürükle">⠿</span>
-        <h3 style="margin:0;">Detaylı Durum Analizi</h3>
+      <h3 style="margin:0 0 8px 0;">Mesleğe Başlama Yılı Histogramı</h3>
+      <div class="chart-container" style="height:260px;"><canvas id="barMeslekYili"></canvas></div>
+    </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- W9: Kurul Üyelikleri Özeti -->
+  {% if data.baro_analytics and data.baro_analytics.top_gorevler %}
+  <div class="dashboard-widget" data-widget-id="kurul-ozet" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Kurul Üyelikleri Özeti</h4><button class="wtoggle" onclick="wtg('wb-kurul-ozet',this)">▼</button></div>
+    <div class="wbody" id="wb-kurul-ozet">
+    <div class="card mt">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+          <div style="font-size:28px;font-weight:800;color:var(--primary);">{{ data.baro_analytics.total_memberships }}</div>
+          <div style="font-size:12px;color:var(--text-muted);">Toplam Kurul Üyeliği</div>
+        </div>
+        <a href="{% url 'ui_committee_memberships' %}" class="btn" style="font-size:12px;">Tümünü Gör</a>
       </div>
       <div class="table-container">
         <table class="table">
-          <thead>
+          <thead><tr><th>Görev</th><th style="text-align:right;">Üye Sayısı</th></tr></thead>
+          <tbody>
+            {% for g in data.baro_analytics.top_gorevler %}
             <tr>
-              <th>Durum</th>
-              <th style="text-align: right;">Kişi Sayısı</th>
-              <th style="text-align: right;">Yüzde</th>
-              <th>Dağılım</th>
+              <td style="font-size:12px;">{{ g.gorev }}</td>
+              <td style="text-align:right;font-weight:700;color:var(--primary);">{{ g.count }}</td>
             </tr>
-          </thead>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- W10: Detaylı Durum Analizi -->
+  <div class="dashboard-widget" data-widget-id="status-table" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Detaylı Durum Analizi</h4><button class="wtoggle" onclick="wtg('wb-status-table',this)">▼</button></div>
+    <div class="wbody" id="wb-status-table">
+    <div class="card mt">
+      <div class="table-container">
+        <table class="table">
+          <thead><tr><th>Durum</th><th style="text-align:right;">Kişi Sayısı</th><th style="text-align:right;">Yüzde</th><th>Dağılım</th></tr></thead>
           <tbody>
             {% for k, v in data.byStatus.items %}
             <tr>
-              <td><strong style="color: var(--primary);">{{ k|title }}</strong></td>
-              <td style="text-align: right; font-weight: 700; font-size: 16px; color: var(--primary);">{{ v }}</td>
-              <td style="text-align: right; font-weight: 600;">{% widthratio v data.total 100 %}%</td>
-              <td>
-                <div style="background: var(--bg-content); border-radius: 6px; height: 20px; overflow: hidden;">
-                  <div style="background: linear-gradient(90deg, var(--primary), var(--secondary)); height: 100%; width: {% widthratio v data.total 100 %}%; border-radius: 6px;"></div>
-                </div>
-              </td>
+              <td><strong style="color:var(--primary);">{{ k|title }}</strong></td>
+              <td style="text-align:right;font-weight:700;font-size:16px;color:var(--primary);">{{ v }}</td>
+              <td style="text-align:right;font-weight:600;">{% widthratio v data.total 100 %}%</td>
+              <td><div style="background:var(--bg-content);border-radius:6px;height:20px;overflow:hidden;"><div style="background:linear-gradient(90deg,var(--primary),var(--secondary));height:100%;width:{% widthratio v data.total 100 %}%;border-radius:6px;"></div></div></td>
             </tr>
-            {% empty %}
-            <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted);">Henüz veri bulunmamaktadır.</td></tr>
-            {% endfor %}
+            {% empty %}<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted);">Henüz veri bulunmamaktadır.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+    </div>
   </div>
 
-  <!-- Widget: Avukat İstatistikleri -->
+  <!-- W11: Avukat İstatistikleri -->
   <div class="dashboard-widget" data-widget-id="lawyer-table" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Avukat Bazında İstatistikler</h4><button class="wtoggle" onclick="wtg('wb-lawyer-table',this)">▼</button></div>
+    <div class="wbody" id="wb-lawyer-table">
     <div class="card mt">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <span class="drag-handle" title="Sürükle">⠿</span>
-        <h3 style="margin:0;">Avukat Bazında İstatistikler</h3>
-      </div>
       <div class="table-container">
         <table class="table">
-          <thead>
-            <tr>
-              <th>Avukat</th>
-              <th>Sicil No</th>
-              <th style="text-align: right;">Kişi Sayısı</th>
-              <th>İşlemler</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Avukat</th><th>Sicil No</th><th style="text-align:right;">Kişi Sayısı</th><th>İşlemler</th></tr></thead>
           <tbody>
             {% for lawyer in data.lawyer_stats %}
             <tr>
-              <td><strong style="color: var(--primary);">{{ lawyer.ad }} {{ lawyer.soyad }}</strong></td>
-              <td><span style="font-family: monospace; font-size: 12px; color: var(--text-secondary);">{{ lawyer.sicil_no }}</span></td>
-              <td style="text-align: right;">
-                <span style="padding: 4px 12px; background: var(--bg-content); border-radius: 6px; font-weight: 700; font-size: 14px; color: var(--primary);">{{ lawyer.person_count }}</span>
-              </td>
-              <td>
-                <a href="{% url 'ui_lawyer_people' lawyer.id %}" class="btn" style="font-size: 12px; padding: 6px 12px;">
-                  <svg style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                  </svg>
-                  Görüntüle
-                </a>
-              </td>
+              <td><strong style="color:var(--primary);">{{ lawyer.ad }} {{ lawyer.soyad }}</strong></td>
+              <td><span style="font-family:monospace;font-size:12px;color:var(--text-secondary);">{{ lawyer.sicil_no }}</span></td>
+              <td style="text-align:right;"><span style="padding:4px 12px;background:var(--bg-content);border-radius:6px;font-weight:700;font-size:14px;color:var(--primary);">{{ lawyer.person_count }}</span></td>
+              <td><a href="{% url 'ui_lawyer_people' lawyer.id %}" class="btn" style="font-size:12px;padding:6px 12px;">Görüntüle</a></td>
             </tr>
-            {% empty %}
-            <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted);">Henüz avukat bulunmamaktadır.</td></tr>
-            {% endfor %}
+            {% empty %}<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted);">Henüz avukat bulunmamaktadır.</td></tr>{% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+    </div>
   </div>
 
-  <!-- Widget: Son Aktiviteler & Hızlı Erişim -->
+  <!-- W12: Son Aktiviteler & Hızlı Erişim -->
   <div class="dashboard-widget" data-widget-id="activity-quick" draggable="true" style="margin-top:24px;">
+    <div class="widget-hdr"><span class="drag-handle">⠿</span><h4>Son Aktiviteler & Hızlı Erişim</h4><button class="wtoggle" onclick="wtg('wb-activity-quick',this)">▼</button></div>
+    <div class="wbody" id="wb-activity-quick">
     <div class="cards mt">
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Son Aktiviteler</h3>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto;">
+        <h3 style="margin:0 0 16px 0;">Son Aktiviteler</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;max-height:350px;overflow-y:auto;">
           {% if data.recent_logs %}
             {% for log in data.recent_logs %}
-            <div style="padding: 12px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid {% if log.action == 'APPLY' %}var(--success){% else %}var(--info){% endif %};">
-              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-                <span style="font-weight: 600; font-size: 12px; color: var(--text-primary);">{{ log.entity }}</span>
-                <span style="font-size: 10px; color: var(--text-muted);">{{ log.at|timesince }} önce</span>
+            <div style="padding:12px;background:var(--bg-content);border-radius:8px;border-left:3px solid {% if log.action == 'APPLY' %}var(--success){% else %}var(--info){% endif %};">
+              <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">
+                <span style="font-weight:600;font-size:12px;color:var(--text-primary);">{{ log.entity }}</span>
+                <span style="font-size:10px;color:var(--text-muted);">{{ log.at|timesince }} önce</span>
               </div>
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">{{ log.action }}</div>
-              {% if log.actor %}
-              <div style="font-size: 10px; color: var(--text-muted);">
-                <svg style="width: 12px; height: 12px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                {{ log.actor }}
-              </div>
-              {% endif %}
+              <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px;">{{ log.action }}</div>
+              {% if log.actor %}<div style="font-size:10px;color:var(--text-muted);">{{ log.actor }}</div>{% endif %}
             </div>
             {% endfor %}
           {% else %}
-            <div style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 12px;">Henüz aktivite bulunmamaktadır.</div>
+            <div style="text-align:center;padding:40px;color:var(--text-muted);font-size:12px;">Henüz aktivite bulunmamaktadır.</div>
           {% endif %}
         </div>
       </div>
-
       <div class="card">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-          <span class="drag-handle" title="Sürükle">⠿</span>
-          <h3 style="margin:0;">Hızlı Erişim</h3>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          <a href="{% url 'ui_people' %}" class="btn" style="justify-content: flex-start;">
+        <h3 style="margin:0 0 16px 0;">Hızlı Erişim</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <a href="{% url 'ui_people' %}" class="btn" style="justify-content:flex-start;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             Tüm Kişileri Görüntüle
           </a>
-          <a href="{% url 'ui_lawyers' %}" class="btn" style="justify-content: flex-start;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            Avukat Listesi
+          <a href="{% url 'ui_unique_people' %}" class="btn" style="justify-content:flex-start;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+            Net Seçmen Listesi
           </a>
-          <a href="{% url 'ui_people_export' %}" class="btn" style="justify-content: flex-start;">
+          <a href="{% url 'ui_baro_lawyers' %}" class="btn" style="justify-content:flex-start;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Tüm Baro Kayıtları
+          </a>
+          <a href="{% url 'ui_committee_memberships' %}" class="btn" style="justify-content:flex-start;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Kurul Üyelikleri
+          </a>
+          <a href="{% url 'ui_people_export' %}" class="btn" style="justify-content:flex-start;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
             Verileri Dışa Aktar
           </a>
+          <a href="{% url 'ui_upload' %}" class="btn primary" style="justify-content:flex-start;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            Yeni Liste Yükle
+          </a>
         </div>
-        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
-          <div style="padding: 14px; background: var(--bg-content); border-radius: 8px; border-left: 3px solid var(--success);">
-            <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 4px; font-size: 12px;">Sistem Durumu</div>
-            <div style="color: var(--success); font-size: 12px; font-weight: 600;">
-              <svg style="width: 14px; height: 14px; display: inline; vertical-align: middle;" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>
+        <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border-color);">
+          <div style="padding:14px;background:var(--bg-content);border-radius:8px;border-left:3px solid var(--success);">
+            <div style="font-weight:700;color:var(--text-primary);margin-bottom:4px;font-size:12px;">Sistem Durumu</div>
+            <div style="color:var(--success);font-size:12px;font-weight:600;">
+              <svg style="width:14px;height:14px;display:inline;vertical-align:middle;" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>
               Aktif ve Çalışıyor
             </div>
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 
@@ -432,16 +482,20 @@
 {{ data.district_stats.top_districts|json_script:"districtData" }}
 {{ data.district_stats.top_unique_districts|json_script:"uniqueDistrictData" }}
 {{ data.lawyer_performance.lawyer_unique_counts|json_script:"lawyerPerformanceData" }}
+{{ data.baro_analytics.baro_ilce|json_script:"baroIlceData" }}
+{{ data.baro_analytics.cinsiyet_distribution|json_script:"cinsiyetData" }}
+{{ data.baro_analytics.dogum_yeri|json_script:"dogumYeriData" }}
+{{ data.baro_analytics.nufus_il|json_script:"nufusIlData" }}
+{{ data.baro_analytics.meslek_dist|json_script:"meslekYiliData" }}
 
 <script>
-// ── Kompakt Etiket Özeti ─────────────────────────────────────────
+// ── Etiket Özeti ─────────────────────────────────────────
 (async function() {
   try {
     const res = await fetch('/ui/baro-lawyers/tag-stats/');
     const d = await res.json();
     const total = d.total || 1;
     const pct = n => total > 0 ? ((n / total) * 100).toFixed(1) : '0.0';
-
     document.getElementById('dash-bl-count').textContent = d.blacklist;
     document.getElementById('dash-wl-count').textContent = d.whitelist;
     document.getElementById('dash-bl-pct').textContent = pct(d.blacklist) + '%';
@@ -451,160 +505,183 @@
   } catch(e) {}
 })();
 
-// ── Sürükle-Bırak Widget Sıralaması ─────────────────────────────
-const STORAGE_KEY = 'dashboard_widget_order';
-
-function saveWidgetOrder() {
-  const widgets = document.querySelectorAll('#widget-container > .dashboard-widget');
-  const order = Array.from(widgets).map(w => w.dataset.widgetId);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+// ── Widget Gizle/Göster ──────────────────────────────────
+const WS_KEY = 'widget_states_v2';
+function loadWidgetStates() {
+  try { return JSON.parse(localStorage.getItem(WS_KEY) || '{}'); } catch(e) { return {}; }
+}
+function saveWidgetState(id, visible) {
+  const s = loadWidgetStates(); s[id] = visible; localStorage.setItem(WS_KEY, JSON.stringify(s));
+}
+function wtg(bodyId, btn) {
+  const body = document.getElementById(bodyId);
+  if (!body) return;
+  const hidden = body.classList.toggle('hidden');
+  btn.textContent = hidden ? '▶' : '▼';
+  saveWidgetState(bodyId, !hidden);
+}
+function applyWidgetStates() {
+  const states = loadWidgetStates();
+  document.querySelectorAll('.wbody').forEach(b => {
+    if (states[b.id] === false) {
+      b.classList.add('hidden');
+      const w = b.closest('.dashboard-widget');
+      if (w) { const btn = w.querySelector('.wtoggle'); if (btn) btn.textContent = '▶'; }
+    }
+  });
 }
 
+// ── Sürükle-Bırak ────────────────────────────────────────
+const STORAGE_KEY = 'dashboard_widget_order';
+function saveWidgetOrder() {
+  const order = Array.from(document.querySelectorAll('#widget-container > .dashboard-widget')).map(w => w.dataset.widgetId);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+}
 function applyWidgetOrder() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) return;
   try {
     const order = JSON.parse(saved);
     const container = document.getElementById('widget-container');
-    order.forEach(id => {
-      const el = container.querySelector(`[data-widget-id="${id}"]`);
-      if (el) container.appendChild(el);
-    });
+    order.forEach(id => { const el = container.querySelector(`[data-widget-id="${id}"]`); if (el) container.appendChild(el); });
   } catch(e) {}
 }
-
 function resetWidgetOrder() {
   localStorage.removeItem(STORAGE_KEY);
   location.reload();
 }
-
-// Drag & Drop
 let dragSrc = null;
-
 document.querySelectorAll('.dashboard-widget').forEach(widget => {
-  widget.addEventListener('dragstart', e => {
-    dragSrc = widget;
-    e.dataTransfer.effectAllowed = 'move';
-    setTimeout(() => widget.style.opacity = '0.4', 0);
-  });
-  widget.addEventListener('dragend', () => {
-    dragSrc = null;
-    widget.style.opacity = '';
-    document.querySelectorAll('.dashboard-widget').forEach(w => w.classList.remove('drag-over'));
-    saveWidgetOrder();
-  });
-  widget.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (widget !== dragSrc) widget.classList.add('drag-over');
-    return false;
-  });
+  widget.addEventListener('dragstart', e => { dragSrc = widget; e.dataTransfer.effectAllowed = 'move'; setTimeout(() => widget.style.opacity = '0.4', 0); });
+  widget.addEventListener('dragend', () => { dragSrc = null; widget.style.opacity = ''; document.querySelectorAll('.dashboard-widget').forEach(w => w.classList.remove('drag-over')); saveWidgetOrder(); });
+  widget.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (widget !== dragSrc) widget.classList.add('drag-over'); return false; });
   widget.addEventListener('dragleave', () => widget.classList.remove('drag-over'));
   widget.addEventListener('drop', e => {
-    e.preventDefault();
-    widget.classList.remove('drag-over');
+    e.preventDefault(); widget.classList.remove('drag-over');
     if (!dragSrc || dragSrc === widget) return;
     const container = document.getElementById('widget-container');
     const widgets = Array.from(container.querySelectorAll('.dashboard-widget'));
-    const srcIdx = widgets.indexOf(dragSrc);
-    const tgtIdx = widgets.indexOf(widget);
-    if (srcIdx < tgtIdx) {
-      container.insertBefore(dragSrc, widget.nextSibling);
-    } else {
-      container.insertBefore(dragSrc, widget);
-    }
+    const si = widgets.indexOf(dragSrc), ti = widgets.indexOf(widget);
+    if (si < ti) container.insertBefore(dragSrc, widget.nextSibling);
+    else container.insertBefore(dragSrc, widget);
     return false;
   });
 });
-
 applyWidgetOrder();
+applyWidgetStates();
 
-// ── Durum Grafikleri ─────────────────────────────────────────────
+// ── Renkler ve ortak seçenekler ──────────────────────────
+const statusColorMap = {
+  'OLUMLU':'#70AD47','olumlu':'#70AD47','Olumlu':'#70AD47',
+  'OLUMSUZ':'#C00000','olumsuz':'#C00000','Olumsuz':'#C00000',
+  'TEPKİLİ':'#FFC000','tepkili':'#FFC000','Tepkili':'#FFC000',
+  'İLETİŞİM GEREKİYOR':'#7030A0',
+};
+const defColors = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#14b8a6','#f97316','#a855f7','#84cc16','#0ea5e9'];
+const commonOpts = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{
+    legend:{position:'bottom',labels:{padding:16,font:{size:12,weight:'600'},color:'#cbd5e1',usePointStyle:true,pointStyle:'circle'}},
+    tooltip:{backgroundColor:'#1e293b',padding:14,titleFont:{size:13,weight:'700'},bodyFont:{size:12,weight:'600'},borderColor:'#3b82f6',borderWidth:1,displayColors:true,boxPadding:6}
+  }
+};
+const scalesOpts = {
+  y:{beginAtZero:true,ticks:{font:{size:11,weight:'600'},color:'#94a3b8',padding:8},grid:{color:'#334155',lineWidth:1}},
+  x:{ticks:{font:{size:11,weight:'600'},color:'#94a3b8',padding:8},grid:{display:false}}
+};
+const scalesOptsY = { // horizontal bar
+  x:{beginAtZero:true,ticks:{font:{size:11,weight:'600'},color:'#94a3b8',padding:8},grid:{color:'#334155',lineWidth:1}},
+  y:{ticks:{font:{size:10,weight:'600'},color:'#94a3b8',padding:8},grid:{display:false}}
+};
+
 (function(){
+  // Durum pie + bar
   const raw = JSON.parse(document.getElementById('byStatusData').textContent || '{}');
-  const labels = Object.keys(raw);
-  const values = Object.values(raw);
-
-  const statusColorMap = {
-    'OLUMLU': '#70AD47', 'olumlu': '#70AD47', 'Olumlu': '#70AD47',
-    'OLUMSUZ': '#C00000', 'olumsuz': '#C00000', 'Olumsuz': '#C00000',
-    'TEPKİLİ': '#FFC000', 'tepkili': '#FFC000', 'Tepkili': '#FFC000',
-    'İLETİŞİM GEREKİYOR': '#7030A0', 'iletişim gerekiyor': '#7030A0', 'İletişim Gerekiyor': '#7030A0'
-  };
-  const defaultColors = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444','#06b6d4','#ec4899','#14b8a6'];
-  const colors = labels.map((l, i) => statusColorMap[l] || defaultColors[i % defaultColors.length]);
-
-  const commonOptions = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: {
-      legend: { position: 'bottom', labels: { padding: 16, font: { size: 12, weight: '600' }, color: '#cbd5e1', usePointStyle: true, pointStyle: 'circle' } },
-      tooltip: { backgroundColor: '#1e293b', padding: 14, titleFont: { size: 13, weight: '700' }, bodyFont: { size: 12, weight: '600' }, borderColor: '#3b82f6', borderWidth: 1, displayColors: true, boxPadding: 6 }
-    }
-  };
-
+  const labels = Object.keys(raw), values = Object.values(raw);
+  const colors = labels.map((l,i) => statusColorMap[l] || defColors[i % defColors.length]);
   const pieCtx = document.getElementById('pieStatus');
-  if (pieCtx && labels.length > 0) {
-    new Chart(pieCtx, { type: 'pie', data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#0f172a', hoverBorderWidth: 3 }] }, options: commonOptions });
+  if (pieCtx && labels.length > 0) new Chart(pieCtx, {type:'pie',data:{labels,datasets:[{data:values,backgroundColor:colors,borderWidth:2,borderColor:'#0f172a',hoverBorderWidth:3}]},options:commonOpts});
+  const barCtx = document.getElementById('barStatus');
+  if (barCtx && labels.length > 0) new Chart(barCtx, {type:'bar',data:{labels,datasets:[{label:'Kişi Sayısı',data:values,backgroundColor:colors,borderRadius:6,borderWidth:0}]},options:{...commonOpts,scales:scalesOpts,plugins:{legend:{display:false},tooltip:commonOpts.plugins.tooltip}}});
+
+  // Net kişi durum
+  const uEl = document.getElementById('uniqueStatusData');
+  if (uEl) {
+    const ud = JSON.parse(uEl.textContent || '{}'), ul = Object.keys(ud), uv = Object.values(ud);
+    const uc = ul.map((l,i) => statusColorMap[l] || defColors[i % defColors.length]);
+    const pUCtx = document.getElementById('pieUniqueStatus');
+    if (pUCtx && ul.length > 0) new Chart(pUCtx, {type:'pie',data:{labels:ul,datasets:[{data:uv,backgroundColor:uc,borderWidth:2,borderColor:'#0f172a',hoverBorderWidth:3}]},options:commonOpts});
   }
 
-  const barCtx = document.getElementById('barStatus');
-  if (barCtx && labels.length > 0) {
-    new Chart(barCtx, { type: 'bar', data: { labels, datasets: [{ label: 'Kişi Sayısı', data: values, backgroundColor: colors, borderRadius: 6, borderWidth: 0 }] },
-      options: { ...commonOptions, scales: { y: { beginAtZero: true, ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', padding: 8 }, grid: { color: '#334155', lineWidth: 1 } }, x: { ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', padding: 8 }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: commonOptions.plugins.tooltip } }
+  // Seçmen ilçe grafikleri
+  const dEl = document.getElementById('districtData');
+  if (dEl) {
+    const dd = JSON.parse(dEl.textContent || '[]');
+    const bDCtx = document.getElementById('barDistricts');
+    if (bDCtx && dd.length > 0) new Chart(bDCtx, {type:'bar',data:{labels:dd.map(d=>d.ilce),datasets:[{label:'Toplam Kayıt',data:dd.map(d=>d.count),backgroundColor:'#06b6d4',borderRadius:6,borderWidth:0}]},options:{...commonOpts,indexAxis:'y',scales:scalesOptsY,plugins:{legend:{display:false},tooltip:commonOpts.plugins.tooltip}}});
+  }
+  const udEl = document.getElementById('uniqueDistrictData');
+  if (udEl) {
+    const udd = JSON.parse(udEl.textContent || '[]');
+    const bUDCtx = document.getElementById('barUniqueDistricts');
+    if (bUDCtx && udd.length > 0) new Chart(bUDCtx, {type:'bar',data:{labels:udd.map(d=>d.ilce),datasets:[{label:'Benzersiz Kişi',data:udd.map(d=>d.count),backgroundColor:'#8b5cf6',borderRadius:6,borderWidth:0}]},options:{...commonOpts,indexAxis:'y',scales:scalesOptsY,plugins:{legend:{display:false},tooltip:commonOpts.plugins.tooltip}}});
+  }
+
+  // Avukat performans
+  const lpEl = document.getElementById('lawyerPerformanceData');
+  if (lpEl) {
+    const lpd = JSON.parse(lpEl.textContent || '{}'), lpa = Object.values(lpd);
+    const bLCtx = document.getElementById('barLawyerPerformance');
+    if (bLCtx && lpa.length > 0) new Chart(bLCtx, {type:'bar',
+      data:{labels:lpa.map(d=>d.lawyer_name),datasets:[
+        {label:'Sadece Bu Listede',data:lpa.map(d=>d.unique_people||0),backgroundColor:'#10b981',borderRadius:4,borderWidth:0},
+        {label:'Diğer Listelerle Ortak',data:lpa.map(d=>d.shared_people||0),backgroundColor:'#f59e0b',borderRadius:4,borderWidth:0},
+        {label:'Toplam',data:lpa.map(d=>d.total_records||0),backgroundColor:'#3b82f6',borderRadius:4,borderWidth:0}
+      ]},
+      options:{...commonOpts,scales:{y:{...scalesOpts.y},x:{...scalesOpts.x,ticks:{...scalesOpts.x.ticks,maxRotation:45,minRotation:45}}},plugins:{legend:{display:true,position:'top'},tooltip:commonOpts.plugins.tooltip}}
     });
   }
 
-  // Net kişi durum dağılımı
-  const uniqueStatusEl = document.getElementById('uniqueStatusData');
-  if (uniqueStatusEl) {
-    const ud = JSON.parse(uniqueStatusEl.textContent || '{}');
-    const ul = Object.keys(ud), uv = Object.values(ud);
-    const uc = ul.map((l, i) => statusColorMap[l] || defaultColors[i % defaultColors.length]);
-    const pieUniqueCtx = document.getElementById('pieUniqueStatus');
-    if (pieUniqueCtx && ul.length > 0) {
-      new Chart(pieUniqueCtx, { type: 'pie', data: { labels: ul, datasets: [{ data: uv, backgroundColor: uc, borderWidth: 2, borderColor: '#0f172a', hoverBorderWidth: 3 }] }, options: commonOptions });
-    }
+  // Baro İlçe
+  const biEl = document.getElementById('baroIlceData');
+  if (biEl) {
+    const bi = JSON.parse(biEl.textContent || '[]');
+    const bBICtx = document.getElementById('barBaroIlce');
+    if (bBICtx && bi.length > 0) new Chart(bBICtx, {type:'bar',data:{labels:bi.map(d=>d.ilce),datasets:[{label:'Avukat Sayısı',data:bi.map(d=>d.count),backgroundColor:'#06b6d4',borderRadius:6,borderWidth:0}]},options:{...commonOpts,indexAxis:'y',scales:scalesOptsY,plugins:{legend:{display:false},tooltip:commonOpts.plugins.tooltip}}});
   }
 
-  // İlçe grafikleri
-  const districtEl = document.getElementById('districtData');
-  if (districtEl) {
-    const dd = JSON.parse(districtEl.textContent || '[]');
-    const barDistrictCtx = document.getElementById('barDistricts');
-    if (barDistrictCtx && dd.length > 0) {
-      new Chart(barDistrictCtx, { type: 'bar', data: { labels: dd.map(d => d.ilce), datasets: [{ label: 'Toplam Kayıt', data: dd.map(d => d.count), backgroundColor: '#06b6d4', borderRadius: 6, borderWidth: 0 }] },
-        options: { ...commonOptions, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', padding: 8 }, grid: { color: '#334155', lineWidth: 1 } }, y: { ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', padding: 8 }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: commonOptions.plugins.tooltip } }
-      });
-    }
+  // Cinsiyet
+  const csEl = document.getElementById('cinsiyetData');
+  if (csEl) {
+    const cs = JSON.parse(csEl.textContent || '{}'), csl = Object.keys(cs), csv = Object.values(cs);
+    const csColors = {'Kadın':'#ec4899','Erkek':'#3b82f6','Belirtilmemiş':'#64748b'};
+    const csc = csl.map(l => csColors[l] || defColors[0]);
+    const pCCtx = document.getElementById('pieCinsiyet');
+    if (pCCtx && csl.length > 0) new Chart(pCCtx, {type:'doughnut',data:{labels:csl,datasets:[{data:csv,backgroundColor:csc,borderWidth:3,borderColor:'#0f172a',hoverBorderWidth:4}]},options:{...commonOpts,cutout:'55%'}});
   }
 
-  const uniqueDistrictEl = document.getElementById('uniqueDistrictData');
-  if (uniqueDistrictEl) {
-    const udd = JSON.parse(uniqueDistrictEl.textContent || '[]');
-    const barUniqueDistrictCtx = document.getElementById('barUniqueDistricts');
-    if (barUniqueDistrictCtx && udd.length > 0) {
-      new Chart(barUniqueDistrictCtx, { type: 'bar', data: { labels: udd.map(d => d.ilce), datasets: [{ label: 'Benzersiz Kişi', data: udd.map(d => d.count), backgroundColor: '#8b5cf6', borderRadius: 6, borderWidth: 0 }] },
-        options: { ...commonOptions, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', padding: 8 }, grid: { color: '#334155', lineWidth: 1 } }, y: { ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', padding: 8 }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: commonOptions.plugins.tooltip } }
-      });
-    }
+  // Doğum Yeri
+  const dyEl = document.getElementById('dogumYeriData');
+  if (dyEl) {
+    const dy = JSON.parse(dyEl.textContent || '[]');
+    const bDYCtx = document.getElementById('barDogumYeri');
+    if (bDYCtx && dy.length > 0) new Chart(bDYCtx, {type:'bar',data:{labels:dy.map(d=>d.yer),datasets:[{label:'Kişi Sayısı',data:dy.map(d=>d.count),backgroundColor:'#f59e0b',borderRadius:6,borderWidth:0}]},options:{...commonOpts,indexAxis:'y',scales:scalesOptsY,plugins:{legend:{display:false},tooltip:commonOpts.plugins.tooltip}}});
   }
 
-  // Avukat performans (Net/Brüt: toplam vs sadece bu listede vs diğer listelerle ortak)
-  const lawyerPerfEl = document.getElementById('lawyerPerformanceData');
-  if (lawyerPerfEl) {
-    const lpd = JSON.parse(lawyerPerfEl.textContent || '{}');
-    const lpa = Object.values(lpd);
-    const barLawyerPerfCtx = document.getElementById('barLawyerPerformance');
-    if (barLawyerPerfCtx && lpa.length > 0) {
-      new Chart(barLawyerPerfCtx, { type: 'bar',
-        data: { labels: lpa.map(d => d.lawyer_name), datasets: [
-          { label: 'Sadece Bu Listede', data: lpa.map(d => d.unique_people || 0), backgroundColor: '#10b981', borderRadius: 4, borderWidth: 0 },
-          { label: 'Diğer Listelerle Ortak', data: lpa.map(d => d.shared_people || 0), backgroundColor: '#f59e0b', borderRadius: 4, borderWidth: 0 },
-          { label: 'Toplam', data: lpa.map(d => d.total_records || 0), backgroundColor: '#3b82f6', borderRadius: 4, borderWidth: 0 }
-        ]},
-        options: { ...commonOptions, scales: { y: { beginAtZero: true, ticks: { font: { size: 11, weight: '600' }, color: '#94a3b8', padding: 8 }, grid: { color: '#334155', lineWidth: 1 } }, x: { ticks: { font: { size: 10, weight: '600' }, color: '#94a3b8', padding: 8, maxRotation: 45, minRotation: 45 }, grid: { display: false } } }, plugins: { legend: { display: true, position: 'top' }, tooltip: commonOptions.plugins.tooltip } }
-      });
-    }
+  // Nüfus İl
+  const niEl = document.getElementById('nufusIlData');
+  if (niEl) {
+    const ni = JSON.parse(niEl.textContent || '[]');
+    const bNICtx = document.getElementById('barNufusIl');
+    if (bNICtx && ni.length > 0) new Chart(bNICtx, {type:'bar',data:{labels:ni.map(d=>d.il),datasets:[{label:'Kişi Sayısı',data:ni.map(d=>d.count),backgroundColor:'#a855f7',borderRadius:6,borderWidth:0}]},options:{...commonOpts,indexAxis:'y',scales:scalesOptsY,plugins:{legend:{display:false},tooltip:commonOpts.plugins.tooltip}}});
+  }
+
+  // Mesleğe Başlama Yılı
+  const myEl = document.getElementById('meslekYiliData');
+  if (myEl) {
+    const my = JSON.parse(myEl.textContent || '{}'), myl = Object.keys(my), myv = Object.values(my);
+    const bMYCtx = document.getElementById('barMeslekYili');
+    if (bMYCtx && myl.length > 0) new Chart(bMYCtx, {type:'bar',data:{labels:myl,datasets:[{label:'Avukat Sayısı',data:myv,backgroundColor:'#0ea5e9',borderRadius:4,borderWidth:0}]},options:{...commonOpts,scales:scalesOpts,plugins:{legend:{display:false},tooltip:commonOpts.plugins.tooltip}}});
   }
 })();
 </script>

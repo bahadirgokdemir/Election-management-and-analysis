@@ -1,6 +1,6 @@
 from typing import Dict, List
 from django.db.models import Count, Q
-from app.models import Person, LawyerPerson, Lawyer, AuditLog, BaroLawyer, StatusOption
+from app.models import Person, LawyerPerson, Lawyer, AuditLog, BaroLawyer, StatusOption, CommitteeMembership
 from collections import defaultdict
 
 
@@ -51,6 +51,9 @@ def report_overview() -> Dict:
     # Cevap istatistikleri
     response_stats = get_response_statistics()
 
+    # Baro analitikleri (cinsiyet, ilçe, doğum yeri, kurul)
+    baro_analytics = get_baro_analytics()
+
     return {
         'total': total_relations,
         'unique_people': unique_people,
@@ -58,7 +61,7 @@ def report_overview() -> Dict:
         'lawyer_stats': lawyer_stats,
         'recent_logs': recent_logs,
 
-        # Yeni analizler
+        # Analizler
         'unique_stats': unique_stats,
         'district_stats': district_stats,
         'lawyer_performance': lawyer_performance,
@@ -67,6 +70,9 @@ def report_overview() -> Dict:
         # Baro ve cevap istatistikleri
         'baro_stats': baro_stats,
         'response_stats': response_stats,
+
+        # Baro veri analitikleri
+        'baro_analytics': baro_analytics,
     }
 
 
@@ -316,4 +322,75 @@ def get_response_statistics() -> Dict:
             'count': most_common_response[1],
             'percentage': round((most_common_response[1] / unique_people * 100) if unique_people > 0 else 0, 1),
         },
+    }
+
+
+def get_baro_analytics() -> Dict:
+    """
+    Baro veritabanı analitikleri: cinsiyet, ilçe, doğum yeri, nüfus il, kurul üyelikleri
+    """
+    # Cinsiyet dağılımı
+    cinsiyet_counts = (
+        BaroLawyer.objects
+        .exclude(cinsiyet='').exclude(cinsiyet__isnull=True)
+        .values('cinsiyet').annotate(count=Count('id')).order_by('-count')
+    )
+    cinsiyet_dist = {}
+    for r in cinsiyet_counts:
+        label = 'Kadın' if r['cinsiyet'] in ('K', 'KADIN', 'F') else ('Erkek' if r['cinsiyet'] in ('E', 'ERKEK', 'M') else r['cinsiyet'])
+        cinsiyet_dist[label] = cinsiyet_dist.get(label, 0) + r['count']
+    unknown_cinsiyet = BaroLawyer.objects.filter(Q(cinsiyet='') | Q(cinsiyet__isnull=True)).count()
+    if unknown_cinsiyet:
+        cinsiyet_dist['Belirtilmemiş'] = unknown_cinsiyet
+
+    # Baro İlçe dağılımı (BaroLawyer.ilce) - her zaman dolu
+    baro_ilce_qs = (
+        BaroLawyer.objects.exclude(ilce='').exclude(ilce__isnull=True)
+        .values('ilce').annotate(count=Count('id')).order_by('-count')[:12]
+    )
+    baro_ilce = [{'ilce': r['ilce'], 'count': r['count']} for r in baro_ilce_qs]
+
+    # Doğum yeri dağılımı
+    dogum_yeri_qs = (
+        BaroLawyer.objects.exclude(dogum_yeri='').exclude(dogum_yeri__isnull=True)
+        .values('dogum_yeri').annotate(count=Count('id')).order_by('-count')[:12]
+    )
+    dogum_yeri = [{'yer': r['dogum_yeri'], 'count': r['count']} for r in dogum_yeri_qs]
+
+    # Nüfusa kayıtlı il dağılımı
+    nufus_il_qs = (
+        BaroLawyer.objects.exclude(nufus_il='').exclude(nufus_il__isnull=True)
+        .values('nufus_il').annotate(count=Count('id')).order_by('-count')[:12]
+    )
+    nufus_il = [{'il': r['nufus_il'], 'count': r['count']} for r in nufus_il_qs]
+
+    # Kurul üyelikleri özeti
+    total_memberships = CommitteeMembership.objects.count()
+    gorev_counts = (
+        CommitteeMembership.objects.values('gorev')
+        .annotate(count=Count('id')).order_by('-count')[:8]
+    )
+    top_gorevler = [{'gorev': r['gorev'][:50] + ('…' if len(r['gorev']) > 50 else ''), 'count': r['count']} for r in gorev_counts]
+
+    # Mesleğe başlama yılı dağılımı (son 20 yıl)
+    meslek_years = defaultdict(int)
+    for bl in BaroLawyer.objects.exclude(
+        **{'mesleğe_baslama': ''}
+    ).exclude(**{'mesleğe_baslama__isnull': True}).values_list('mesleğe_baslama', flat=True):
+        try:
+            year = str(bl).strip()[:4]
+            if year.isdigit() and 1950 <= int(year) <= 2030:
+                meslek_years[year] += 1
+        except Exception:
+            pass
+    meslek_dist = dict(sorted(meslek_years.items(), key=lambda x: x[0]))
+
+    return {
+        'cinsiyet_distribution': cinsiyet_dist,
+        'baro_ilce': baro_ilce,
+        'dogum_yeri': dogum_yeri,
+        'nufus_il': nufus_il,
+        'total_memberships': total_memberships,
+        'top_gorevler': top_gorevler,
+        'meslek_dist': meslek_dist,
     }

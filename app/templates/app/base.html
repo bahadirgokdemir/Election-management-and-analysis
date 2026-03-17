@@ -326,10 +326,14 @@
           if (l.status_label) badge += `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${border};margin-left:6px;">${l.status_label}</span>`;
           if (l.lawyer_name) badge += `<span style="font-size:10px;color:var(--text-muted);margin-left:4px;">(${l.lawyer_name})</span>`;
         }
+        // Etiket simgesi
+        let tagBadge = '';
+        if (l.tag_type === 'blacklist') tagBadge = '<span title="Kara Liste" style="margin-left:6px;">🚫</span>';
+        else if (l.tag_type === 'whitelist') tagBadge = '<span title="Beyaz Liste" style="margin-left:6px;">✅</span>';
         return `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:${bg};border-radius:8px;border-left:3px solid ${border};">
           <div>
-            <div style="font-weight:600;font-size:13px;">${l.ad} ${l.soyad}${badge}</div>
+            <div style="font-weight:600;font-size:13px;">${l.ad} ${l.soyad}${tagBadge}${badge}</div>
             <div style="font-size:11px;color:var(--text-muted);font-family:monospace;">Sicil: ${l.sicil_no} · Doğum: ${l.dogum_tarihi}</div>
             ${l.tel ? `<div style="font-size:11px;color:var(--text-secondary);">${l.tel}</div>` : ''}
           </div>
