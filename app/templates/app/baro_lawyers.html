@@ -383,8 +383,18 @@ async function showDetails(sicilNo) {
     }
   } catch(e) {}
 
+  const photoHtml = d.photo_url
+    ? `<div style="display:flex;justify-content:center;margin-bottom:4px;">
+        <img src="${d.photo_url}" alt="${d.ad} ${d.soyad}"
+             style="height:90px;width:90px;object-fit:cover;border-radius:50%;border:2px solid var(--border-color);"
+             onerror="this.style.display='none'">
+      </div>`
+    : '';
+
   const content = `
     <div style="display:flex;flex-direction:column;gap:16px;">
+
+      ${photoHtml}
 
       <!-- Kimlik -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">

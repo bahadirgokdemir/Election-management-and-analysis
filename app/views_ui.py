@@ -1631,6 +1631,7 @@ def ui_baro_lawyer_detail(request, sicil_no: str):
         'tag_type': tag.tag_type if tag else '',
         'tag_note': tag.note if tag else '',
         'memberships': memberships,
+        'photo_url': bl.photo_url or '',
     })
 
 

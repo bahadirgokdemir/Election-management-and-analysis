@@ -238,6 +238,7 @@ class BaroLawyer(models.Model):
     mahalle_koy = models.CharField(max_length=128, blank=True, default='', help_text="Mahalle/Köy")
     nufus_ilce = models.CharField(max_length=128, blank=True, default='', help_text="Nüfus ilçe")
     nufus_il = models.CharField(max_length=128, blank=True, default='', help_text="Nüfus il")
+    photo_url = models.URLField(max_length=512, blank=True, default='', help_text="Baro profil fotoğrafı URL")
 
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
