@@ -23,6 +23,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
+
+# Baro fotoğraf UUID — Railway env var olarak ayarlayın
+# Örnek: BARO_PHOTO_UUID=468d5733-9097-11ee-a73f-000c29c9dfce
+BARO_PHOTO_UUID = os.getenv("BARO_PHOTO_UUID", "")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "0") == "1"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")

@@ -1608,8 +1608,18 @@ def ui_baro_lawyer_detail(request, sicil_no: str):
     except BaroLawyer.DoesNotExist:
         return JsonResponse({'ok': False, 'error': 'Bulunamadı'}, status=404)
 
+    from django.conf import settings as _settings
     tag = getattr(bl, 'tag', None)
     memberships = list(bl.memberships.values_list('gorev', flat=True))
+
+    # Fotoğraf URL: veritabanında varsa kullan, yoksa env var UUID'siyle oluştur
+    photo_url = bl.photo_url or ''
+    if not photo_url:
+        baro_uuid = getattr(_settings, 'BARO_PHOTO_UUID', '')
+        if baro_uuid:
+            photo_url = (
+                f'https://www.ankarabarosu.org.tr/serve/file/{baro_uuid}/{bl.sicil_no}.jpg'
+            )
 
     return JsonResponse({
         'ok': True,
@@ -1631,7 +1641,7 @@ def ui_baro_lawyer_detail(request, sicil_no: str):
         'tag_type': tag.tag_type if tag else '',
         'tag_note': tag.note if tag else '',
         'memberships': memberships,
-        'photo_url': bl.photo_url or '',
+        'photo_url': photo_url,
     })
 
 

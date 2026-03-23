@@ -383,13 +383,20 @@ async function showDetails(sicilNo) {
     }
   } catch(e) {}
 
-  const photoHtml = d.photo_url
-    ? `<div style="display:flex;justify-content:center;margin-bottom:4px;">
-        <img src="${d.photo_url}" alt="${d.ad} ${d.soyad}"
-             style="height:90px;width:90px;object-fit:cover;border-radius:50%;border:2px solid var(--border-color);"
-             onerror="this.style.display='none'">
-      </div>`
-    : '';
+  const photoHtml = `<div style="display:flex;justify-content:center;margin-bottom:4px;">
+    ${d.photo_url
+      ? `<img src="${d.photo_url}" alt="${d.ad} ${d.soyad}"
+               id="baro-photo-img"
+               style="height:90px;width:90px;object-fit:cover;border-radius:50%;border:2px solid var(--border-color);"
+               onerror="this.style.display='none';document.getElementById('baro-photo-placeholder').style.display='flex';">
+         <div id="baro-photo-placeholder" style="display:none;height:90px;width:90px;border-radius:50%;border:2px solid var(--border-color);background:var(--bg-content);align-items:center;justify-content:center;">
+           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+         </div>`
+      : `<div style="height:90px;width:90px;border-radius:50%;border:2px solid var(--border-color);background:var(--bg-content);display:flex;align-items:center;justify-content:center;">
+           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+         </div>`
+    }
+  </div>`;
 
   const content = `
     <div style="display:flex;flex-direction:column;gap:16px;">
