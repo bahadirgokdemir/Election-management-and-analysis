@@ -11,7 +11,7 @@ from .views_ui import (
     ui_baro_tag_toggle, ui_baro_tag_stats, ui_baro_blacklist_detail,
     ui_baro_whitelist_detail, ui_baro_bulk_tag,
     ui_baro_lawyer_detail, ui_committee_memberships,
-    ui_birthdays_today,
+    ui_birthdays_today, ui_upload_unknown_records,
 )
 from .views_election import (
     ui_elections, ui_election_create, ui_election_activate,
@@ -32,6 +32,7 @@ urlpatterns = [
     path('upload/', ui_upload, name='ui_upload'),
     path('upload/<int:batch_id>/diff/', ui_diff_preview, name='ui_diff_preview'),
     path('upload/<int:batch_id>/approve/', ui_approve_batch, name='ui_approve_batch'),
+    path('upload/<int:batch_id>/unknown-records/', ui_upload_unknown_records, name='ui_upload_unknown_records'),
     path('lawyers/<int:lawyer_id>/', ui_lawyer_people, name='ui_lawyer_people'),
 
     # Şablon indirme

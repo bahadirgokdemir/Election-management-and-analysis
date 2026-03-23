@@ -1,0 +1,144 @@
+{% extends 'app/base.html' %}
+{% block title %}Baro'da Bulunmayan Kayıtlar{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <h1>Baro Veritabanında Bulunmayan Kayıtlar</h1>
+    <p>Yüklenen listede Baro kaydı olmayan kişiler aşağıda listeleniyor. İstediğiniz kayıtları sisteme ekleyebilirsiniz.</p>
+  </div>
+  <a href="{% url 'ui_dashboard' %}" class="btn" style="background: var(--bg-content); color: var(--text-secondary);">
+    Atla, Dashboard'a Dön
+  </a>
+</div>
+
+{% if unknown_rows %}
+<div class="card" style="margin-bottom: 20px; padding: 16px 20px; background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px;">
+  <div style="display: flex; align-items: center; gap: 10px; color: #92400e;">
+    <svg style="width: 20px; height: 20px; flex-shrink: 0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+    </svg>
+    <span><strong>{{ unknown_rows|length }} kayıt</strong> Baro veritabanında bulunamadı. Bu kişiler listeye eklenmiş olsa da Baro kaydı henüz yok.
+    Sisteme eklerseniz doğum günü bildirimleri, arama filtreleri ve analizlerde görünürler.</span>
+  </div>
+</div>
+
+<form method="post" id="unknown-form">
+  {% csrf_token %}
+
+  <!-- Toplu İşlem Araç Çubuğu -->
+  <div class="card" style="margin-bottom: 16px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--text-secondary);">
+      <input type="checkbox" id="select-all" onchange="toggleAll(this)" style="width: 16px; height: 16px;">
+      Tümünü Seç
+    </label>
+    <span id="selected-count" style="font-size: 13px; color: var(--text-muted);">0 seçili</span>
+    <div style="flex: 1;"></div>
+    <button type="submit" name="action" value="add_selected" class="btn"
+            style="background: var(--primary); color: white; font-size: 13px; padding: 8px 16px;">
+      Seçilenleri Ekle
+    </button>
+    <button type="submit" name="action" value="add_all" class="btn"
+            style="background: #16a34a; color: white; font-size: 13px; padding: 8px 16px;"
+            onclick="return confirm('{{ unknown_rows|length }} kaydın tamamı Baro veritabanına eklenecek. Onaylıyor musunuz?')">
+      Tümünü Ekle ({{ unknown_rows|length }})
+    </button>
+  </div>
+
+  <!-- Kayıt Tablosu -->
+  <div class="card" style="padding: 0; overflow: hidden;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+      <thead>
+        <tr style="background: var(--bg-content); border-bottom: 2px solid var(--border-color);">
+          <th style="padding: 12px 16px; text-align: left; width: 40px;"></th>
+          <th style="padding: 12px 16px; text-align: left; color: var(--text-secondary); font-weight: 600;">Sicil No</th>
+          <th style="padding: 12px 16px; text-align: left; color: var(--text-secondary); font-weight: 600;">Ad Soyad</th>
+          <th style="padding: 12px 16px; text-align: left; color: var(--text-secondary); font-weight: 600;">Telefon</th>
+          <th style="padding: 12px 16px; text-align: left; color: var(--text-secondary); font-weight: 600;">E-posta</th>
+          <th style="padding: 12px 16px; text-align: left; color: var(--text-secondary); font-weight: 600;">Durum</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in unknown_rows %}
+        <tr class="unknown-row" style="border-bottom: 1px solid var(--border-color); transition: background 0.1s;"
+            onmouseover="this.style.background='var(--bg-content)'" onmouseout="this.style.background=''">
+          <td style="padding: 10px 16px;">
+            <input type="checkbox" name="sicil_nos" value="{{ row.kisi_sicilno }}"
+                   class="row-checkbox" onchange="updateCount()" style="width: 16px; height: 16px; cursor: pointer;">
+          </td>
+          <td style="padding: 10px 16px; font-family: monospace; color: var(--text-secondary);">
+            {{ row.kisi_sicilno }}
+          </td>
+          <td style="padding: 10px 16px; font-weight: 500;">
+            {% if row.ad == 'Bilinmiyor' and row.soyad == 'Bilinmiyor' %}
+              <span style="color: var(--text-muted); font-style: italic;">Bilinmiyor</span>
+            {% else %}
+              {{ row.ad }} {{ row.soyad }}
+            {% endif %}
+          </td>
+          <td style="padding: 10px 16px; color: var(--text-secondary);">
+            {{ row.telno|default:"—" }}
+          </td>
+          <td style="padding: 10px 16px; color: var(--text-secondary);">
+            {{ row.mail|default:"—" }}
+          </td>
+          <td style="padding: 10px 16px;">
+            {% if row.cevap_status_key %}
+              <span style="padding: 2px 8px; border-radius: 4px; font-size: 11px; background: var(--bg-content); border: 1px solid var(--border-color);">
+                {{ row.cevap_status_key }}
+              </span>
+            {% else %}
+              <span style="color: var(--text-muted);">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Alt Eylem Çubuğu -->
+  <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+    <a href="{% url 'ui_dashboard' %}" style="color: var(--text-muted); font-size: 13px;">
+      Atla, şimdi ekleme — Dashboard'a dön
+    </a>
+    <div style="display: flex; gap: 10px;">
+      <button type="submit" name="action" value="add_selected" class="btn"
+              style="background: var(--primary); color: white;">
+        Seçilenleri Ekle
+      </button>
+      <button type="submit" name="action" value="add_all" class="btn"
+              style="background: #16a34a; color: white;"
+              onclick="return confirm('{{ unknown_rows|length }} kaydın tamamı Baro veritabanına eklenecek. Onaylıyor musunuz?')">
+        Tümünü Ekle
+      </button>
+    </div>
+  </div>
+</form>
+
+{% else %}
+<div class="card" style="text-align: center; padding: 48px; color: var(--text-muted);">
+  <p style="font-size: 16px;">Tüm kayıtlar Baro veritabanında mevcut.</p>
+  <a href="{% url 'ui_dashboard' %}" class="btn" style="margin-top: 16px; background: var(--primary); color: white;">
+    Dashboard'a Dön
+  </a>
+</div>
+{% endif %}
+
+<script>
+function toggleAll(masterCb) {
+  document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = masterCb.checked);
+  updateCount();
+}
+
+function updateCount() {
+  const checked = document.querySelectorAll('.row-checkbox:checked').length;
+  document.getElementById('selected-count').textContent = checked + ' seçili';
+  const master = document.getElementById('select-all');
+  const total = document.querySelectorAll('.row-checkbox').length;
+  master.indeterminate = checked > 0 && checked < total;
+  master.checked = checked === total && total > 0;
+}
+</script>
+
+{% endblock %}

@@ -10,7 +10,7 @@ import csv
 from io import BytesIO
 from datetime import date as date_obj
 
-from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, Election, BaroLawyer, BaroLawyerTag, CommitteeMembership
+from .models import Lawyer, Person, StatusOption, LawyerPerson, UploadBatch, UploadRowStaging, Election, BaroLawyer, BaroLawyerTag, CommitteeMembership
 from .permissions import login_required_custom, admin_required, uploader_required
 from .services.importer import parse_and_stage
 from .services.diff_service import compute_diff
@@ -300,6 +300,21 @@ def ui_upload(request):
         else:
             messages.warning(request, f'Yükleme tamamlandı ancak uygulama sırasında sorun oluştu: {result.get("message")}')
 
+        # Baro'da bulunmayan kayıt var mı? Varsa inceleme sayfasına yönlendir
+        batch_sicils = list(UploadRowStaging.objects.filter(batch_id=batch_id).values_list('kisi_sicilno', flat=True))
+        if batch_sicils:
+            existing_baro_sicils = set(
+                BaroLawyer.objects.filter(sicil_no__in=batch_sicils).values_list('sicil_no', flat=True)
+            )
+            unknown_count = sum(1 for s in batch_sicils if s not in existing_baro_sicils)
+            if unknown_count:
+                messages.info(
+                    request,
+                    f'{unknown_count} kişi Baro veritabanında bulunamadı. '
+                    f'Aşağıdan inceleyip sisteme ekleyebilirsiniz.'
+                )
+                return redirect('ui_upload_unknown_records', batch_id=batch_id)
+
         return redirect('ui_dashboard')
     except Exception as e:
         messages.error(request, f'Beklenmeyen hata: {e}')
@@ -331,6 +346,63 @@ def ui_approve_batch(request, batch_id: int):
         return redirect('ui_dashboard')
     messages.error(request, res.get('message', 'Uygulama başarısız.'))
     return redirect('ui_diff_preview', batch_id=batch_id)
+
+
+@uploader_required
+@require_http_methods(["GET", "POST"])
+def ui_upload_unknown_records(request, batch_id: int):
+    """
+    Yüklenen listede BaroLawyer tablosunda bulunmayan kayıtları göster.
+    Admin bunları tek tek veya toplu olarak BaroLawyer'a ekleyebilir.
+    """
+    batch = get_object_or_404(UploadBatch, id=batch_id)
+
+    staging_rows = list(UploadRowStaging.objects.filter(batch_id=batch_id))
+    all_sicils = [r.kisi_sicilno for r in staging_rows]
+    existing_baro_sicils = set(
+        BaroLawyer.objects.filter(sicil_no__in=all_sicils).values_list('sicil_no', flat=True)
+    )
+    unknown_rows = [r for r in staging_rows if r.kisi_sicilno not in existing_baro_sicils]
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+        selected_sicils = set(request.POST.getlist('sicil_nos'))
+
+        if action == 'add_all':
+            to_add = unknown_rows
+        elif action == 'add_selected':
+            to_add = [r for r in unknown_rows if r.kisi_sicilno in selected_sicils]
+        else:
+            to_add = []
+
+        added_count = 0
+        skipped_count = 0
+        for row in to_add:
+            if BaroLawyer.objects.filter(sicil_no=row.kisi_sicilno).exists():
+                skipped_count += 1
+                continue
+            ad = row.ad if row.ad and row.ad != 'Bilinmiyor' else ''
+            soyad = row.soyad if row.soyad and row.soyad != 'Bilinmiyor' else ''
+            BaroLawyer.objects.create(
+                sicil_no=row.kisi_sicilno,
+                ad=ad,
+                soyad=soyad,
+                tel=row.telno or '',
+                mail=row.mail or '',
+            )
+            added_count += 1
+
+        if added_count:
+            messages.success(request, f'{added_count} kayıt Baro veritabanına eklendi.')
+        if skipped_count:
+            messages.info(request, f'{skipped_count} kayıt zaten Baro veritabanında bulunduğundan atlandı.')
+
+        return redirect('ui_dashboard')
+
+    return render(request, 'app/unknown_baro_records.html', {
+        'batch': batch,
+        'unknown_rows': unknown_rows,
+    })
 
 
 @login_required_custom
@@ -1262,11 +1334,23 @@ def ui_baro_tag_toggle(request, sicil_no: str):
         baro_lawyer=baro_lawyer,
         defaults={'tag_type': tag_type, 'note': note, 'created_by': actor},
     )
+
+    # Etiket türüne göre cevap durumunu otomatik güncelle
+    target_key = 'olumlu' if tag_type == BaroLawyerTag.WHITELIST else 'olumsuz'
+    target_label = 'Olumlu' if target_key == 'olumlu' else 'Olumsuz'
+    status_obj, _ = StatusOption.objects.get_or_create(
+        key=target_key, defaults={'label': target_label}
+    )
+    status_updated = LawyerPerson.objects.filter(
+        kisi_sicilno=sicil_no, active=True
+    ).update(cevap_status=status_obj)
+
     return JsonResponse({
         'ok': True,
         'action': 'created' if created else 'updated',
         'tag_type': tag_type,
         'note': tag.note or '',
+        'status_updated': status_updated,
     })
 
 
@@ -1336,7 +1420,15 @@ def ui_baro_bulk_tag(request):
     if not sicil_list:
         return JsonResponse({'error': 'Sicil no listesi boş'}, status=400)
 
+    # Etiket türüne göre cevap durumu nesnesini hazırla
+    target_key = 'olumlu' if tag_type == BaroLawyerTag.WHITELIST else 'olumsuz'
+    target_label = 'Olumlu' if target_key == 'olumlu' else 'Olumsuz'
+    status_obj, _ = StatusOption.objects.get_or_create(
+        key=target_key, defaults={'label': target_label}
+    )
+
     found, not_found, updated = [], [], 0
+    total_status_updated = 0
     for sicil in sicil_list:
         try:
             baro_lawyer = BaroLawyer.objects.get(sicil_no=sicil)
@@ -1344,6 +1436,9 @@ def ui_baro_bulk_tag(request):
                 baro_lawyer=baro_lawyer,
                 defaults={'tag_type': tag_type, 'note': note, 'created_by': actor},
             )
+            # Cevap durumunu otomatik güncelle
+            cnt = LawyerPerson.objects.filter(kisi_sicilno=sicil, active=True).update(cevap_status=status_obj)
+            total_status_updated += cnt
             found.append(sicil)
             updated += 1
         except BaroLawyer.DoesNotExist:
@@ -1352,6 +1447,7 @@ def ui_baro_bulk_tag(request):
     return JsonResponse({
         'ok': True,
         'updated': updated,
+        'status_updated': total_status_updated,
         'not_found': not_found,
         'not_found_count': len(not_found),
     })
