@@ -209,5 +209,5 @@ class Command(BaseCommand):
             f'Tamamlandı! '
             f'Güncellendi: {total_updated} | '
             f'Atlandı (zaten vardı): {total_skipped} | '
-            f'DB\'de bulunamadı: {total_not_found}'
+            f'DB\'de bulunamadi: {total_not_found}'
         ))
