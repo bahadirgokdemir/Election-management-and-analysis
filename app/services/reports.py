@@ -1,6 +1,6 @@
 from typing import Dict, List
 from django.db.models import Count, Q
-from app.models import Person, LawyerPerson, Lawyer, AuditLog, BaroLawyer, StatusOption, CommitteeMembership
+from app.models import Person, LawyerPerson, Lawyer, AuditLog, BaroLawyer, BaroLawyerTag, StatusOption, CommitteeMembership
 from collections import defaultdict
 
 
@@ -268,6 +268,9 @@ def get_baro_statistics() -> Dict:
     # Baro avukatlarına göre benzersiz kişi oranı
     people_percentage = round((unique_people_count / total_baro_lawyers * 100) if total_baro_lawyers > 0 else 0, 1)
 
+    blacklist_count = BaroLawyerTag.objects.filter(tag_type='blacklist').count()
+    whitelist_count = BaroLawyerTag.objects.filter(tag_type='whitelist').count()
+
     return {
         'total_baro_lawyers': total_baro_lawyers,
         'system_lawyers': system_lawyers,
@@ -275,6 +278,9 @@ def get_baro_statistics() -> Dict:
         'unique_people_count': unique_people_count,
         'people_percentage': people_percentage,
         'not_reached': total_baro_lawyers - system_lawyers,
+        'blacklist_count': blacklist_count,
+        'whitelist_count': whitelist_count,
+        'untagged_count': total_baro_lawyers - blacklist_count - whitelist_count,
     }
 
 

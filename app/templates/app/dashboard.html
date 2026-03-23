@@ -60,22 +60,34 @@
   <div class="stat-card" style="cursor:default;">
     <div class="label">ETİKETLEME</div>
     <div style="display:flex;gap:12px;margin-top:6px;">
-      <div style="flex:1;text-align:center;">
+      <a href="{% url 'ui_baro_lawyers' %}?tag_filter=blacklist" style="flex:1;text-align:center;text-decoration:none;">
         <div style="font-size:11px;color:#ef4444;font-weight:600;margin-bottom:2px;">🚫 Kara Liste</div>
-        <div id="dash-bl-count" style="font-size:22px;font-weight:800;color:#ef4444;line-height:1;">—</div>
-        <div id="dash-bl-pct" style="font-size:10px;color:var(--text-muted);">—%</div>
-      </div>
+        <div style="font-size:22px;font-weight:800;color:#ef4444;line-height:1;">{{ data.baro_stats.blacklist_count|default:0 }}</div>
+        <div style="font-size:10px;color:var(--text-muted);">
+          {% if data.baro_stats.total_baro_lawyers %}
+            %{{ data.baro_stats.blacklist_count|default:0|floatformat:1 }}
+          {% else %}—%{% endif %}
+        </div>
+      </a>
       <div style="width:1px;background:var(--border-color);"></div>
-      <div style="flex:1;text-align:center;">
+      <a href="{% url 'ui_baro_lawyers' %}?tag_filter=whitelist" style="flex:1;text-align:center;text-decoration:none;">
         <div style="font-size:11px;color:#10b981;font-weight:600;margin-bottom:2px;">✅ Beyaz Liste</div>
-        <div id="dash-wl-count" style="font-size:22px;font-weight:800;color:#10b981;line-height:1;">—</div>
-        <div id="dash-wl-pct" style="font-size:10px;color:var(--text-muted);">—%</div>
-      </div>
+        <div style="font-size:22px;font-weight:800;color:#10b981;line-height:1;">{{ data.baro_stats.whitelist_count|default:0 }}</div>
+        <div style="font-size:10px;color:var(--text-muted);">
+          {% if data.baro_stats.total_baro_lawyers %}
+            %{{ data.baro_stats.whitelist_count|default:0|floatformat:1 }}
+          {% else %}—%{% endif %}
+        </div>
+      </a>
     </div>
+    {% with total=data.baro_stats.total_baro_lawyers bl=data.baro_stats.blacklist_count wl=data.baro_stats.whitelist_count %}
     <div style="margin-top:10px;background:var(--bg-content);border-radius:4px;height:6px;overflow:hidden;">
-      <div id="dash-bl-bar" style="background:#ef4444;height:100%;width:0%;float:left;transition:width .5s;"></div>
-      <div id="dash-wl-bar" style="background:#10b981;height:100%;width:0%;float:left;transition:width .5s;"></div>
+      {% if total and total > 0 %}
+      <div style="background:#ef4444;height:100%;width:{% widthratio bl total 100 %}%;float:left;"></div>
+      <div style="background:#10b981;height:100%;width:{% widthratio wl total 100 %}%;float:left;"></div>
+      {% endif %}
     </div>
+    {% endwith %}
     <a href="{% url 'ui_baro_lawyers' %}" style="font-size:10px;color:var(--text-muted);margin-top:6px;display:block;text-align:right;">Tüm kayıtlar →</a>
   </div>
   {% if data.baro_analytics %}
@@ -489,21 +501,7 @@
 {{ data.baro_analytics.meslek_dist|json_script:"meslekYiliData" }}
 
 <script>
-// ── Etiket Özeti ─────────────────────────────────────────
-(async function() {
-  try {
-    const res = await fetch('/ui/baro-lawyers/tag-stats/');
-    const d = await res.json();
-    const total = d.total || 1;
-    const pct = n => total > 0 ? ((n / total) * 100).toFixed(1) : '0.0';
-    document.getElementById('dash-bl-count').textContent = d.blacklist;
-    document.getElementById('dash-wl-count').textContent = d.whitelist;
-    document.getElementById('dash-bl-pct').textContent = pct(d.blacklist) + '%';
-    document.getElementById('dash-wl-pct').textContent = pct(d.whitelist) + '%';
-    document.getElementById('dash-bl-bar').style.width = pct(d.blacklist) + '%';
-    document.getElementById('dash-wl-bar').style.width = pct(d.whitelist) + '%';
-  } catch(e) {}
-})();
+// ── Etiket Özeti: sunucu tarafından verildi (server-side) ──
 
 // ── Widget Gizle/Göster ──────────────────────────────────
 const WS_KEY = 'widget_states_v2';

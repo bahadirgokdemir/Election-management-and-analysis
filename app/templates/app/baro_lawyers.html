@@ -19,18 +19,18 @@
       <svg style="width:15px;height:15px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
       Toplu Etiketleme
     </button>
-    <button onclick="showBlacklistPopup()" class="btn" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">
+    <a href="?tag_filter=blacklist" class="btn" style="background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.3);">
       <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
       </svg>
       Kara Liste ({{ stats.blacklist_count }})
-    </button>
-    <button onclick="showWhitelistPopup()" class="btn" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3);">
+    </a>
+    <a href="?tag_filter=whitelist" class="btn" style="background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.3);">
       <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
       </svg>
       Beyaz Liste ({{ stats.whitelist_count }})
-    </button>
+    </a>
   </div>
 </div>
 
@@ -457,6 +457,20 @@ async function applyTag(sicilNo, tagType) {
     const data = await res.json();
     if (data.ok) {
       closeModal();
+      if (data.status_updated > 0) {
+        // Güncellenen cevap durumu sayısını göster
+        const msg = tagType === 'blacklist'
+          ? `Kara listeye eklendi. ${data.status_updated} kayıtta cevap durumu "Olumsuz" olarak güncellendi.`
+          : tagType === 'whitelist'
+            ? `Beyaz listeye eklendi. ${data.status_updated} kayıtta cevap durumu "Olumlu" olarak güncellendi.`
+            : 'Etiket kaldırıldı.';
+        // Flash mesaj göster
+        const flash = document.createElement('div');
+        flash.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;padding:14px 20px;background:#1e293b;color:#e2e8f0;border-radius:8px;font-size:13px;border:1px solid #334155;max-width:360px;';
+        flash.textContent = msg;
+        document.body.appendChild(flash);
+        setTimeout(() => flash.remove(), 4000);
+      }
       location.reload();
     } else {
       alert(data.error || 'Hata oluştu.');
@@ -598,7 +612,11 @@ async function applyBulkTag() {
     const data = await res.json();
     if (data.ok) {
       const tagLabel = tagType === 'blacklist' ? '🚫 Kara Liste' : '✅ Beyaz Liste';
+      const statusLabel = tagType === 'blacklist' ? '"Olumsuz"' : '"Olumlu"';
       let html = `<strong style="color:var(--success);">✓ ${data.updated} kişi ${tagLabel} olarak etiketlendi.</strong>`;
+      if (data.status_updated > 0) {
+        html += `<div style="margin-top:6px;color:#10b981;">✓ ${data.status_updated} kayıtta cevap durumu ${statusLabel} olarak güncellendi.</div>`;
+      }
       if (data.not_found_count > 0) {
         html += `<div style="margin-top:8px;color:#f59e0b;"><strong>${data.not_found_count} sicil bulunamadı:</strong> ${data.not_found.join(', ')}</div>`;
       }
@@ -606,7 +624,7 @@ async function applyBulkTag() {
       resultEl.style.background = 'rgba(16,185,129,0.1)';
       resultEl.style.border = '1px solid rgba(16,185,129,0.3)';
       resultEl.innerHTML = html;
-      setTimeout(() => location.reload(), 2000);
+      setTimeout(() => location.reload(), 2500);
     } else {
       resultEl.style.display = 'block';
       resultEl.style.background = 'rgba(239,68,68,0.1)';
