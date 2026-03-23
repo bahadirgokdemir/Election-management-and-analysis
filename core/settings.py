@@ -24,6 +24,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
 
+# Baro fotoğraf proxy için session cookie — Railway env var olarak ayarlayın
+# Baro sitesinden tarayıcı geliştirici araçlarından kopyalanır, periyodik güncellenir
+BARO_SESSION_COOKIE = os.getenv("BARO_SESSION_COOKIE", "")
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "0") == "1"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")

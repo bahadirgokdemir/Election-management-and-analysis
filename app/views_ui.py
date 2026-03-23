@@ -1634,7 +1634,67 @@ def ui_baro_lawyer_detail(request, sicil_no: str):
         'tag_note': tag.note if tag else '',
         'memberships': memberships,
         'photo_url': photo_url,
+        'has_photo': bool(photo_url),
     })
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_baro_photo_proxy(request, sicil_no: str):
+    """Baro fotoğrafını BARO_SESSION_COOKIE ile çekip akıtır (Railway filesystem yok)."""
+    from django.conf import settings as _settings
+    from django.http import StreamingHttpResponse
+
+    try:
+        bl = BaroLawyer.objects.only('photo_url').get(sicil_no=sicil_no)
+    except BaroLawyer.DoesNotExist:
+        return HttpResponse(status=404)
+
+    photo_url = bl.photo_url or ''
+    if not photo_url:
+        return HttpResponse(status=404)
+
+    session_cookie = getattr(_settings, 'BARO_SESSION_COOKIE', '')
+    if not session_cookie:
+        return HttpResponse(status=404)
+
+    try:
+        import requests as req
+    except ImportError:
+        return HttpResponse(status=503)
+
+    try:
+        resp = req.get(
+            photo_url,
+            headers={
+                'cookie': session_cookie,
+                'referer': 'https://www.ankarabarosu.org.tr/avukatlar/',
+                'user-agent': (
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                    'AppleWebKit/537.36 (KHTML, like Gecko) '
+                    'Chrome/146.0.0.0 Safari/537.36'
+                ),
+                'accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+                'sec-fetch-dest': 'image',
+                'sec-fetch-mode': 'no-cors',
+                'sec-fetch-site': 'same-origin',
+            },
+            stream=True,
+            timeout=15,
+        )
+    except Exception:
+        return HttpResponse(status=502)
+
+    if resp.status_code != 200:
+        return HttpResponse(status=resp.status_code)
+
+    content_type = resp.headers.get('content-type', 'image/jpeg')
+    streaming = StreamingHttpResponse(
+        resp.iter_content(chunk_size=8192),
+        content_type=content_type,
+    )
+    streaming['Cache-Control'] = 'private, max-age=86400'
+    return streaming
 
 
 @login_required_custom

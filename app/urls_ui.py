@@ -10,7 +10,7 @@ from .views_ui import (
     ui_person_analytics, ui_baro_lawyers,
     ui_baro_tag_toggle, ui_baro_tag_stats, ui_baro_blacklist_detail,
     ui_baro_whitelist_detail, ui_baro_bulk_tag,
-    ui_baro_lawyer_detail, ui_committee_memberships,
+    ui_baro_lawyer_detail, ui_baro_photo_proxy, ui_committee_memberships,
     ui_birthdays_today, ui_upload_unknown_records,
     ui_baro_tagged_page,
 )
@@ -65,6 +65,7 @@ urlpatterns = [
     path('baro-lawyers/beyaz-liste/', ui_baro_tagged_page, {'tag_type': 'whitelist'}, name='ui_baro_whitelist_page'),
     path('baro-lawyers/<str:sicil_no>/tag/', ui_baro_tag_toggle, name='ui_baro_tag_toggle'),
     path('baro-lawyers/<str:sicil_no>/detail/', ui_baro_lawyer_detail, name='ui_baro_lawyer_detail'),
+    path('baro-lawyers/<str:sicil_no>/photo/', ui_baro_photo_proxy, name='ui_baro_photo_proxy'),
 
     # Kurul üyelikleri
     path('committee-memberships/', ui_committee_memberships, name='ui_committee_memberships'),

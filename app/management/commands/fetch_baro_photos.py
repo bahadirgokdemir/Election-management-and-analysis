@@ -1,7 +1,9 @@
 """
-Ankara Barosu websitesinden avukat fotoğraflarını indirir ve
-media/baro_photos/ klasörüne kaydeder; BaroLawyer.photo_url alanını
-/media/baro_photos/{sicil_no}.jpg olarak günceller.
+Ankara Barosu websitesinden avukat fotoğraf URL'lerini çeker ve
+BaroLawyer.photo_url alanını günceller.
+
+Fotoğraflar local'e indirilmez; Railway'de proxy view üzerinden
+BARO_SESSION_COOKIE env var ile sunulur.
 
 Kullanım:
     python manage.py fetch_baro_photos --session-cookie "session=.eJw..."
@@ -10,10 +12,7 @@ Kullanım:
 """
 import re
 import time
-import json
-from pathlib import Path
 
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
@@ -25,7 +24,7 @@ IMG_SRC_RE = re.compile(r"src=['\"]([^'\"]+\.jpg)['\"]", re.IGNORECASE)
 SICIL_RE = re.compile(r"<h4[^>]*>\s*(\d+)\s*</h4>", re.IGNORECASE)
 
 
-def _build_api_headers(session_cookie: str) -> dict:
+def _build_headers(session_cookie: str) -> dict:
     return {
         'cookie': session_cookie,
         'x-requested-with': 'XMLHttpRequest',
@@ -37,23 +36,6 @@ def _build_api_headers(session_cookie: str) -> dict:
         ),
         'accept': 'application/json, text/javascript, */*; q=0.01',
         'accept-language': 'tr,en;q=0.9',
-    }
-
-
-def _build_image_headers(session_cookie: str) -> dict:
-    return {
-        'cookie': session_cookie,
-        'referer': 'https://www.ankarabarosu.org.tr/avukatlar/',
-        'user-agent': (
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/146.0.0.0 Safari/537.36'
-        ),
-        'accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
-        'accept-language': 'tr,en;q=0.9',
-        'sec-fetch-dest': 'image',
-        'sec-fetch-mode': 'no-cors',
-        'sec-fetch-site': 'same-origin',
     }
 
 
@@ -79,7 +61,7 @@ def _fetch_page(session_cookie: str, start: int, length: int, requests) -> dict:
     resp = requests.get(
         BARO_DATA_URL,
         params=params,
-        headers=_build_api_headers(session_cookie),
+        headers=_build_headers(session_cookie),
         timeout=60,
     )
     resp.raise_for_status()
@@ -102,32 +84,8 @@ def _parse_sicil(html: str) -> str:
     return m2.group(1) if m2 else ''
 
 
-def _download_photo(photo_url: str, sicil_no: str, session_cookie: str,
-                    photos_dir: Path, requests) -> str:
-    """Fotoğrafı indir, kaydet; başarılıysa local URL döndür yoksa ''."""
-    local_path = photos_dir / f'{sicil_no}.jpg'
-    try:
-        resp = requests.get(
-            photo_url,
-            headers=_build_image_headers(session_cookie),
-            timeout=30,
-            stream=True,
-        )
-        if resp.status_code != 200:
-            return ''
-        content_type = resp.headers.get('content-type', '')
-        if 'image' not in content_type and 'jpeg' not in content_type:
-            return ''
-        with open(local_path, 'wb') as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
-        return f'/media/baro_photos/{sicil_no}.jpg'
-    except Exception:
-        return ''
-
-
 class Command(BaseCommand):
-    help = 'Baro websitesinden avukat fotoğraflarını indirir ve media/baro_photos/ klasörüne kaydeder'
+    help = 'Baro websitesinden avukat fotoğraf URL\'lerini çeker ve veritabanını günceller'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -146,19 +104,19 @@ class Command(BaseCommand):
             '--force',
             action='store_true',
             default=False,
-            help='Zaten fotoğrafı olan kayıtları da yeniden indir',
+            help='Zaten fotoğraf URL\'i olan kayıtları da güncelle',
         )
         parser.add_argument(
             '--limit',
             type=int,
             default=0,
-            help='Maksimum indirilecek fotoğraf sayısı (0=sınırsız)',
+            help='Maksimum güncellenecek kayıt sayısı (0=sınırsız)',
         )
         parser.add_argument(
             '--delay',
             type=float,
             default=0.1,
-            help='API istekleri arası bekleme süresi saniye (varsayılan: 0.1)',
+            help='İstekler arası bekleme süresi saniye (varsayılan: 0.1)',
         )
 
     def handle(self, *args, **options):
@@ -173,12 +131,8 @@ class Command(BaseCommand):
         limit = options['limit']
         delay = options['delay']
 
-        # Fotoğraf klasörünü oluştur
-        photos_dir = Path(settings.MEDIA_ROOT) / 'baro_photos'
-        photos_dir.mkdir(parents=True, exist_ok=True)
-        self.stdout.write(f'Fotoğraflar kaydedilecek: {photos_dir}\n')
+        self.stdout.write('Baro fotoğraf URL\'leri çekiliyor...\n')
 
-        # Baro API bağlantısını test et
         try:
             first_page = _fetch_page(session_cookie, 0, 1, req)
         except Exception as e:
@@ -194,13 +148,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Hiç kayıt bulunamadı. Session cookie geçerli mi?'))
             return
 
-        self.stdout.write(f'Fotoğraflar indiriliyor (batch_size={batch_size})...\n')
-
         start = 0
-        total_downloaded = 0
+        total_updated = 0
         total_skipped = 0
         total_not_found = 0
-        total_failed = 0
 
         while True:
             try:
@@ -213,70 +164,50 @@ class Command(BaseCommand):
             if not rows:
                 break
 
+            updates = []
             for row in rows:
                 if len(row) < 3:
                     continue
+                sicil_no = _parse_sicil(row[2])
+                photo_url = _parse_photo_url(row[1])
+                if sicil_no and photo_url:
+                    updates.append((sicil_no, photo_url))
 
-                photo_html = row[1]
-                sicil_html = row[2]
-
-                sicil_no = _parse_sicil(sicil_html)
-                if not sicil_no:
-                    continue
-
-                photo_url = _parse_photo_url(photo_html)
-                if not photo_url:
-                    continue
-
-                try:
-                    bl = BaroLawyer.objects.get(sicil_no=sicil_no)
-                except BaroLawyer.DoesNotExist:
-                    total_not_found += 1
-                    continue
-
-                # Zaten local'de varsa atla
-                local_path = photos_dir / f'{sicil_no}.jpg'
-                if local_path.exists() and bl.photo_url and not force:
-                    total_skipped += 1
-                    continue
-
-                # Fotoğrafı indir
-                local_url = _download_photo(photo_url, sicil_no, session_cookie, photos_dir, req)
-                if not local_url:
-                    total_failed += 1
-                    continue
-
-                bl.photo_url = local_url
-                bl.save(update_fields=['photo_url'])
-                total_downloaded += 1
-
-                if limit and total_downloaded >= limit:
-                    break
-
-                if delay:
-                    time.sleep(delay)
+            with transaction.atomic():
+                for sicil_no, photo_url in updates:
+                    try:
+                        bl = BaroLawyer.objects.get(sicil_no=sicil_no)
+                        if bl.photo_url and not force:
+                            total_skipped += 1
+                            continue
+                        bl.photo_url = photo_url
+                        bl.save(update_fields=['photo_url'])
+                        total_updated += 1
+                    except BaroLawyer.DoesNotExist:
+                        total_not_found += 1
 
             self.stdout.write(
                 f'  {start + len(rows)}/{total_remote} işlendi '
-                f'(indirildi: {total_downloaded}, atlandı: {total_skipped}, '
-                f'hata: {total_failed})...',
+                f'(güncellendi: {total_updated}, atlandı: {total_skipped})...',
                 ending='\r',
             )
             self.stdout.flush()
 
             start += len(rows)
 
-            if limit and total_downloaded >= limit:
+            if limit and total_updated >= limit:
                 break
 
             if len(rows) < batch_size or start >= total_remote:
                 break
 
+            if delay:
+                time.sleep(delay)
+
         self.stdout.write('\n')
         self.stdout.write(self.style.SUCCESS(
             f'Tamamlandı! '
-            f'İndirildi: {total_downloaded} | '
+            f'Güncellendi: {total_updated} | '
             f'Atlandı (zaten vardı): {total_skipped} | '
-            f'İndirilemedi: {total_failed} | '
             f'DB\'de bulunamadı: {total_not_found}'
         ))
