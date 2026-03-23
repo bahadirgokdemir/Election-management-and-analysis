@@ -339,6 +339,7 @@ async function showDetails(sicilNo) {
     const res = await fetch(`/ui/baro-lawyers/${sicilNo}/detail/`);
     d = await res.json();
     if (!d.ok) throw new Error(d.error);
+    console.log('[FOTO DEBUG] sicil:', d.sicil_no, '| has_photo:', d.has_photo, '| photo_url:', d.photo_url);
   } catch(e) {
     openModal('Hata', `<p style="color:var(--error);">${e.message}</p>`);
     return;
