@@ -1,0 +1,140 @@
+{% extends 'app/base.html' %}
+{% block title %}{{ label }}{% endblock %}
+{% block content %}
+
+{% if tag_type == 'blacklist' %}
+  {% with tag_color="#ef4444" tag_bg="rgba(239,68,68,0.08)" tag_border="rgba(239,68,68,0.3)" tag_icon="🚫" other_url="ui_baro_whitelist_page" other_label="Beyaz Liste" %}
+
+<div class="page-header">
+  <div>
+    <h1 style="color:{{ tag_color }};">{{ tag_icon }} {{ label }}</h1>
+    <p style="color:var(--text-muted);">{{ rows|length }} kişi — kara listedeki Baro kayıtları</p>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <a href="{% url other_url %}" class="btn">✅ Beyaz Liste</a>
+    <a href="{% url 'ui_baro_lawyers' %}" class="btn" style="background:var(--bg-content);">Tüm Baro Kayıtları</a>
+  </div>
+</div>
+
+  {% endwith %}
+{% else %}
+  {% with tag_color="#10b981" tag_bg="rgba(16,185,129,0.08)" tag_border="rgba(16,185,129,0.3)" tag_icon="✅" other_url="ui_baro_blacklist_page" other_label="Kara Liste" %}
+
+<div class="page-header">
+  <div>
+    <h1 style="color:{{ tag_color }};">{{ tag_icon }} {{ label }}</h1>
+    <p style="color:var(--text-muted);">{{ rows|length }} kişi — beyaz listedeki Baro kayıtları</p>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <a href="{% url other_url %}" class="btn" style="background:rgba(239,68,68,0.08);color:#ef4444;border:1px solid rgba(239,68,68,0.3);">🚫 Kara Liste</a>
+    <a href="{% url 'ui_baro_lawyers' %}" class="btn" style="background:var(--bg-content);">Tüm Baro Kayıtları</a>
+  </div>
+</div>
+
+  {% endwith %}
+{% endif %}
+
+{% if not rows %}
+<div class="card" style="text-align:center;padding:60px;color:var(--text-muted);">
+  <div style="font-size:40px;margin-bottom:12px;">{% if tag_type == 'blacklist' %}🚫{% else %}✅{% endif %}</div>
+  <p>{{ label }} boş — henüz kimse eklenmemiş.</p>
+  <a href="{% url 'ui_baro_lawyers' %}" class="btn" style="margin-top:16px;">Baro Kayıtlarına Git</a>
+</div>
+{% else %}
+
+<div class="table-container">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Sicil No</th>
+        <th>Ad Soyad</th>
+        <th>E-posta / Telefon</th>
+        <th>İlçe</th>
+        <th>Etiket Notu</th>
+        <th>Ekleyen</th>
+        <th>Tarih</th>
+        <th>Sistemdeki Durum</th>
+        <th style="text-align:right;">İşlem</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td><strong style="font-family:monospace;">{{ row.bl.sicil_no }}</strong></td>
+        <td>
+          <strong>{{ row.bl.ad }} {{ row.bl.soyad }}</strong>
+          {% if row.bl.cinsiyet %}
+            <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">{{ row.bl.cinsiyet }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if row.bl.mail %}
+            <a href="mailto:{{ row.bl.mail }}" style="color:var(--primary);font-size:12px;">{{ row.bl.mail }}</a><br>
+          {% endif %}
+          {% if row.bl.tel %}
+            <span style="font-size:12px;color:var(--text-secondary);">{{ row.bl.tel }}</span>
+          {% endif %}
+          {% if not row.bl.mail and not row.bl.tel %}
+            <span style="color:var(--text-muted);">—</span>
+          {% endif %}
+        </td>
+        <td style="font-size:12px;color:var(--text-secondary);">{{ row.bl.ilce|default:"—" }}</td>
+        <td style="font-size:12px;color:var(--text-muted);font-style:italic;">{{ row.tag.note|default:"—" }}</td>
+        <td style="font-size:12px;color:var(--text-muted);">{{ row.tag.created_by|default:"—" }}</td>
+        <td style="font-size:11px;color:var(--text-muted);">{{ row.tag.created_at|date:"d.m.Y" }}</td>
+        <td>
+          {% if row.lists %}
+            {% for lp in row.lists %}
+              <div style="font-size:11px;margin-bottom:3px;">
+                <span style="color:var(--text-secondary);">{{ lp.lawyer }}</span>
+                {% if lp.status_key %}
+                  <span style="margin-left:4px;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
+                    {% if lp.status_key == 'olumlu' or lp.status_key == 'OLUMLU' %}background:rgba(16,185,129,0.15);color:#10b981;
+                    {% elif lp.status_key == 'olumsuz' or lp.status_key == 'OLUMSUZ' %}background:rgba(239,68,68,0.15);color:#ef4444;
+                    {% else %}background:var(--bg-content);color:var(--text-muted);{% endif %}">
+                    {{ lp.status_label|default:lp.status_key }}
+                  </span>
+                {% else %}
+                  <span style="margin-left:4px;font-size:10px;color:var(--text-muted);">durumsuz</span>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <span style="font-size:11px;color:var(--text-muted);font-style:italic;">Hiçbir listede yok</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right;">
+          <button onclick="removeTag('{{ row.bl.sicil_no }}')" class="btn"
+                  style="font-size:11px;padding:4px 10px;color:var(--text-muted);">
+            Etiketi Kaldır
+          </button>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endif %}
+
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+async function removeTag(sicilNo) {
+  if (!confirm(`${sicilNo} numaralı kişinin etiketi kaldırılsın mı?`)) return;
+  const fd = new FormData();
+  fd.append('tag_type', '');
+  try {
+    const res = await fetch(`/ui/baro-lawyers/${sicilNo}/tag/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body: fd,
+    });
+    const d = await res.json();
+    if (d.ok) location.reload();
+    else alert(d.error || 'Hata oluştu.');
+  } catch(e) { alert('Bağlantı hatası.'); }
+}
+</script>
+
+{% endblock %}

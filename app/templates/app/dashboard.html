@@ -60,7 +60,7 @@
   <div class="stat-card" style="cursor:default;">
     <div class="label">ETİKETLEME</div>
     <div style="display:flex;gap:12px;margin-top:6px;">
-      <a href="{% url 'ui_baro_lawyers' %}?tag_filter=blacklist" style="flex:1;text-align:center;text-decoration:none;">
+      <a href="{% url 'ui_baro_blacklist_page' %}" style="flex:1;text-align:center;text-decoration:none;">
         <div style="font-size:11px;color:#ef4444;font-weight:600;margin-bottom:2px;">🚫 Kara Liste</div>
         <div style="font-size:22px;font-weight:800;color:#ef4444;line-height:1;">{{ data.baro_stats.blacklist_count|default:0 }}</div>
         <div style="font-size:10px;color:var(--text-muted);">
@@ -70,7 +70,7 @@
         </div>
       </a>
       <div style="width:1px;background:var(--border-color);"></div>
-      <a href="{% url 'ui_baro_lawyers' %}?tag_filter=whitelist" style="flex:1;text-align:center;text-decoration:none;">
+      <a href="{% url 'ui_baro_whitelist_page' %}" style="flex:1;text-align:center;text-decoration:none;">
         <div style="font-size:11px;color:#10b981;font-weight:600;margin-bottom:2px;">✅ Beyaz Liste</div>
         <div style="font-size:22px;font-weight:800;color:#10b981;line-height:1;">{{ data.baro_stats.whitelist_count|default:0 }}</div>
         <div style="font-size:10px;color:var(--text-muted);">

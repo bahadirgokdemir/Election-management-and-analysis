@@ -1307,6 +1307,58 @@ def ui_baro_lawyers(request):
 
 
 @login_required_custom
+@require_http_methods(["GET"])
+def ui_baro_tagged_page(request, tag_type: str):
+    """
+    Kara Liste veya Beyaz Liste sayfası — etiketli tüm Baro kayıtları.
+    tag_type: 'blacklist' | 'whitelist'
+    """
+    if tag_type not in ('blacklist', 'whitelist'):
+        return redirect('ui_baro_lawyers')
+
+    tags = (
+        BaroLawyerTag.objects
+        .filter(tag_type=tag_type)
+        .select_related('baro_lawyer')
+        .order_by('baro_lawyer__sicil_no')
+    )
+
+    # Her kişi için LawyerPerson durumunu bul
+    sicil_list = [t.baro_lawyer.sicil_no for t in tags]
+    # kisi_sicilno → list of (lawyer_name, cevap_status_key)
+    from django.db.models import F
+    lp_qs = (
+        LawyerPerson.objects
+        .filter(kisi_sicilno__in=sicil_list, active=True)
+        .select_related('cevap_status', 'lawyer')
+        .values('kisi_sicilno', 'cevap_status__key', 'cevap_status__label', 'lawyer__ad', 'lawyer__soyad')
+    )
+    from collections import defaultdict
+    lp_map = defaultdict(list)
+    for lp in lp_qs:
+        lp_map[lp['kisi_sicilno']].append({
+            'status_key': lp['cevap_status__key'] or '',
+            'status_label': lp['cevap_status__label'] or '',
+            'lawyer': f"{lp['lawyer__ad']} {lp['lawyer__soyad']}",
+        })
+
+    rows = []
+    for tag in tags:
+        rows.append({
+            'tag': tag,
+            'bl': tag.baro_lawyer,
+            'lists': lp_map.get(tag.baro_lawyer.sicil_no, []),
+        })
+
+    label = 'Kara Liste' if tag_type == 'blacklist' else 'Beyaz Liste'
+    return render(request, 'app/baro_tagged_list.html', {
+        'rows': rows,
+        'tag_type': tag_type,
+        'label': label,
+    })
+
+
+@login_required_custom
 @require_http_methods(["POST"])
 def ui_baro_tag_toggle(request, sicil_no: str):
     """
