@@ -21,9 +21,11 @@ def report_overview() -> Dict:
     )
     by_status = {(r['cevap_status__key'] or 'bos'): r['cnt'] for r in status_counts}
 
-    # Avukat başına istatistikler
+    # Avukat başına istatistikler (sistem avukatları hariç)
+    _SYS_SICILS = ['_KARALIST_', '_BEYAZLIST_']
     lawyer_stats = (
         Lawyer.objects
+        .exclude(sicil_no__in=_SYS_SICILS)
         .annotate(
             person_count=Count('lawyerperson', filter=Q(lawyerperson__active=True))
         )

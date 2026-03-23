@@ -75,8 +75,9 @@ def ui_lawyers(request):
                 messages.info(request, "Bu sicil no zaten mevcut; yeni bir kayıt oluşturulmadı.")
         return redirect('ui_lawyers')
 
+    _SYS_SICILS = [_KARA_LISTE_SICIL, _BEYAZ_LISTE_SICIL]
     q = (request.GET.get('q') or '').strip()
-    qs = Lawyer.objects.all().order_by('-id')
+    qs = Lawyer.objects.exclude(sicil_no__in=_SYS_SICILS).order_by('-id')
     if q:
         qs = apply_name_search(qs, q, extra_fields=['sicil_no'])
     page = Paginator(qs, 20).get_page(request.GET.get('page'))
@@ -160,7 +161,7 @@ def ui_people(request):
 
     page = Paginator(qs, 25).get_page(request.GET.get('page'))
     statuses = StatusOption.objects.all().order_by('key')
-    lawyers = Lawyer.objects.all().order_by('ad', 'soyad')
+    lawyers = Lawyer.objects.exclude(sicil_no__in=[_KARA_LISTE_SICIL, _BEYAZ_LISTE_SICIL]).order_by('ad', 'soyad')
 
     return render(request, 'app/people_list.html', {
         'page': page,
@@ -187,8 +188,8 @@ def ui_upload(request):
         return redirect('ui_dashboard')
 
     if request.method == 'GET':
-        # Tüm avukatları alfabetik sırala
-        lawyers = Lawyer.objects.all().order_by('ad', 'soyad')
+        # Tüm avukatları alfabetik sırala (sistem avukatları hariç)
+        lawyers = Lawyer.objects.exclude(sicil_no__in=[_KARA_LISTE_SICIL, _BEYAZ_LISTE_SICIL]).order_by('ad', 'soyad')
         return render(request, 'app/upload_wizard.html', {'lawyers': lawyers})
 
     # POST
@@ -1306,6 +1307,95 @@ def ui_baro_lawyers(request):
     })
 
 
+_KARA_LISTE_SICIL = '_KARALIST_'
+_BEYAZ_LISTE_SICIL = '_BEYAZLIST_'
+
+
+def _sync_tag_to_lawyer_list(baro_lawyer, new_tag_type: str) -> int:
+    """
+    Etiket eklendiğinde/değiştiğinde/kaldırıldığında özel sistem avukat listelerini günceller.
+    Kara Liste → "_KARALIST_" avukatı, cevap_status=olumsuz
+    Beyaz Liste → "_BEYAZLIST_" avukatı, cevap_status=olumlu
+    Returns: updated / added count
+    """
+    olumsuz, _ = StatusOption.objects.get_or_create(key='olumsuz', defaults={'label': 'Olumsuz'})
+    olumlu, _ = StatusOption.objects.get_or_create(key='olumlu', defaults={'label': 'Olumlu'})
+
+    # Person kaydını bul veya oluştur
+    person = Person.objects.filter(kisi_sicilno=baro_lawyer.sicil_no).first()
+    if not person:
+        person = Person.objects.create(
+            kisi_sicilno=baro_lawyer.sicil_no,
+            ad=baro_lawyer.ad or baro_lawyer.sicil_no,
+            soyad=baro_lawyer.soyad or '',
+        )
+
+    count = 0
+    if new_tag_type == BaroLawyerTag.BLACKLIST:
+        kara_lawyer, _ = Lawyer.objects.get_or_create(
+            sicil_no=_KARA_LISTE_SICIL,
+            defaults={'ad': 'Kara Liste', 'soyad': 'Sistemi'},
+        )
+        lp, created = LawyerPerson.objects.get_or_create(
+            lawyer=kara_lawyer,
+            kisi_sicilno=baro_lawyer.sicil_no,
+            defaults={
+                'person': person,
+                'ad': baro_lawyer.ad or '',
+                'soyad': baro_lawyer.soyad or '',
+                'cevap_status': olumsuz,
+                'active': True,
+            },
+        )
+        if not created:
+            lp.active = True
+            lp.cevap_status = olumsuz
+            lp.save(update_fields=['active', 'cevap_status', 'updated_at'])
+        count = 1
+        # Beyaz Liste'den çıkar
+        beyaz = Lawyer.objects.filter(sicil_no=_BEYAZ_LISTE_SICIL).first()
+        if beyaz:
+            LawyerPerson.objects.filter(lawyer=beyaz, kisi_sicilno=baro_lawyer.sicil_no).update(active=False)
+
+    elif new_tag_type == BaroLawyerTag.WHITELIST:
+        beyaz_lawyer, _ = Lawyer.objects.get_or_create(
+            sicil_no=_BEYAZ_LISTE_SICIL,
+            defaults={'ad': 'Beyaz Liste', 'soyad': 'Sistemi'},
+        )
+        lp, created = LawyerPerson.objects.get_or_create(
+            lawyer=beyaz_lawyer,
+            kisi_sicilno=baro_lawyer.sicil_no,
+            defaults={
+                'person': person,
+                'ad': baro_lawyer.ad or '',
+                'soyad': baro_lawyer.soyad or '',
+                'cevap_status': olumlu,
+                'active': True,
+            },
+        )
+        if not created:
+            lp.active = True
+            lp.cevap_status = olumlu
+            lp.save(update_fields=['active', 'cevap_status', 'updated_at'])
+        count = 1
+        # Kara Liste'den çıkar
+        kara = Lawyer.objects.filter(sicil_no=_KARA_LISTE_SICIL).first()
+        if kara:
+            LawyerPerson.objects.filter(lawyer=kara, kisi_sicilno=baro_lawyer.sicil_no).update(active=False)
+
+    else:
+        # Etiket kaldırıldı — her iki listeden de sil
+        for sicil in [_KARA_LISTE_SICIL, _BEYAZ_LISTE_SICIL]:
+            lawyer = Lawyer.objects.filter(sicil_no=sicil).first()
+            if lawyer:
+                c = LawyerPerson.objects.filter(
+                    lawyer=lawyer, kisi_sicilno=baro_lawyer.sicil_no
+                ).update(active=False)
+                count += c
+
+    return count
+
+
 @login_required_custom
 @require_http_methods(["GET"])
 def ui_baro_tagged_page(request, tag_type: str):
@@ -1323,17 +1413,16 @@ def ui_baro_tagged_page(request, tag_type: str):
         .order_by('baro_lawyer__sicil_no')
     )
 
-    # Her kişi için LawyerPerson durumunu bul
+    # Her kişi için LawyerPerson durumunu bul (sistem avukatları hariç)
     sicil_list = [t.baro_lawyer.sicil_no for t in tags]
-    # kisi_sicilno → list of (lawyer_name, cevap_status_key)
-    from django.db.models import F
+    from collections import defaultdict
     lp_qs = (
         LawyerPerson.objects
         .filter(kisi_sicilno__in=sicil_list, active=True)
+        .exclude(lawyer__sicil_no__in=[_KARA_LISTE_SICIL, _BEYAZ_LISTE_SICIL])
         .select_related('cevap_status', 'lawyer')
         .values('kisi_sicilno', 'cevap_status__key', 'cevap_status__label', 'lawyer__ad', 'lawyer__soyad')
     )
-    from collections import defaultdict
     lp_map = defaultdict(list)
     for lp in lp_qs:
         lp_map[lp['kisi_sicilno']].append({
@@ -1376,8 +1465,9 @@ def ui_baro_tag_toggle(request, sicil_no: str):
 
     if not tag_type:
         # Etiketi kaldır
-        deleted, _ = BaroLawyerTag.objects.filter(baro_lawyer=baro_lawyer).delete()
-        return JsonResponse({'ok': True, 'action': 'removed', 'tag_type': None})
+        BaroLawyerTag.objects.filter(baro_lawyer=baro_lawyer).delete()
+        _sync_tag_to_lawyer_list(baro_lawyer, '')
+        return JsonResponse({'ok': True, 'action': 'removed', 'tag_type': None, 'status_updated': 0})
 
     if tag_type not in (BaroLawyerTag.BLACKLIST, BaroLawyerTag.WHITELIST):
         return JsonResponse({'error': 'Geçersiz etiket türü'}, status=400)
@@ -1387,14 +1477,16 @@ def ui_baro_tag_toggle(request, sicil_no: str):
         defaults={'tag_type': tag_type, 'note': note, 'created_by': actor},
     )
 
-    # Etiket türüne göre cevap durumunu otomatik güncelle
+    # Sistem avukat listesine ekle (kara/beyaz liste sanal avukatı)
+    _sync_tag_to_lawyer_list(baro_lawyer, tag_type)
+
+    # Diğer avukat listelerinde de cevap durumunu güncelle
     target_key = 'olumlu' if tag_type == BaroLawyerTag.WHITELIST else 'olumsuz'
-    target_label = 'Olumlu' if target_key == 'olumlu' else 'Olumsuz'
     status_obj, _ = StatusOption.objects.get_or_create(
-        key=target_key, defaults={'label': target_label}
+        key=target_key, defaults={'label': 'Olumlu' if target_key == 'olumlu' else 'Olumsuz'}
     )
     status_updated = LawyerPerson.objects.filter(
-        kisi_sicilno=sicil_no, active=True
+        kisi_sicilno=baro_lawyer.sicil_no, active=True
     ).update(cevap_status=status_obj)
 
     return JsonResponse({
@@ -1488,7 +1580,9 @@ def ui_baro_bulk_tag(request):
                 baro_lawyer=baro_lawyer,
                 defaults={'tag_type': tag_type, 'note': note, 'created_by': actor},
             )
-            # Cevap durumunu otomatik güncelle
+            # Sistem avukat listesine ekle
+            _sync_tag_to_lawyer_list(baro_lawyer, tag_type)
+            # Diğer listelerdeki cevap durumunu da güncelle
             cnt = LawyerPerson.objects.filter(kisi_sicilno=sicil, active=True).update(cevap_status=status_obj)
             total_status_updated += cnt
             found.append(sicil)
