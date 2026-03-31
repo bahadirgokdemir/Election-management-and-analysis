@@ -12,7 +12,7 @@ from .views_ui import (
     ui_baro_whitelist_detail, ui_baro_bulk_tag,
     ui_baro_lawyer_detail, ui_baro_photo_proxy, ui_committee_memberships,
     ui_birthdays_today, ui_upload_unknown_records,
-    ui_baro_tagged_page,
+    ui_baro_tagged_page, ui_baro_tagged_export,
 )
 from .views_election import (
     ui_elections, ui_election_create, ui_election_activate,
@@ -63,6 +63,8 @@ urlpatterns = [
     path('baro-lawyers/bulk-tag/', ui_baro_bulk_tag, name='ui_baro_bulk_tag'),
     path('baro-lawyers/kara-liste/', ui_baro_tagged_page, {'tag_type': 'blacklist'}, name='ui_baro_blacklist_page'),
     path('baro-lawyers/beyaz-liste/', ui_baro_tagged_page, {'tag_type': 'whitelist'}, name='ui_baro_whitelist_page'),
+    path('baro-lawyers/kara-liste/export/', ui_baro_tagged_export, {'tag_type': 'blacklist'}, name='ui_baro_blacklist_export'),
+    path('baro-lawyers/beyaz-liste/export/', ui_baro_tagged_export, {'tag_type': 'whitelist'}, name='ui_baro_whitelist_export'),
     path('baro-lawyers/<str:sicil_no>/tag/', ui_baro_tag_toggle, name='ui_baro_tag_toggle'),
     path('baro-lawyers/<str:sicil_no>/detail/', ui_baro_lawyer_detail, name='ui_baro_lawyer_detail'),
     path('baro-lawyers/<str:sicil_no>/photo/', ui_baro_photo_proxy, name='ui_baro_photo_proxy'),

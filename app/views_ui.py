@@ -1406,12 +1406,26 @@ def ui_baro_tagged_page(request, tag_type: str):
     if tag_type not in ('blacklist', 'whitelist'):
         return redirect('ui_baro_lawyers')
 
-    tags = (
+    q = (request.GET.get('q') or '').strip()
+    ilce = (request.GET.get('ilce') or '').strip()
+
+    tags_qs = (
         BaroLawyerTag.objects
         .filter(tag_type=tag_type)
         .select_related('baro_lawyer')
         .order_by('baro_lawyer__sicil_no')
     )
+
+    if q:
+        tags_qs = tags_qs.filter(
+            Q(baro_lawyer__ad__icontains=q) |
+            Q(baro_lawyer__soyad__icontains=q) |
+            Q(baro_lawyer__sicil_no__icontains=q)
+        )
+    if ilce:
+        tags_qs = tags_qs.filter(baro_lawyer__ilce__iexact=ilce)
+
+    tags = tags_qs
 
     # Her kişi için LawyerPerson durumunu bul (sistem avukatları hariç)
     sicil_list = [t.baro_lawyer.sicil_no for t in tags]
@@ -1444,7 +1458,147 @@ def ui_baro_tagged_page(request, tag_type: str):
         'rows': rows,
         'tag_type': tag_type,
         'label': label,
+        'q': q,
+        'ilce': ilce,
     })
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_baro_tagged_export(request, tag_type: str):
+    """
+    Kara Liste veya Beyaz Liste kayıtlarını CSV ya da Excel olarak indirir.
+    GET params: format=csv|excel  q=arama  ilce=filtre
+    """
+    if tag_type not in ('blacklist', 'whitelist'):
+        return redirect('ui_baro_lawyers')
+
+    from datetime import datetime as _dt
+    from io import BytesIO
+
+    fmt = request.GET.get('format', 'csv')
+    q = (request.GET.get('q') or '').strip()
+    ilce_filter = (request.GET.get('ilce') or '').strip()
+
+    qs = (
+        BaroLawyerTag.objects
+        .filter(tag_type=tag_type)
+        .select_related('baro_lawyer')
+        .order_by('baro_lawyer__sicil_no')
+    )
+
+    # İsim / sicil arama
+    if q:
+        qs = qs.filter(
+            Q(baro_lawyer__ad__icontains=q) |
+            Q(baro_lawyer__soyad__icontains=q) |
+            Q(baro_lawyer__sicil_no__icontains=q)
+        )
+
+    # İlçe filtresi
+    if ilce_filter:
+        qs = qs.filter(baro_lawyer__ilce__iexact=ilce_filter)
+
+    label = 'Kara Liste' if tag_type == 'blacklist' else 'Beyaz Liste'
+    timestamp = _dt.now().strftime('%Y%m%d_%H%M%S')
+    safe_label = 'kara_liste' if tag_type == 'blacklist' else 'beyaz_liste'
+
+    COLUMNS = [
+        ('sicil_no',     'Sicil No'),
+        ('ad',           'Ad'),
+        ('soyad',        'Soyad'),
+        ('mail',         'E-posta'),
+        ('tel',          'Telefon'),
+        ('ilce',         'İlçe (Çalışma)'),
+        ('dogum_tarihi', 'Doğum Tarihi'),
+        ('uye',          'Üye Durumu'),
+        ('tag_note',     'Etiket Notu'),
+        ('created_by',   'Ekleyen'),
+        ('created_at',   'Etiketlenme Tarihi'),
+    ]
+
+    def row_data(tag):
+        bl = tag.baro_lawyer
+        return [
+            bl.sicil_no,
+            bl.ad,
+            bl.soyad,
+            bl.mail or '',
+            bl.tel or '',
+            bl.ilce or '',
+            bl.dogum_tarihi or '',
+            bl.uye or '',
+            tag.note or '',
+            tag.created_by or '',
+            tag.created_at.strftime('%d.%m.%Y') if tag.created_at else '',
+        ]
+
+    if fmt == 'excel':
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = label
+
+        header_font = Font(name='Calibri', size=11, bold=True, color='FFFFFF')
+        if tag_type == 'blacklist':
+            header_fill = PatternFill(start_color='C0392B', end_color='C0392B', fill_type='solid')
+        else:
+            header_fill = PatternFill(start_color='27AE60', end_color='27AE60', fill_type='solid')
+        header_align = Alignment(horizontal='center', vertical='center')
+        border = Border(
+            left=Side(style='thin', color='CCCCCC'), right=Side(style='thin', color='CCCCCC'),
+            top=Side(style='thin', color='CCCCCC'),  bottom=Side(style='thin', color='CCCCCC'),
+        )
+        col_widths = [12, 18, 18, 28, 16, 18, 14, 12, 35, 20, 16]
+
+        # Bilgi satırı
+        ws.merge_cells(f'A1:{get_column_letter(len(COLUMNS))}1')
+        ws['A1'].value = f'{label} — Export: {_dt.now().strftime("%d.%m.%Y %H:%M")} — Toplam: {qs.count()} kayıt'
+        ws['A1'].font = Font(name='Calibri', size=10, italic=True, color='666666')
+        ws['A1'].alignment = Alignment(horizontal='center')
+
+        # Başlıklar
+        for ci, (_, col_label) in enumerate(COLUMNS, 1):
+            cell = ws.cell(row=2, column=ci, value=col_label)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = border
+            ws.column_dimensions[get_column_letter(ci)].width = col_widths[ci - 1]
+
+        # Veriler
+        for ri, tag in enumerate(qs, 3):
+            for ci, val in enumerate(row_data(tag), 1):
+                cell = ws.cell(row=ri, column=ci, value=val)
+                cell.font = Font(name='Calibri', size=10)
+                cell.border = border
+                cell.alignment = Alignment(horizontal='left', vertical='top')
+
+        ws.freeze_panes = 'A3'
+        ws.auto_filter.ref = f'A2:{get_column_letter(len(COLUMNS))}{qs.count() + 2}'
+
+        bio = BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+        response = HttpResponse(
+            bio.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = f'attachment; filename="{safe_label}_{timestamp}.xlsx"'
+        return response
+
+    else:  # csv
+        import csv as _csv
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = f'attachment; filename="{safe_label}_{timestamp}.csv"'
+        writer = _csv.writer(response)
+        writer.writerow([col_label for _, col_label in COLUMNS])
+        for tag in qs:
+            writer.writerow(row_data(tag))
+        return response
 
 
 @login_required_custom
