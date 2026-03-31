@@ -163,6 +163,15 @@ def ui_people(request):
     statuses = StatusOption.objects.all().order_by('key')
     lawyers = Lawyer.objects.exclude(sicil_no__in=[_KARA_LISTE_SICIL, _BEYAZ_LISTE_SICIL]).order_by('ad', 'soyad')
 
+    # Sayfadaki kişiler için baro tag notlarını getir
+    page_sicils = [lp.kisi_sicilno for lp in page.object_list]
+    tag_map = {
+        t.baro_lawyer.sicil_no: t
+        for t in BaroLawyerTag.objects.filter(
+            baro_lawyer__sicil_no__in=page_sicils
+        ).select_related('baro_lawyer')
+    }
+
     return render(request, 'app/people_list.html', {
         'page': page,
         'q': q,
@@ -174,6 +183,7 @@ def ui_people(request):
         'lawyers': lawyers,
         'adv_dogum_yeri': adv_dogum_yeri,
         'adv_nufus_il': adv_nufus_il,
+        'tag_map': tag_map,
     })
 
 
@@ -965,12 +975,22 @@ def ui_lawyer_people(request, lawyer_id: int):
     page = Paginator(qs, 25).get_page(request.GET.get('page'))
     statuses = StatusOption.objects.all().order_by('key')
 
+    # Sayfadaki kişiler için baro tag notlarını getir
+    page_sicils = [p.kisi_sicilno for p in page.object_list]
+    tag_map = {
+        t.baro_lawyer.sicil_no: t
+        for t in BaroLawyerTag.objects.filter(
+            baro_lawyer__sicil_no__in=page_sicils
+        ).select_related('baro_lawyer')
+    }
+
     return render(request, 'app/lawyer_people.html', {
         'lawyer': lawyer,
         'page': page,
         'q': q,
         'status_key': status_key,
         'statuses': statuses,
+        'tag_map': tag_map,
     })
 
 

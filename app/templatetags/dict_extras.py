@@ -5,7 +5,7 @@ register = template.Library()
 
 @register.filter
 def get_item(d, key):
-    """Sözlükten key ile değer döndürür; yoksa boş string."""
+    """Sözlükten key ile değer döndürür; yoksa None."""
     if isinstance(d, dict):
-        return d.get(key, "")
-    return ""
+        return d.get(key)
+    return None
