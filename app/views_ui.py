@@ -1140,6 +1140,15 @@ def ui_unique_people(request):
     from django.core.paginator import Paginator
     page = Paginator(unique_people, 25).get_page(request.GET.get('page'))
 
+    # Sayfadaki kişiler için baro tag notlarını getir
+    page_sicils = [p['kisi_sicilno'] if isinstance(p, dict) else p.kisi_sicilno for p in page.object_list]
+    tag_map = {
+        t.baro_lawyer.sicil_no: t
+        for t in BaroLawyerTag.objects.filter(
+            baro_lawyer__sicil_no__in=page_sicils
+        ).select_related('baro_lawyer')
+    }
+
     # Filtre seçenekleri
     statuses = StatusOption.objects.all().order_by('key')
     lawyers = Lawyer.objects.all().order_by('ad', 'soyad')
@@ -1156,6 +1165,7 @@ def ui_unique_people(request):
         'statuses': statuses,
         'lawyers': lawyers,
         'stats': stats,
+        'tag_map': tag_map,
     })
 
 
@@ -1170,6 +1180,10 @@ def ui_unique_person_detail(request, kisi_sicilno: str):
 
     if not person:
         return JsonResponse({'error': 'Kişi bulunamadı'}, status=404)
+
+    tag = BaroLawyerTag.objects.filter(baro_lawyer__sicil_no=kisi_sicilno).first()
+    person['baro_tag_type'] = tag.tag_type if tag else ''
+    person['baro_tag_note'] = tag.note or '' if tag else ''
 
     return JsonResponse(person)
 
@@ -1194,6 +1208,10 @@ def ui_person_analytics(request, kisi_sicilno: str):
         analytics['comparison'] = comparison
     except Exception:
         analytics['comparison'] = {}
+
+    tag = BaroLawyerTag.objects.filter(baro_lawyer__sicil_no=kisi_sicilno).first()
+    analytics['baro_tag_type'] = tag.tag_type if tag else ''
+    analytics['baro_tag_note'] = tag.note or '' if tag else ''
 
     return JsonResponse(analytics)
 

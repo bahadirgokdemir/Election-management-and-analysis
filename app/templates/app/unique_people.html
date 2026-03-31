@@ -1,4 +1,5 @@
 {% extends 'app/base.html' %}
+{% load dict_extras %}
 {% block title %}Net Kisi Listesi{% endblock %}
 {% block content %}
 
@@ -177,6 +178,18 @@
                 Belirtilmemis
               </span>
             {% endif %}
+            {% with tag=tag_map|get_item:person.kisi_sicilno %}
+              {% if tag %}
+                <div style="margin-top:3px;">
+                  {% if tag.tag_type == 'blacklist' %}
+                    <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(239,68,68,0.12);color:#ef4444;font-weight:600;">🚫</span>
+                  {% else %}
+                    <span style="font-size:10px;padding:1px 5px;border-radius:3px;background:rgba(16,185,129,0.12);color:#10b981;font-weight:600;">✅</span>
+                  {% endif %}
+                  {% if tag.note %}<span style="font-size:10px;color:var(--text-muted);font-style:italic;"> {{ tag.note|truncatechars:25 }}</span>{% endif %}
+                </div>
+              {% endif %}
+            {% endwith %}
           </td>
           <td style="text-align: center;">
             {% if person.record_count > 1 %}
@@ -447,6 +460,21 @@ async function showPersonDetail(kisiSicilno) {
             <div style="font-size: 16px; font-weight: 700; color: #F59E0B;">${person.record_count} kayit, ${person.lawyer_count} avukat</div>
           </div>
         </div>
+
+        <!-- Baro Etiketi -->
+        ${person.baro_tag_type ? `
+        <div style="padding:12px 16px;border-radius:8px;display:flex;align-items:center;gap:10px;
+          ${person.baro_tag_type === 'blacklist'
+            ? 'background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);'
+            : 'background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);'}">
+          <span style="font-size:20px;">${person.baro_tag_type === 'blacklist' ? '🚫' : '✅'}</span>
+          <div>
+            <div style="font-weight:600;font-size:13px;color:${person.baro_tag_type === 'blacklist' ? '#ef4444' : '#10b981'};">
+              ${person.baro_tag_type === 'blacklist' ? 'Kara Liste' : 'Beyaz Liste'}
+            </div>
+            ${person.baro_tag_note ? `<div style="font-size:12px;color:var(--text-muted);margin-top:2px;">${person.baro_tag_note}</div>` : ''}
+          </div>
+        </div>` : ''}
 
         <!-- Iletisim Bilgileri -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
