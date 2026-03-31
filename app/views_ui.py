@@ -1468,7 +1468,7 @@ def ui_baro_tagged_page(request, tag_type: str):
 def ui_baro_tagged_export(request, tag_type: str):
     """
     Kara Liste veya Beyaz Liste kayıtlarını CSV ya da Excel olarak indirir.
-    GET params: format=csv|excel  q=arama  ilce=filtre
+    GET params: format, q, ilce, note_q, sicil_min, sicil_max, cols (multi)
     """
     if tag_type not in ('blacklist', 'whitelist'):
         return redirect('ui_baro_lawyers')
@@ -1479,6 +1479,12 @@ def ui_baro_tagged_export(request, tag_type: str):
     fmt = request.GET.get('format', 'csv')
     q = (request.GET.get('q') or '').strip()
     ilce_filter = (request.GET.get('ilce') or '').strip()
+    note_q = (request.GET.get('note_q') or '').strip()
+    sicil_min = (request.GET.get('sicil_min') or '').strip()
+    sicil_max = (request.GET.get('sicil_max') or '').strip()
+    selected_cols = request.GET.getlist('cols') or [
+        'sicil_no', 'ad', 'soyad', 'mail', 'ilce', 'tag_note', 'created_at'
+    ]
 
     qs = (
         BaroLawyerTag.objects
@@ -1487,51 +1493,65 @@ def ui_baro_tagged_export(request, tag_type: str):
         .order_by('baro_lawyer__sicil_no')
     )
 
-    # İsim / sicil arama
     if q:
         qs = qs.filter(
             Q(baro_lawyer__ad__icontains=q) |
             Q(baro_lawyer__soyad__icontains=q) |
             Q(baro_lawyer__sicil_no__icontains=q)
         )
-
-    # İlçe filtresi
     if ilce_filter:
         qs = qs.filter(baro_lawyer__ilce__iexact=ilce_filter)
+    if note_q:
+        qs = qs.filter(note__icontains=note_q)
+    if sicil_min:
+        try:
+            qs = qs.filter(baro_lawyer__sicil_no__gte=str(int(sicil_min)))
+        except ValueError:
+            pass
+    if sicil_max:
+        try:
+            qs = qs.filter(baro_lawyer__sicil_no__lte=str(int(sicil_max)))
+        except ValueError:
+            pass
 
     label = 'Kara Liste' if tag_type == 'blacklist' else 'Beyaz Liste'
     timestamp = _dt.now().strftime('%Y%m%d_%H%M%S')
     safe_label = 'kara_liste' if tag_type == 'blacklist' else 'beyaz_liste'
 
-    COLUMNS = [
-        ('sicil_no',     'Sicil No'),
-        ('ad',           'Ad'),
-        ('soyad',        'Soyad'),
-        ('mail',         'E-posta'),
-        ('tel',          'Telefon'),
-        ('ilce',         'İlçe (Çalışma)'),
-        ('dogum_tarihi', 'Doğum Tarihi'),
-        ('uye',          'Üye Durumu'),
-        ('tag_note',     'Etiket Notu'),
-        ('created_by',   'Ekleyen'),
-        ('created_at',   'Etiketlenme Tarihi'),
-    ]
+    ALL_COLUMNS = {
+        'sicil_no':     ('Sicil No',          12),
+        'ad':           ('Ad',                18),
+        'soyad':        ('Soyad',             18),
+        'mail':         ('E-posta',           28),
+        'tel':          ('Telefon',           16),
+        'ilce':         ('İlçe (Çalışma)',    18),
+        'dogum_tarihi': ('Doğum Tarihi',      14),
+        'uye':          ('Üye Durumu',        12),
+        'cinsiyet':     ('Cinsiyet',          10),
+        'adres':        ('Adres',             35),
+        'tag_note':     ('Etiket Notu',       35),
+        'created_by':   ('Ekleyen',           20),
+        'created_at':   ('Etiket Tarihi',     16),
+    }
 
-    def row_data(tag):
+    COLUMNS = [(k, ALL_COLUMNS[k]) for k in selected_cols if k in ALL_COLUMNS]
+
+    def get_val(tag, key):
         bl = tag.baro_lawyer
-        return [
-            bl.sicil_no,
-            bl.ad,
-            bl.soyad,
-            bl.mail or '',
-            bl.tel or '',
-            bl.ilce or '',
-            bl.dogum_tarihi or '',
-            bl.uye or '',
-            tag.note or '',
-            tag.created_by or '',
-            tag.created_at.strftime('%d.%m.%Y') if tag.created_at else '',
-        ]
+        if key == 'sicil_no':    return bl.sicil_no
+        if key == 'ad':          return bl.ad or ''
+        if key == 'soyad':       return bl.soyad or ''
+        if key == 'mail':        return bl.mail or ''
+        if key == 'tel':         return bl.tel or ''
+        if key == 'ilce':        return bl.ilce or ''
+        if key == 'dogum_tarihi': return bl.dogum_tarihi or ''
+        if key == 'uye':         return bl.uye or ''
+        if key == 'cinsiyet':    return bl.cinsiyet or ''
+        if key == 'adres':       return bl.adres or ''
+        if key == 'tag_note':    return tag.note or ''
+        if key == 'created_by':  return tag.created_by or ''
+        if key == 'created_at':  return tag.created_at.strftime('%d.%m.%Y') if tag.created_at else ''
+        return ''
 
     if fmt == 'excel':
         from openpyxl import Workbook
@@ -1554,31 +1574,32 @@ def ui_baro_tagged_export(request, tag_type: str):
         )
         col_widths = [12, 18, 18, 28, 16, 18, 14, 12, 35, 20, 16]
 
+        n_cols = len(COLUMNS)
         # Bilgi satırı
-        ws.merge_cells(f'A1:{get_column_letter(len(COLUMNS))}1')
+        ws.merge_cells(f'A1:{get_column_letter(n_cols)}1')
         ws['A1'].value = f'{label} — Export: {_dt.now().strftime("%d.%m.%Y %H:%M")} — Toplam: {qs.count()} kayıt'
         ws['A1'].font = Font(name='Calibri', size=10, italic=True, color='666666')
         ws['A1'].alignment = Alignment(horizontal='center')
 
         # Başlıklar
-        for ci, (_, col_label) in enumerate(COLUMNS, 1):
+        for ci, (col_key, (col_label, col_w)) in enumerate(COLUMNS, 1):
             cell = ws.cell(row=2, column=ci, value=col_label)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_align
             cell.border = border
-            ws.column_dimensions[get_column_letter(ci)].width = col_widths[ci - 1]
+            ws.column_dimensions[get_column_letter(ci)].width = col_w
 
         # Veriler
         for ri, tag in enumerate(qs, 3):
-            for ci, val in enumerate(row_data(tag), 1):
-                cell = ws.cell(row=ri, column=ci, value=val)
+            for ci, (col_key, _) in enumerate(COLUMNS, 1):
+                cell = ws.cell(row=ri, column=ci, value=get_val(tag, col_key))
                 cell.font = Font(name='Calibri', size=10)
                 cell.border = border
                 cell.alignment = Alignment(horizontal='left', vertical='top')
 
         ws.freeze_panes = 'A3'
-        ws.auto_filter.ref = f'A2:{get_column_letter(len(COLUMNS))}{qs.count() + 2}'
+        ws.auto_filter.ref = f'A2:{get_column_letter(n_cols)}{qs.count() + 2}'
 
         bio = BytesIO()
         wb.save(bio)
@@ -1595,9 +1616,9 @@ def ui_baro_tagged_export(request, tag_type: str):
         response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = f'attachment; filename="{safe_label}_{timestamp}.csv"'
         writer = _csv.writer(response)
-        writer.writerow([col_label for _, col_label in COLUMNS])
+        writer.writerow([col_label for _, (col_label, _) in COLUMNS])
         for tag in qs:
-            writer.writerow(row_data(tag))
+            writer.writerow([get_val(tag, col_key) for col_key, _ in COLUMNS])
         return response
 
 

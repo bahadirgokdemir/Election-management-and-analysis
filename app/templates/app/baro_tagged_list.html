@@ -3,51 +3,39 @@
 {% block content %}
 
 {% if tag_type == 'blacklist' %}
-  {% with tag_color="#ef4444" tag_bg="rgba(239,68,68,0.08)" tag_border="rgba(239,68,68,0.3)" tag_icon="🚫" other_url="ui_baro_whitelist_page" other_label="Beyaz Liste" export_url="ui_baro_blacklist_export" %}
+  {% with tag_color="#ef4444" other_url="ui_baro_whitelist_page" export_url="ui_baro_blacklist_export" %}
 
 <div class="page-header">
   <div>
-    <h1 style="color:{{ tag_color }};">{{ tag_icon }} {{ label }}</h1>
-    <p style="color:var(--text-muted);">{{ rows|length }} kişi — kara listedeki Baro kayıtları</p>
+    <h1 style="color:{{ tag_color }};">🚫 {{ label }}</h1>
+    <p style="color:var(--text-muted);">{{ rows|length }} kişi gösteriliyor</p>
   </div>
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <a href="{% url other_url %}" class="btn">✅ Beyaz Liste</a>
     <a href="{% url 'ui_baro_lawyers' %}" class="btn" style="background:var(--bg-content);">Tüm Baro Kayıtları</a>
-    <div style="display:flex;gap:6px;">
-      <a href="{% url export_url %}?format=csv&q={{ q|urlencode }}&ilce={{ ilce|urlencode }}"
-         class="btn" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);font-size:12px;">
-        ⬇ CSV
-      </a>
-      <a href="{% url export_url %}?format=excel&q={{ q|urlencode }}&ilce={{ ilce|urlencode }}"
-         class="btn" style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);font-size:12px;">
-        ⬇ Excel
-      </a>
-    </div>
+    <button onclick="openExportModal()" class="btn"
+            style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);">
+      ⬇ Dışa Aktar
+    </button>
   </div>
 </div>
 
   {% endwith %}
 {% else %}
-  {% with tag_color="#10b981" tag_bg="rgba(16,185,129,0.08)" tag_border="rgba(16,185,129,0.3)" tag_icon="✅" other_url="ui_baro_blacklist_page" other_label="Kara Liste" export_url="ui_baro_whitelist_export" %}
+  {% with tag_color="#10b981" other_url="ui_baro_blacklist_page" export_url="ui_baro_whitelist_export" %}
 
 <div class="page-header">
   <div>
-    <h1 style="color:{{ tag_color }};">{{ tag_icon }} {{ label }}</h1>
-    <p style="color:var(--text-muted);">{{ rows|length }} kişi — beyaz listedeki Baro kayıtları</p>
+    <h1 style="color:{{ tag_color }};">✅ {{ label }}</h1>
+    <p style="color:var(--text-muted);">{{ rows|length }} kişi gösteriliyor</p>
   </div>
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <a href="{% url other_url %}" class="btn" style="background:rgba(239,68,68,0.08);color:#ef4444;border:1px solid rgba(239,68,68,0.3);">🚫 Kara Liste</a>
     <a href="{% url 'ui_baro_lawyers' %}" class="btn" style="background:var(--bg-content);">Tüm Baro Kayıtları</a>
-    <div style="display:flex;gap:6px;">
-      <a href="{% url export_url %}?format=csv&q={{ q|urlencode }}&ilce={{ ilce|urlencode }}"
-         class="btn" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);font-size:12px;">
-        ⬇ CSV
-      </a>
-      <a href="{% url export_url %}?format=excel&q={{ q|urlencode }}&ilce={{ ilce|urlencode }}"
-         class="btn" style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);font-size:12px;">
-        ⬇ Excel
-      </a>
-    </div>
+    <button onclick="openExportModal()" class="btn"
+            style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);">
+      ⬇ Dışa Aktar
+    </button>
   </div>
 </div>
 
@@ -61,9 +49,7 @@
   <input name="ilce" value="{{ ilce }}" placeholder="İlçe filtresi..."
          style="width:160px;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-content);color:var(--text-primary);">
   <button type="submit" class="btn">Filtrele</button>
-  {% if q or ilce %}
-    <a href="?{% if tag_type == 'blacklist' %}{% else %}{% endif %}" class="btn" style="background:var(--bg-content);color:var(--text-muted);">Temizle</a>
-  {% endif %}
+  {% if q or ilce %}<a href="?" class="btn" style="background:var(--bg-content);color:var(--text-muted);">Temizle</a>{% endif %}
 </form>
 
 {% if not rows %}
@@ -95,20 +81,12 @@
         <td><strong style="font-family:monospace;">{{ row.bl.sicil_no }}</strong></td>
         <td>
           <strong>{{ row.bl.ad }} {{ row.bl.soyad }}</strong>
-          {% if row.bl.cinsiyet %}
-            <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">{{ row.bl.cinsiyet }}</span>
-          {% endif %}
+          {% if row.bl.cinsiyet %}<span style="font-size:11px;color:var(--text-muted);margin-left:4px;">{{ row.bl.cinsiyet }}</span>{% endif %}
         </td>
         <td>
-          {% if row.bl.mail %}
-            <a href="mailto:{{ row.bl.mail }}" style="color:var(--primary);font-size:12px;">{{ row.bl.mail }}</a><br>
-          {% endif %}
-          {% if row.bl.tel %}
-            <span style="font-size:12px;color:var(--text-secondary);">{{ row.bl.tel }}</span>
-          {% endif %}
-          {% if not row.bl.mail and not row.bl.tel %}
-            <span style="color:var(--text-muted);">—</span>
-          {% endif %}
+          {% if row.bl.mail %}<a href="mailto:{{ row.bl.mail }}" style="color:var(--primary);font-size:12px;">{{ row.bl.mail }}</a><br>{% endif %}
+          {% if row.bl.tel %}<span style="font-size:12px;color:var(--text-secondary);">{{ row.bl.tel }}</span>{% endif %}
+          {% if not row.bl.mail and not row.bl.tel %}<span style="color:var(--text-muted);">—</span>{% endif %}
         </td>
         <td style="font-size:12px;color:var(--text-secondary);">{{ row.bl.ilce|default:"—" }}</td>
         <td style="font-size:12px;color:var(--text-muted);font-style:italic;">{{ row.tag.note|default:"—" }}</td>
@@ -149,8 +127,117 @@
 
 {% endif %}
 
+<!-- Export Modal -->
+<div id="export-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card);border-radius:12px;padding:28px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h3 style="margin:0;">⬇ Dışa Aktar — {{ label }}</h3>
+      <button onclick="closeExportModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-muted);">✕</button>
+    </div>
+
+    <form id="export-form" method="get" action="{% if tag_type == 'blacklist' %}{% url 'ui_baro_blacklist_export' %}{% else %}{% url 'ui_baro_whitelist_export' %}{% endif %}">
+
+      <!-- Format -->
+      <div style="margin-bottom:18px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Format</div>
+        <div style="display:flex;gap:10px;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:1px solid var(--border-color);border-radius:6px;flex:1;">
+            <input type="radio" name="format" value="excel" checked> Excel (.xlsx)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:1px solid var(--border-color);border-radius:6px;flex:1;">
+            <input type="radio" name="format" value="csv"> CSV (.csv)
+          </label>
+        </div>
+      </div>
+
+      <!-- Sütun Seçimi -->
+      <div style="margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;">Sütunlar</div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" onclick="selectAllCols(true)" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-color);border-radius:4px;background:none;cursor:pointer;color:var(--text-secondary);">Tümünü Seç</button>
+            <button type="button" onclick="selectAllCols(false)" style="font-size:11px;padding:2px 8px;border:1px solid var(--border-color);border-radius:4px;background:none;cursor:pointer;color:var(--text-secondary);">Temizle</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="sicil_no" checked> Sicil No</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="ad" checked> Ad</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="soyad" checked> Soyad</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="mail" checked> E-posta</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="tel"> Telefon</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="ilce" checked> İlçe</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="dogum_tarihi"> Doğum Tarihi</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="uye"> Üye Durumu</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="cinsiyet"> Cinsiyet</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="adres"> Adres</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="tag_note" checked> Etiket Notu</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="created_by"> Ekleyen</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" name="cols" value="created_at" checked> Etiket Tarihi</label>
+        </div>
+      </div>
+
+      <!-- Filtreler -->
+      <div style="margin-bottom:18px;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Filtreler</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+
+          <input name="q" value="{{ q }}" placeholder="Ad, soyad veya sicil no ara..."
+                 style="padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-content);color:var(--text-primary);font-size:13px;">
+
+          <input name="ilce" value="{{ ilce }}" placeholder="İlçe (örn: ÇANKAYA)"
+                 style="padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-content);color:var(--text-primary);font-size:13px;">
+
+          <input name="note_q" placeholder="Etiket notunda ara..."
+                 style="padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-content);color:var(--text-primary);font-size:13px;">
+
+          <div style="display:flex;gap:8px;">
+            <input name="sicil_min" placeholder="Sicil min (örn: 1000)"
+                   type="number" min="0"
+                   style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-content);color:var(--text-primary);font-size:13px;">
+            <input name="sicil_max" placeholder="Sicil max (örn: 50000)"
+                   type="number" min="0"
+                   style="flex:1;padding:8px 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--bg-content);color:var(--text-primary);font-size:13px;">
+          </div>
+
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:8px;border-top:1px solid var(--border-color);">
+        <button type="button" onclick="closeExportModal()" class="btn" style="background:var(--bg-content);color:var(--text-muted);">İptal</button>
+        <button type="submit" class="btn" id="export-submit-btn"
+                style="{% if tag_type == 'blacklist' %}background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.4);{% else %}background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.4);{% endif %}">
+          ⬇ İndir
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
 <script>
 const CSRF_TOKEN = '{{ csrf_token }}';
+
+function openExportModal() {
+  document.getElementById('export-modal').style.display = 'flex';
+}
+function closeExportModal() {
+  document.getElementById('export-modal').style.display = 'none';
+}
+document.getElementById('export-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeExportModal();
+});
+
+function selectAllCols(checked) {
+  document.querySelectorAll('#export-form input[name="cols"]').forEach(cb => cb.checked = checked);
+}
+
+document.getElementById('export-form').addEventListener('submit', function(e) {
+  const checked = this.querySelectorAll('input[name="cols"]:checked');
+  if (checked.length === 0) {
+    e.preventDefault();
+    alert('Lütfen en az bir sütun seçin.');
+  }
+});
 
 async function removeTag(sicilNo) {
   if (!confirm(`${sicilNo} numaralı kişinin etiketi kaldırılsın mı?`)) return;
