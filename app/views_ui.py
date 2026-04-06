@@ -1359,6 +1359,37 @@ def ui_baro_lawyers(request):
     })
 
 
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_map(request):
+    """Harita sayfası"""
+    from app.models import Lawyer, StatusOption
+    lawyers = Lawyer.objects.exclude(sicil_no__in=['_KARALIST_', '_BEYAZLIST_']).order_by('ad', 'soyad')
+    statuses = StatusOption.objects.all()
+    return render(request, 'app/map.html', {
+        'lawyers': lawyers,
+        'statuses': statuses,
+    })
+
+
+@login_required_custom
+@require_http_methods(["GET"])
+def ui_map_data(request):
+    """Harita için JSON veri"""
+    from app.services.map_service import get_map_data
+    lawyer_id = request.GET.get('lawyer_id') or None
+    if lawyer_id:
+        try:
+            lawyer_id = int(lawyer_id)
+        except ValueError:
+            lawyer_id = None
+    status_filter = request.GET.get('status') or None
+    layer = request.GET.get('layer', 'all')  # 'all', 'districts', 'persons', 'baro'
+
+    data = get_map_data(lawyer_id=lawyer_id, status_filter=status_filter, layer=layer)
+    return JsonResponse(data)
+
+
 _KARA_LISTE_SICIL = '_KARALIST_'
 _BEYAZ_LISTE_SICIL = '_BEYAZLIST_'
 

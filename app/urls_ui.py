@@ -13,6 +13,7 @@ from .views_ui import (
     ui_baro_lawyer_detail, ui_baro_photo_proxy, ui_committee_memberships,
     ui_birthdays_today, ui_upload_unknown_records,
     ui_baro_tagged_page, ui_baro_tagged_export,
+    ui_map, ui_map_data,
 )
 from .views_election import (
     ui_elections, ui_election_create, ui_election_activate,
@@ -71,6 +72,10 @@ urlpatterns = [
 
     # Kurul üyelikleri
     path('committee-memberships/', ui_committee_memberships, name='ui_committee_memberships'),
+
+    # Harita
+    path('map/', ui_map, name='ui_map'),
+    path('map/data/', ui_map_data, name='ui_map_data'),
 
     # Doğum günü bildirimleri
     path('birthdays/today/', ui_birthdays_today, name='ui_birthdays_today'),
