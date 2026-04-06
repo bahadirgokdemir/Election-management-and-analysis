@@ -1,0 +1,13 @@
+providers = ["python"]
+
+[variables]
+NIXPACKS_PYTHON_VERSION = "3.11.8"
+
+[phases.setup]
+nixPkgs = ["...", "stdenv.cc.cc.lib"]
+
+[phases.build]
+cmds = ["echo 'Build phase - skipping Django commands'"]
+
+[start]
+cmd = "python manage.py migrate --noinput && python manage.py collectstatic --noinput && python manage.py setup_auth --admin-username=admin --admin-password=admin --admin-email=gokdemirbahadir0@gmail.com && python manage.py seed_status && gunicorn core.wsgi --bind 0.0.0.0:$PORT"
