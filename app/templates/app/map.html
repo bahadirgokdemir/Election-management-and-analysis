@@ -260,7 +260,7 @@
 
   /* Leaflet popup override */
   .map-popup {
-    min-width: 200px;
+    min-width: 220px;
     font-size: 13px;
     line-height: 1.5;
   }
@@ -468,9 +468,11 @@ const map = L.map('map', {
   zoomControl: true,
 });
 
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  maxZoom: 19,
+// CartoDB Positron — ücretsiz, API key yok, referrer sorunu yok
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 20,
 }).addTo(map);
 
 // ── Layer groups ─────────────────────────────────────────────────────────────
@@ -572,6 +574,12 @@ function renderDistricts(districts) {
           <span class="popup-label">Baro Kayıt</span>
           <span class="popup-val" style="color:#3b82f6;">${d.baro_total}</span>
         </div>
+        <div style="margin-top:10px;">
+          <a href="https://www.google.com/maps/search/${encodeURIComponent(d.ilce + ', Ankara')}/@${d.lat},${d.lng},13z" target="_blank" rel="noopener"
+             style="display:block;text-align:center;padding:5px 8px;background:#4285F4;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
+            🗺 ${d.ilce} — Google Maps'te Aç
+          </a>
+        </div>
       </div>
     `);
     districtsLayer.addLayer(circle);
@@ -611,6 +619,16 @@ function renderPersons(persons) {
           <span class="popup-val">${p.lawyer_ad}</span>
         </div>
         ${notlarHtml}
+        <div style="display:flex;gap:6px;margin-top:10px;">
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener"
+             style="flex:1;text-align:center;padding:5px 8px;background:#4285F4;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
+            🗺 Google Maps
+          </a>
+          <a href="https://maps.apple.com/?daddr=${p.lat},${p.lng}" target="_blank" rel="noopener"
+             style="flex:1;text-align:center;padding:5px 8px;background:#000;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
+             Apple Maps
+          </a>
+        </div>
       </div>
     `);
     personsCluster.addLayer(marker);
@@ -656,6 +674,16 @@ function renderBaro(baroLawyers) {
         </div>
         ${tagHtml}
         ${inListHtml}
+        <div style="display:flex;gap:6px;margin-top:10px;">
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}" target="_blank" rel="noopener"
+             style="flex:1;text-align:center;padding:5px 8px;background:#4285F4;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
+            🗺 Google Maps
+          </a>
+          <a href="https://maps.apple.com/?daddr=${b.lat},${b.lng}" target="_blank" rel="noopener"
+             style="flex:1;text-align:center;padding:5px 8px;background:#000;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
+             Apple Maps
+          </a>
+        </div>
       </div>
     `);
     baroCluster.addLayer(marker);
