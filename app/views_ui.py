@@ -287,46 +287,8 @@ def ui_upload(request):
             if len(name_mismatches) > 15:
                 messages.warning(request, f'... ve {len(name_mismatches) - 15} kişi daha.')
 
-        # 2) Otomatik olarak uygula — merge_mode=True: eski kayıtları silme
-        actor = str(request.user) if request.user.is_authenticated else None
-        result = apply_diff(batch_id, actor=actor, merge_mode=True)
-
-        if result.get('ok'):
-            counts = result.get('counts', {})
-            added = counts.get('added', 0)
-            changed = counts.get('changed', 0)
-            would_remove = counts.get('would_remove', 0)
-            rejection_note = f', {len(name_mismatches)} kişi isim uyuşmazlığı nedeniyle reddedildi' if name_mismatches else ''
-            messages.success(
-                request,
-                f'Yükleme başarılı! {row_count} satır işlendi. '
-                f'{added} yeni kayıt eklendi, {changed} kayıt güncellendi{rejection_note}.'
-            )
-            if would_remove:
-                messages.warning(
-                    request,
-                    f'{would_remove} kayıt yeni listede yer almıyor ancak korundu (silinmedi). '
-                    f'Bu kayıtları silmek için ilgili kişiyi manuel olarak pasifleştirebilirsiniz.'
-                )
-        else:
-            messages.warning(request, f'Yükleme tamamlandı ancak uygulama sırasında sorun oluştu: {result.get("message")}')
-
-        # Baro'da bulunmayan kayıt var mı? Varsa inceleme sayfasına yönlendir
-        batch_sicils = list(UploadRowStaging.objects.filter(batch_id=batch_id).values_list('kisi_sicilno', flat=True))
-        if batch_sicils:
-            existing_baro_sicils = set(
-                BaroLawyer.objects.filter(sicil_no__in=batch_sicils).values_list('sicil_no', flat=True)
-            )
-            unknown_count = sum(1 for s in batch_sicils if s not in existing_baro_sicils)
-            if unknown_count:
-                messages.info(
-                    request,
-                    f'{unknown_count} kişi Baro veritabanında bulunamadı. '
-                    f'Aşağıdan inceleyip sisteme ekleyebilirsiniz.'
-                )
-                return redirect('ui_upload_unknown_records', batch_id=batch_id)
-
-        return redirect('ui_dashboard')
+        # 2) Diff önizleme sayfasına yönlendir — kullanıcı onay verecek
+        return redirect('ui_diff_preview', batch_id=batch_id)
     except Exception as e:
         messages.error(request, f'Beklenmeyen hata: {e}')
         return redirect('ui_upload')
@@ -340,7 +302,19 @@ def ui_diff_preview(request, batch_id: int):
     except Exception as e:
         messages.error(request, f'Diff önizlemesi yüklenirken hata oluştu: {e}')
         return redirect('ui_dashboard')
-    return render(request, 'app/diff_preview.html', {'diff': diff})
+
+    # Baro'da bulunmayan sicil no'ları hesapla
+    batch_sicils = list(UploadRowStaging.objects.filter(batch_id=batch_id).values_list('kisi_sicilno', flat=True))
+    existing_baro_sicils = set(
+        BaroLawyer.objects.filter(sicil_no__in=batch_sicils).values_list('sicil_no', flat=True)
+    ) if batch_sicils else set()
+    unknown_count = sum(1 for s in batch_sicils if s not in existing_baro_sicils)
+
+    return render(request, 'app/diff_preview.html', {
+        'diff': diff,
+        'batch_id': batch_id,
+        'unknown_count': unknown_count,
+    })
 
 
 @uploader_required
@@ -348,12 +322,32 @@ def ui_diff_preview(request, batch_id: int):
 @require_http_methods(["POST"])
 def ui_approve_batch(request, batch_id: int):
     try:
-        res = apply_diff(batch_id, actor=str(request.user) if request.user.is_authenticated else None)
+        actor = str(request.user) if request.user.is_authenticated else None
+        res = apply_diff(batch_id, actor=actor, merge_mode=True)
     except Exception as e:
         messages.error(request, f'Değişiklikler uygulanırken hata oluştu: {e}')
         return redirect('ui_diff_preview', batch_id=batch_id)
     if res.get('ok'):
-        messages.success(request, 'Değişiklikler uygulandı.')
+        counts = res.get('counts', {})
+        added = counts.get('added', 0)
+        changed = counts.get('changed', 0)
+        kept = counts.get('would_remove', 0)
+        msg = f'Değişiklikler uygulandı. {added} eklendi, {changed} güncellendi.'
+        if kept:
+            msg += f' {kept} kayıt yeni listede yok ama korundu.'
+        messages.success(request, msg)
+
+        # Baro'da bulunmayan kayıt var mı?
+        batch_sicils = list(UploadRowStaging.objects.filter(batch_id=batch_id).values_list('kisi_sicilno', flat=True))
+        if batch_sicils:
+            existing_baro_sicils = set(
+                BaroLawyer.objects.filter(sicil_no__in=batch_sicils).values_list('sicil_no', flat=True)
+            )
+            unknown_count = sum(1 for s in batch_sicils if s not in existing_baro_sicils)
+            if unknown_count:
+                messages.info(request, f'{unknown_count} kişi Baro veritabanında bulunamadı. Aşağıdan inceleyip ekleyebilirsiniz.')
+                return redirect('ui_upload_unknown_records', batch_id=batch_id)
+
         return redirect('ui_dashboard')
     messages.error(request, res.get('message', 'Uygulama başarısız.'))
     return redirect('ui_diff_preview', batch_id=batch_id)

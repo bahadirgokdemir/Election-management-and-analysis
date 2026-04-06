@@ -1,70 +1,107 @@
 {% extends 'app/base.html' %}
 {% load dict_extras %}
-{% block title %}Değişiklik Özeti{% endblock %}
+{% block title %}Yükleme Önizlemesi{% endblock %}
 {% block content %}
 
 <div class="page-header">
   <div>
-    <h1>Değişiklik Özeti</h1>
-    <p><strong>Avukat:</strong> {{ diff.lawyer.sicilNo }} — {{ diff.lawyer.ad }} {{ diff.lawyer.soyad }}</p>
-    <p style="margin-top: 8px; font-size: 13px; color: var(--text-light);">
-      Bu özette yeni eklenen ve güncellenen kayıtlar görüntülenmektedir.
+    <h1>Yükleme Önizlemesi</h1>
+    <p style="color: var(--text-muted); margin-top: 4px;">
+      <strong>Avukat:</strong> {{ diff.lawyer.sicilNo }} — {{ diff.lawyer.ad }} {{ diff.lawyer.soyad }}
     </p>
   </div>
 </div>
 
-<div class="stats-grid" style="margin-bottom: 24px;">
-  <div class="stat-card">
-    <div class="label">Yeni Kayıt</div>
-    <div class="value">{{ diff.counts.added }}</div>
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}" style="margin-bottom: 12px;">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+
+<!-- Özet Kartları -->
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px;">
+  <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 20px; text-align: center;">
+    <div style="font-size: 32px; font-weight: 800; color: #10b981;">+{{ diff.counts.added }}</div>
+    <div style="font-size: 13px; font-weight: 600; color: #10b981; margin-top: 4px;">Yeni Eklenecek</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Listede yeni olan kayıtlar</div>
   </div>
-  <div class="stat-card">
-    <div class="label">Güncelleme</div>
-    <div class="value">{{ diff.counts.changed }}</div>
+  <div style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; padding: 20px; text-align: center;">
+    <div style="font-size: 32px; font-weight: 800; color: #f59e0b;">~{{ diff.counts.changed }}</div>
+    <div style="font-size: 13px; font-weight: 600; color: #f59e0b; margin-top: 4px;">Güncellenecek</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Alanı değişen kayıtlar</div>
   </div>
+  <div style="background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.3); border-radius: 10px; padding: 20px; text-align: center;">
+    <div style="font-size: 32px; font-weight: 800; color: #6366f1;">{{ diff.counts.removed }}</div>
+    <div style="font-size: 13px; font-weight: 600; color: #6366f1; margin-top: 4px;">Korunacak</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Yeni listede yok, silinmeyecek</div>
+  </div>
+  {% if unknown_count %}
+  <div style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); border-radius: 10px; padding: 20px; text-align: center;">
+    <div style="font-size: 32px; font-weight: 800; color: #ef4444;">{{ unknown_count }}</div>
+    <div style="font-size: 13px; font-weight: 600; color: #ef4444; margin-top: 4px;">Baro'da Yok</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Baro kaydı bulunamadı</div>
+  </div>
+  {% else %}
+  <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; text-align: center; opacity: 0.5;">
+    <div style="font-size: 32px; font-weight: 800; color: var(--text-muted);">—</div>
+    <div style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-top: 4px;">Baro'da Yok</div>
+    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Tümü Baro'da mevcut</div>
+  </div>
+  {% endif %}
 </div>
 
-<div class="tabs">
+<!-- Detay Tablolar -->
+<div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 32px;">
 
-  <details open>
-    <summary>✨ Yeni Kayıtlar ({{ diff.counts.added }})</summary>
-    <form method="post" action="{% url 'ui_approve_selected' diff.batchId %}">
-      {% csrf_token %}
-      <table class="table">
+  <!-- YENİ EKLENECEK -->
+  <details {% if diff.counts.added %}open{% endif %} style="background: var(--bg-card); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; overflow: hidden;">
+    <summary style="padding: 14px 20px; cursor: pointer; font-weight: 700; font-size: 14px; color: #10b981; display: flex; align-items: center; gap: 8px; list-style: none; user-select: none;">
+      <span style="font-size: 18px;">✨</span>
+      Yeni Eklenecek Kayıtlar ({{ diff.counts.added }})
+    </summary>
+    <div style="border-top: 1px solid rgba(16,185,129,0.2); overflow-x: auto;">
+      {% if diff.added %}
+      <table class="table" style="margin: 0;">
         <thead>
           <tr>
-            <th style="width:32px;"><input type="checkbox" onclick="toggleAll(this, 'added')"></th>
-            <th>Sicil No</th><th>Ad</th><th>Soyad</th><th>Mail</th><th>İlçe</th><th>Durum</th>
+            <th>Sicil No</th><th>Ad</th><th>Soyad</th><th>İlçe</th><th>Mail</th><th>Durum</th>
           </tr>
         </thead>
         <tbody>
           {% for r in diff.added %}
             <tr>
-              <td><input type="checkbox" name="added" value="{{ r.kisi_sicilno }}"></td>
-              <td>{{ r.kisi_sicilno }}</td><td>{{ r.ad }}</td><td>{{ r.soyad }}</td>
-              <td>{{ r.mail }}</td><td>{{ r.ilce }}</td><td>{{ r.cevap_status_key }}</td>
+              <td style="font-family: monospace;">{{ r.kisi_sicilno }}</td>
+              <td>{{ r.ad }}</td>
+              <td>{{ r.soyad }}</td>
+              <td>{{ r.ilce|default:"-" }}</td>
+              <td>{{ r.mail|default:"-" }}</td>
+              <td>
+                {% if r.cevap_status_key %}
+                  <span style="padding: 2px 8px; background: var(--primary); color: white; border-radius: 4px; font-size: 11px;">{{ r.cevap_status_key }}</span>
+                {% else %}-{% endif %}
+              </td>
             </tr>
-          {% empty %}
-            <tr><td colspan="7">Yok</td></tr>
           {% endfor %}
         </tbody>
       </table>
-
-      <div class="mt">
-        <button class="btn primary" type="submit">Seçili Kayıtları Ekle</button>
-      </div>
-    </form>
+      {% else %}
+        <div style="padding: 20px; text-align: center; color: var(--text-muted);">Eklenecek yeni kayıt yok.</div>
+      {% endif %}
+    </div>
   </details>
 
-  <details>
-    <summary>🔄 Güncellenecek Kayıtlar ({{ diff.counts.changed }})</summary>
-    <form method="post" action="{% url 'ui_approve_selected' diff.batchId %}">
-      {% csrf_token %}
-      <table class="table">
+  <!-- GÜNCELLENECEKler -->
+  <details {% if diff.counts.changed %}open{% endif %} style="background: var(--bg-card); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; overflow: hidden;">
+    <summary style="padding: 14px 20px; cursor: pointer; font-weight: 700; font-size: 14px; color: #f59e0b; display: flex; align-items: center; gap: 8px; list-style: none; user-select: none;">
+      <span style="font-size: 18px;">🔄</span>
+      Güncellenecek Kayıtlar ({{ diff.counts.changed }})
+    </summary>
+    <div style="border-top: 1px solid rgba(245,158,11,0.2); overflow-x: auto;">
+      {% if diff.changed %}
+      <table class="table" style="margin: 0;">
         <thead>
           <tr>
-            <th style="width:32px;"><input type="checkbox" onclick="toggleAll(this, 'changed')"></th>
-            <th>Sicil No</th><th>Alan</th><th>Eski</th><th>Yeni</th>
+            <th>Sicil No</th><th>Ad Soyad</th><th>Alan</th><th>Eski Değer</th><th>Yeni Değer</th>
           </tr>
         </thead>
         <tbody>
@@ -72,55 +109,101 @@
             {% for f in c.fields %}
               <tr>
                 {% if forloop.first %}
-                  <td rowspan="{{ c.fields|length }}">
-                    <input type="checkbox" name="changed" value="{{ c.kisi_sicilno }}">
-                  </td>
-                  <td rowspan="{{ c.fields|length }}">{{ c.kisi_sicilno }}</td>
+                  <td rowspan="{{ c.fields|length }}" style="font-family: monospace; vertical-align: top; padding-top: 12px;">{{ c.kisi_sicilno }}</td>
+                  <td rowspan="{{ c.fields|length }}" style="vertical-align: top; padding-top: 12px;">{{ c.before.ad }} {{ c.before.soyad }}</td>
                 {% endif %}
-                <td>{{ f }}</td>
-                <td>{% with key=f %}{{ c.before|get_item:key }}{% endwith %}</td>
-                <td>{% with key=f %}{{ c.after|get_item:key }}{% endwith %}</td>
+                <td style="font-size: 12px; color: var(--text-muted);">{{ f }}</td>
+                <td style="color: #ef4444; font-size: 12px;">{% with key=f %}{{ c.before|get_item:key|default:"-" }}{% endwith %}</td>
+                <td style="color: #10b981; font-size: 12px;">{% with key=f %}{{ c.after|get_item:key|default:"-" }}{% endwith %}</td>
               </tr>
             {% endfor %}
-          {% empty %}
-            <tr><td colspan="5">Yok</td></tr>
           {% endfor %}
         </tbody>
       </table>
+      {% else %}
+        <div style="padding: 20px; text-align: center; color: var(--text-muted);">Güncellenecek kayıt yok.</div>
+      {% endif %}
+    </div>
+  </details>
 
-      <div class="mt">
-        <button class="btn primary" type="submit">Seçili Güncellemeleri Kaydet</button>
+  <!-- KORUNACAK (yeni listede yok ama silinmeyecek) -->
+  <details style="background: var(--bg-card); border: 1px solid rgba(99,102,241,0.3); border-radius: 10px; overflow: hidden;">
+    <summary style="padding: 14px 20px; cursor: pointer; font-weight: 700; font-size: 14px; color: #6366f1; display: flex; align-items: center; gap: 8px; list-style: none; user-select: none;">
+      <span style="font-size: 18px;">🔒</span>
+      Yeni Listede Olmayan, Korunacak Kayıtlar ({{ diff.counts.removed }})
+      <span style="margin-left: auto; font-size: 11px; font-weight: 400; color: var(--text-muted); background: rgba(99,102,241,0.1); padding: 3px 8px; border-radius: 4px;">
+        Silinmeyecek
+      </span>
+    </summary>
+    <div style="border-top: 1px solid rgba(99,102,241,0.2);">
+      <div style="padding: 12px 20px; background: rgba(99,102,241,0.05); font-size: 12px; color: #6366f1; border-bottom: 1px solid rgba(99,102,241,0.1);">
+        Bu kayıtlar yeni yüklediğiniz listede yer almıyor. Ancak sistemde korunacak, silinmeyecek.
       </div>
-    </form>
+      {% if diff.removed %}
+      <div style="overflow-x: auto;">
+      <table class="table" style="margin: 0;">
+        <thead>
+          <tr>
+            <th>Sicil No</th><th>Ad</th><th>Soyad</th><th>İlçe</th><th>Mevcut Durum</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in diff.removed %}
+            <tr style="opacity: 0.7;">
+              <td style="font-family: monospace;">{{ r.kisi_sicilno }}</td>
+              <td>{{ r.ad }}</td>
+              <td>{{ r.soyad }}</td>
+              <td>{{ r.ilce|default:"-" }}</td>
+              <td>
+                {% if r.cevap_status_key %}
+                  <span style="padding: 2px 8px; background: rgba(99,102,241,0.2); color: #6366f1; border-radius: 4px; font-size: 11px;">{{ r.cevap_status_key }}</span>
+                {% else %}-{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% else %}
+        <div style="padding: 20px; text-align: center; color: var(--text-muted);">Tüm mevcut kayıtlar yeni listede mevcut.</div>
+      {% endif %}
+    </div>
   </details>
 
 </div>
 
-<div class="hint" style="margin-top: 24px;">
-  <strong>Bilgi:</strong> Artik kayitlar otomatik olarak uygulanmaktadir. Yukaridaki degisiklikleri inceledikten sonra ana sayfaya donebilirsiniz.
-</div>
-
-<div class="mt" style="display: flex; gap: 12px;">
-  <a class="btn primary" href="{% url 'ui_dashboard' %}">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-    </svg>
-    Ana Sayfaya Dön
-  </a>
-  <a class="btn" href="{% url 'ui_people' %}">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-    </svg>
-    Tüm Kişileri Görüntüle
-  </a>
+<!-- Onay Alanı -->
+<div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+  <div>
+    <div style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 6px;">
+      Bu değişiklikleri uygulamak istiyor musunuz?
+    </div>
+    <div style="font-size: 13px; color: var(--text-muted);">
+      <strong style="color: #10b981;">+{{ diff.counts.added }}</strong> eklenir &nbsp;·&nbsp;
+      <strong style="color: #f59e0b;">~{{ diff.counts.changed }}</strong> güncellenir &nbsp;·&nbsp;
+      <strong style="color: #6366f1;">{{ diff.counts.removed }}</strong> korunur (silinmez)
+      {% if unknown_count %}&nbsp;·&nbsp; <strong style="color: #ef4444;">{{ unknown_count }}</strong> Baro'da bulunamadı{% endif %}
+    </div>
+  </div>
+  <div style="display: flex; gap: 12px; flex-shrink: 0;">
+    <a href="{% url 'ui_dashboard' %}" class="btn" style="padding: 12px 24px;">
+      Vazgeç
+    </a>
+    <form method="post" action="{% url 'ui_approve_batch' batch_id %}">
+      {% csrf_token %}
+      <button type="submit" class="btn primary" style="padding: 12px 28px; font-size: 14px; font-weight: 700;">
+        Onayla ve Uygula
+      </button>
+    </form>
+  </div>
 </div>
 
 <script>
-  function toggleAll(source, name) {
-    const form = source.closest('form');
-    if (!form) return;
-    const boxes = form.querySelectorAll('input[type="checkbox"][name="'+name+'"]');
-    boxes.forEach(b => b.checked = source.checked);
-  }
+  // details summary ok işareti için
+  document.querySelectorAll('details summary').forEach(s => {
+    s.addEventListener('click', function() {
+      // prevent default arrow, we have custom icon
+    });
+  });
 </script>
 {% endblock %}
