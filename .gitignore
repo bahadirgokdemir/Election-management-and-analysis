@@ -45,6 +45,9 @@ staticfiles/
 .env
 .env.local
 
+# Test fixtures (üretilen excel dosyaları)
+test_fixtures/
+
 # Claude Code
 .claude/
 
