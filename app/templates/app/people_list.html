@@ -1229,6 +1229,26 @@ function renderAnalyticsModal(analytics) {
         </div>
       </div>
 
+      <!-- Durum Gecmisi -->
+      ${analytics.status_history && analytics.status_history.length > 0 ? `
+      <div style="background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 8px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color);">
+          Durum Degisim Gecmisi
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+          ${analytics.status_history.map(h => `
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-content); border-radius: 6px; font-size: 12px;">
+              <span style="color: var(--text-muted); white-space: nowrap;">${h.at}</span>
+              <span style="color: var(--text-muted);">${h.before_json.lawyer_id ? '(Avukat #' + h.before_json.lawyer_id + ')' : ''}</span>
+              <span style="color: #ef4444; font-weight: 600;">${h.before_json.status || '-'}</span>
+              <span style="color: var(--text-muted);">→</span>
+              <span style="color: #10b981; font-weight: 600;">${h.after_json.status || '-'}</span>
+              ${h.actor ? `<span style="color: var(--text-muted); font-size: 11px; margin-left: auto;">${h.actor}</span>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>` : ''}
+
       <!-- Kapat Butonu -->
       <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
         <button onclick="closeModal()" class="btn primary" style="padding: 10px 24px;">

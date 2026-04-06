@@ -8,10 +8,10 @@ from app.models import (
 
 
 @transaction.atomic
-def apply_diff(batch_id: int, actor: str = None, merge_mode: bool = False) -> Dict:
+def apply_diff(batch_id: int, actor: str = None, merge_mode: bool = True) -> Dict:
     """
-    merge_mode=True → yeni yüklemede sadece ekleme/güncelleme yapılır,
-    yeni listede olmayan eski kayıtlar korunur (silinmez).
+    Varsayılan: merge_mode=True → yeni listede olmayan eski kayıtlar korunur.
+    Status değişimleri AuditLog'a yazılır (geçmiş takibi için).
     """
     batch = UploadBatch.objects.select_for_update().select_related('lawyer').get(id=batch_id)
     if batch.status != UploadBatch.STAGED:
@@ -62,7 +62,7 @@ def apply_diff(batch_id: int, actor: str = None, merge_mode: bool = False) -> Di
         )
 
     # 2) REMOVED → Yeni listede olmayanlar
-    # merge_mode=True ise eski kayıtları koru (sil); False ise soft-delete yap
+    # Artık her zaman korunur (merge_mode=True default); parametre uyumluluk için bırakıldı
     removed_ks_list = [row['kisi_sicilno'] for row in removed]
     actually_removed = 0
     if removed_ks_list and not merge_mode:
@@ -71,10 +71,11 @@ def apply_diff(batch_id: int, actor: str = None, merge_mode: bool = False) -> Di
             kisi_sicilno__in=removed_ks_list
         ).update(active=False)
 
-    # 3) CHANGED → LawyerPerson alanlarını güncelle (sadece bu avukat için)
+    # 3) CHANGED → LawyerPerson alanlarını güncelle + status değişimini logla
     for item in changed:
         ks = item['kisi_sicilno']
         after = item['after']
+        before = item['before']
 
         # Person referansı
         p, _ = Person.objects.get_or_create(
@@ -86,7 +87,6 @@ def apply_diff(batch_id: int, actor: str = None, merge_mode: bool = False) -> Di
         key = after.get('cevap_status_key')
         status_obj = StatusOption.objects.filter(key=key).first() if key else None
 
-        # KRITIK: Sadece bu avukatın LawyerPerson kaydını güncelle
         LawyerPerson.objects.update_or_create(
             lawyer_id=batch.lawyer_id,
             kisi_sicilno=ks,
@@ -103,6 +103,26 @@ def apply_diff(batch_id: int, actor: str = None, merge_mode: bool = False) -> Di
                 'active': True
             }
         )
+
+        # Cevap durumu değiştiyse AuditLog'a yaz
+        old_key = before.get('cevap_status_key') or ''
+        new_key = after.get('cevap_status_key') or ''
+        if 'cevap_status_key' in item.get('fields', []) and old_key != new_key:
+            AuditLog.objects.create(
+                entity='StatusChange',
+                entity_id=batch_id,
+                action='STATUS_CHANGE',
+                before_json={
+                    'kisi_sicilno': ks,
+                    'ad': before.get('ad', ''),
+                    'soyad': before.get('soyad', ''),
+                    'lawyer_id': batch.lawyer_id,
+                    'status': old_key,
+                    'batch_id': batch_id,
+                },
+                after_json={'status': new_key},
+                actor=actor,
+            )
 
     # audit
     AuditLog.objects.create(

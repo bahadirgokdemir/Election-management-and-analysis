@@ -1185,6 +1185,16 @@ def ui_unique_person_detail(request, kisi_sicilno: str):
     person['baro_tag_type'] = tag.tag_type if tag else ''
     person['baro_tag_note'] = tag.note or '' if tag else ''
 
+    status_history = list(
+        AuditLog.objects.filter(
+            entity='StatusChange',
+            before_json__kisi_sicilno=kisi_sicilno
+        ).order_by('-at').values('before_json', 'after_json', 'at', 'actor')[:20]
+    )
+    for entry in status_history:
+        entry['at'] = entry['at'].strftime('%d.%m.%Y %H:%M') if entry['at'] else ''
+    person['status_history'] = status_history
+
     return JsonResponse(person)
 
 
@@ -1212,6 +1222,16 @@ def ui_person_analytics(request, kisi_sicilno: str):
     tag = BaroLawyerTag.objects.filter(baro_lawyer__sicil_no=kisi_sicilno).first()
     analytics['baro_tag_type'] = tag.tag_type if tag else ''
     analytics['baro_tag_note'] = tag.note or '' if tag else ''
+
+    status_history = list(
+        AuditLog.objects.filter(
+            entity='StatusChange',
+            before_json__kisi_sicilno=kisi_sicilno
+        ).order_by('-at').values('before_json', 'after_json', 'at', 'actor')[:20]
+    )
+    for entry in status_history:
+        entry['at'] = entry['at'].strftime('%d.%m.%Y %H:%M') if entry['at'] else ''
+    analytics['status_history'] = status_history
 
     return JsonResponse(analytics)
 
