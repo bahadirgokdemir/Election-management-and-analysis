@@ -1869,39 +1869,27 @@ def ui_baro_bulk_tag(request):
 @login_required_custom
 @require_http_methods(["GET"])
 def ui_baro_lawyer_detail(request, sicil_no: str):
-    """Baro avukatının tüm alanlarını JSON olarak döner (detay modal için)."""
+    """Baro avukatı detay sayfası."""
     try:
-        bl = BaroLawyer.objects.select_related('tag').get(sicil_no=sicil_no)
+        bl = BaroLawyer.objects.select_related('tag').prefetch_related('memberships').get(sicil_no=sicil_no)
     except BaroLawyer.DoesNotExist:
-        return JsonResponse({'ok': False, 'error': 'Bulunamadı'}, status=404)
+        from django.http import Http404
+        raise Http404
 
     tag = getattr(bl, 'tag', None)
     memberships = list(bl.memberships.values_list('gorev', flat=True))
 
-    photo_url = bl.photo_url or ''
+    # Bu baro avukatı hangi avukatların listesinde?
+    lawyer_persons = LawyerPerson.objects.select_related('lawyer', 'cevap_status').filter(
+        kisi_sicilno=bl.sicil_no, active=True
+    )
 
-    return JsonResponse({
-        'ok': True,
-        'sicil_no': bl.sicil_no,
-        'ad': bl.ad,
-        'soyad': bl.soyad,
-        'tel': bl.tel,
-        'mail': bl.mail,
-        'adres': bl.adres,
-        'uye': bl.uye,
-        'cinsiyet': bl.cinsiyet,
-        'mesleğe_baslama': getattr(bl, 'mesleğe_baslama', ''),
-        'ilce': bl.ilce,
-        'dogum_yeri': bl.dogum_yeri,
-        'dogum_tarihi': bl.dogum_tarihi,
-        'mahalle_koy': bl.mahalle_koy,
-        'nufus_ilce': bl.nufus_ilce,
-        'nufus_il': bl.nufus_il,
-        'tag_type': tag.tag_type if tag else '',
-        'tag_note': tag.note if tag else '',
+    return render(request, 'app/baro_lawyer_detail.html', {
+        'bl': bl,
+        'tag': tag,
         'memberships': memberships,
-        'photo_url': photo_url,
-        'has_photo': bool(photo_url),
+        'lawyer_persons': lawyer_persons,
+        'meslege_baslama': getattr(bl, 'mesleğe_baslama', ''),
     })
 
 
