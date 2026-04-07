@@ -1,5 +1,5 @@
 {% extends 'app/base.html' %}
-{% block title %}Aday Haritası - Seçim 2026{% endblock %}
+{% block title %}Aday Haritası{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
@@ -7,19 +7,17 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
 
 <style>
-  /* Map page layout override - full bleed */
   .map-page-wrapper {
     display: flex;
     height: calc(100vh - 60px);
-    gap: 0;
     overflow: hidden;
-    margin: -1.5rem; /* undo content-wrapper padding */
+    margin: -1.5rem;
   }
 
-  /* Sidebar */
+  /* ── Sidebar ── */
   .map-sidebar {
-    width: 300px;
-    min-width: 260px;
+    width: 320px;
+    min-width: 280px;
     background: var(--bg-card);
     border-right: 1px solid var(--border);
     display: flex;
@@ -29,8 +27,8 @@
     transition: transform 0.25s ease;
   }
 
-  .map-sidebar-header {
-    padding: 16px;
+  .sidebar-head {
+    padding: 14px 16px;
     border-bottom: 1px solid var(--border);
     display: flex;
     align-items: center;
@@ -38,80 +36,145 @@
     flex-shrink: 0;
   }
 
-  .map-sidebar-header h2 {
-    font-size: 16px;
+  .sidebar-head h2 {
+    font-size: 15px;
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
   }
 
-  .map-sidebar-body {
+  .sidebar-body {
     flex: 1;
     overflow-y: auto;
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
   }
 
-  /* Stats cards */
-  .map-stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .map-stat-card {
-    background: var(--bg-surface, var(--bg-card));
+  /* ── Section wrapper ── */
+  .map-section {
     border: 1px solid var(--border);
     border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .map-section-head {
+    padding: 8px 12px;
+    background: var(--bg-surface, rgba(0,0,0,0.02));
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .map-section-head:hover {
+    background: var(--bg-hover, rgba(0,0,0,0.04));
+  }
+
+  .map-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted, var(--text-secondary));
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-toggle-icon {
+    font-size: 10px;
+    color: var(--text-muted, #9ca3af);
+    transition: transform 0.2s;
+  }
+
+  .map-section-body {
     padding: 10px 12px;
+  }
+
+  .map-section.collapsed .map-section-body { display: none; }
+  .map-section.collapsed .section-toggle-icon { transform: rotate(-90deg); }
+
+  /* ── Stats grid ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+
+  .stat-card {
+    background: var(--bg-surface, var(--bg-card));
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 8px 6px;
     text-align: center;
   }
 
-  .map-stat-card .stat-value {
-    font-size: 20px;
+  .stat-val {
+    font-size: 18px;
     font-weight: 700;
     line-height: 1.2;
   }
 
-  .map-stat-card .stat-label {
-    font-size: 11px;
+  .stat-lbl {
+    font-size: 10px;
     color: var(--text-secondary);
-    margin-top: 2px;
+    margin-top: 1px;
+    line-height: 1.2;
   }
 
-  .stat-green { color: #22c55e; }
-  .stat-red   { color: #ef4444; }
-  .stat-blue  { color: #3b82f6; }
-  .stat-gray  { color: var(--text-primary); }
+  .c-gray  { color: var(--text-primary); }
+  .c-green { color: #22c55e; }
+  .c-red   { color: #ef4444; }
+  .c-amber { color: #f59e0b; }
+  .c-blue  { color: #3b82f6; }
 
-  /* Section titles */
-  .map-section-title {
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted, var(--text-secondary));
-    margin-bottom: 6px;
-  }
-
-  /* Filter controls */
-  .map-filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .map-filter-group label {
+  /* Result count bar */
+  .result-bar {
     font-size: 12px;
     color: var(--text-secondary);
+    padding: 6px 0 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
-  .map-filter-group select {
+  .result-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--bg-surface, rgba(0,0,0,0.04));
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* ── Filter controls ── */
+  .filter-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  .filter-row:last-child { margin-bottom: 0; }
+
+  .filter-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .filter-row select,
+  .filter-row input[type="text"] {
     width: 100%;
     padding: 7px 10px;
     border: 1px solid var(--border);
@@ -119,127 +182,139 @@
     background: var(--bg-surface, var(--bg-card));
     color: var(--text-primary);
     font-size: 13px;
-    cursor: pointer;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
   }
 
-  .map-filter-group select:focus {
+  .filter-row select:focus,
+  .filter-row input[type="text"]:focus {
     outline: none;
-    border-color: var(--primary);
+    border-color: var(--primary, #3b82f6);
   }
 
-  /* Layer toggles */
-  .map-layers {
+  .filter-row input[type="text"]::placeholder {
+    color: var(--text-muted, #9ca3af);
+  }
+
+  .filter-row select.active-filter,
+  .filter-row input.active-filter {
+    border-color: var(--primary, #3b82f6);
+    background: color-mix(in srgb, var(--primary, #3b82f6) 6%, var(--bg-card));
+  }
+
+  /* Active filter badge */
+  .filter-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 17px;
+    height: 17px;
+    background: var(--primary, #3b82f6);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .filter-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+    transition: all 0.15s;
+  }
+
+  .filter-clear-btn:hover {
+    background: var(--bg-hover, rgba(0,0,0,0.05));
+    color: var(--text-primary);
+  }
+
+  /* ── Layers ── */
+  .layer-list {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .map-layer-toggle {
+  .layer-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 10px;
+    gap: 9px;
+    padding: 7px 9px;
     border-radius: 6px;
     border: 1px solid var(--border);
     cursor: pointer;
     user-select: none;
     font-size: 13px;
     color: var(--text-primary);
-    transition: background 0.15s;
+    transition: background 0.12s;
   }
 
-  .map-layer-toggle:hover {
-    background: var(--bg-hover, rgba(0,0,0,0.04));
-  }
+  .layer-row:hover { background: var(--bg-hover, rgba(0,0,0,0.04)); }
 
-  .map-layer-toggle input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
+  .layer-row input[type="checkbox"] {
+    width: 15px; height: 15px;
     cursor: pointer;
-    accent-color: var(--primary);
+    accent-color: var(--primary, #3b82f6);
+    flex-shrink: 0;
   }
 
   .layer-dot {
-    width: 12px;
-    height: 12px;
+    width: 10px; height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
   }
 
-  /* Legend */
-  .map-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+  .layer-count {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-muted, #9ca3af);
+    font-weight: 600;
   }
 
-  .legend-item {
+  /* ── Legend ── */
+  .legend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .legend-group-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted, #9ca3af);
+    letter-spacing: 0.04em;
+    margin-top: 4px;
+    margin-bottom: 1px;
+  }
+
+  .legend-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 7px;
     font-size: 12px;
     color: var(--text-secondary);
   }
 
   .legend-dot {
-    width: 12px;
-    height: 12px;
+    width: 10px; height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
   }
 
-  /* Loading indicator */
-  .map-loading-bar {
-    height: 3px;
-    background: var(--primary, #3b82f6);
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 9999;
-    display: none;
-    animation: loadingPulse 1.2s ease-in-out infinite;
-  }
-
-  @keyframes loadingPulse {
-    0%   { opacity: 1; }
-    50%  { opacity: 0.4; }
-    100% { opacity: 1; }
-  }
-
-  /* Map container */
-  .map-container {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-  }
-
-  #map {
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-  }
-
-  /* Mobile toggle button */
-  .sidebar-toggle-btn {
-    display: none;
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    z-index: 1000;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-primary);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  }
-
-  /* Refresh button */
-  .map-refresh-btn {
+  /* ── Refresh button ── */
+  .refresh-btn {
     background: none;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -251,502 +326,680 @@
     align-items: center;
     gap: 4px;
     transition: all 0.15s;
+    flex-shrink: 0;
   }
+  .refresh-btn:hover { background: var(--bg-hover, rgba(0,0,0,0.05)); color: var(--text-primary); }
 
-  .map-refresh-btn:hover {
-    background: var(--bg-hover, rgba(0,0,0,0.05));
-    color: var(--text-primary);
+  /* ── Loading bar ── */
+  .map-loading-bar {
+    height: 3px;
+    background: var(--primary, #3b82f6);
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 9999;
+    display: none;
+    animation: loadPulse 1.2s ease-in-out infinite;
   }
+  @keyframes loadPulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
 
-  /* Leaflet popup override */
-  .map-popup {
-    min-width: 220px;
+  /* ── Map ── */
+  .map-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  #map { width: 100%; height: 100%; z-index: 1; }
+
+  /* ── Empty state overlay ── */
+  .map-empty-state {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 32px;
+    text-align: center;
+    z-index: 500;
+    display: none;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    max-width: 260px;
+  }
+  .map-empty-state .empty-icon { font-size: 32px; margin-bottom: 8px; }
+  .map-empty-state p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+  /* ── Error toast ── */
+  .map-toast {
+    position: absolute;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    background: #dc2626;
+    color: #fff;
+    border-radius: 8px;
+    padding: 9px 18px;
     font-size: 13px;
-    line-height: 1.5;
+    z-index: 9999;
+    display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
   }
 
-  .map-popup h4 {
-    margin: 0 0 8px;
-    font-size: 14px;
-    font-weight: 700;
+  /* ── Popup ── */
+  .map-popup { min-width: 230px; font-size: 13px; line-height: 1.5; }
+  .map-popup h4 { margin: 0 0 8px; font-size: 14px; font-weight: 700; }
+  .popup-row { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+  .popup-label { color: #6b7280; font-size: 12px; }
+  .popup-val { font-weight: 600; font-size: 12px; }
+  .popup-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+  .popup-note { font-size:11px; color:#6b7280; background:#f9fafb; border-radius:5px; padding:5px 7px; margin-top:5px; line-height:1.4; }
+  .popup-divider { border:none; border-top:1px solid #e5e7eb; margin:8px 0; }
+  .popup-actions { display:flex; gap:5px; margin-top:8px; }
+  .popup-btn {
+    flex:1; text-align:center; padding:5px 6px;
+    border-radius:5px; font-size:11px; font-weight:600;
+    text-decoration:none; display:block;
   }
-
-  .map-popup .popup-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 2px;
+  .popup-btn-detail {
+    background: var(--primary,#3b82f6);
+    color: #fff;
   }
+  .popup-btn-gmap  { background:#4285F4; color:#fff; }
+  .popup-btn-apple { background:#1c1c1e; color:#fff; }
 
-  .map-popup .popup-label {
-    color: #6b7280;
-    font-size: 12px;
-  }
-
-  .map-popup .popup-val {
-    font-weight: 600;
-    font-size: 12px;
-  }
-
-  .popup-badge {
-    display: inline-block;
-    padding: 1px 7px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 600;
-  }
-
-  /* Custom circle marker */
-  .custom-circle-marker {
-    border-radius: 50%;
-    border: 2px solid rgba(255,255,255,0.8);
-    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  /* ── Mobile sidebar ── */
+  .sidebar-toggle-btn {
+    display: none;
+    position: absolute;
+    top: 12px; left: 12px;
+    z-index: 1000;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    align-items: center; gap: 6px;
   }
 
   @media (max-width: 768px) {
-    .map-page-wrapper {
-      position: relative;
-    }
-
     .map-sidebar {
       position: absolute;
-      top: 0;
-      left: 0;
-      height: 100%;
+      top: 0; left: 0; height: 100%;
       z-index: 500;
       transform: translateX(-100%);
     }
-
-    .map-sidebar.open {
-      transform: translateX(0);
-    }
-
-    .sidebar-toggle-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .map-sidebar.open { transform: translateX(0); }
+    .sidebar-toggle-btn { display: flex; }
   }
 </style>
 
 <div class="map-page-wrapper">
 
-  <!-- Sidebar -->
+  <!-- ── Sidebar ────────────────────────────────────────────────────── -->
   <aside class="map-sidebar" id="mapSidebar">
-    <div class="map-sidebar-header">
+
+    <div class="sidebar-head">
       <h2>
-        <svg style="width:18px;height:18px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg style="width:17px;height:17px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 13l4.553 2.276A1 1 0 0021 21.382V10.618a1 1 0 00-.553-.894L15 7m0 13V7m0 0L9 4"/>
         </svg>
         Aday Haritası
       </h2>
-      <button class="map-refresh-btn" onclick="loadMapData()" title="Yenile">
-        <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <button class="refresh-btn" onclick="loadMapData()" title="Yenile">
+        <svg style="width:13px;height:13px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
         </svg>
         Yenile
       </button>
     </div>
 
-    <div class="map-sidebar-body">
+    <div class="sidebar-body">
 
-      <!-- Stats -->
-      <div>
-        <div class="map-section-title">İstatistikler</div>
-        <div class="map-stats-grid">
-          <div class="map-stat-card">
-            <div class="stat-value stat-gray" id="stat-total">—</div>
-            <div class="stat-label">Toplam Aday</div>
+      <!-- İstatistikler -->
+      <div class="map-section" id="sec-stats">
+        <div class="map-section-head" onclick="toggleSection('sec-stats')">
+          <span class="map-section-title">İstatistikler</span>
+          <span class="section-toggle-icon">▾</span>
+        </div>
+        <div class="map-section-body">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-val c-gray" id="stat-total">—</div>
+              <div class="stat-lbl">Aday</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val c-green" id="stat-positive">—</div>
+              <div class="stat-lbl">Geliyor</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val c-red" id="stat-negative">—</div>
+              <div class="stat-lbl">Gelmiyor</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val c-amber" id="stat-neutral">—</div>
+              <div class="stat-lbl">Diğer</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val c-gray" id="stat-unknown">—</div>
+              <div class="stat-lbl">Belirsiz</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val c-blue" id="stat-baro">—</div>
+              <div class="stat-lbl">Baro</div>
+            </div>
           </div>
-          <div class="map-stat-card">
-            <div class="stat-value stat-green" id="stat-positive">—</div>
-            <div class="stat-label">Olumlu</div>
-          </div>
-          <div class="map-stat-card">
-            <div class="stat-value stat-red" id="stat-negative">—</div>
-            <div class="stat-label">Olumsuz</div>
-          </div>
-          <div class="map-stat-card">
-            <div class="stat-value stat-blue" id="stat-baro">—</div>
-            <div class="stat-label">Baro Toplam</div>
+          <!-- Sonuç özet satırı -->
+          <div class="result-bar" id="result-bar" style="display:none;">
+            <span id="result-persons-chip" class="result-chip"></span>
+            <span id="result-baro-chip" class="result-chip"></span>
+            <span id="result-district-chip" class="result-chip"></span>
           </div>
         </div>
       </div>
 
-      <!-- Filters -->
-      <div>
-        <div class="map-section-title">Filtreler</div>
-        <div class="map-filter-group">
-          <label for="filterLawyer">Avukat</label>
-          <select id="filterLawyer" onchange="scheduleReload()">
-            <option value="">Tüm Avukatlar</option>
-            {% for lawyer in lawyers %}
-            <option value="{{ lawyer.id }}">{{ lawyer.ad }} {{ lawyer.soyad }} ({{ lawyer.sicil_no }})</option>
-            {% endfor %}
-          </select>
+      <!-- Filtreler -->
+      <div class="map-section" id="sec-filters">
+        <div class="map-section-head" onclick="toggleSection('sec-filters')">
+          <span class="map-section-title">
+            Filtreler
+            <span class="filter-badge" id="filter-count-badge" style="display:none;">0</span>
+          </span>
+          <span class="section-toggle-icon">▾</span>
         </div>
-        <div class="map-filter-group" style="margin-top:8px;">
-          <label for="filterStatus">Durum</label>
-          <select id="filterStatus" onchange="scheduleReload()">
-            <option value="">Tüm Durumlar</option>
-            {% for status in statuses %}
-            <option value="{{ status.key }}">{{ status.label }}</option>
-            {% endfor %}
-            <option value="__none__">Belirsiz (durum yok)</option>
-          </select>
+        <div class="map-section-body">
+
+          <div class="filter-row">
+            <label class="filter-label" for="filterQ">Ad / Sicil Ara</label>
+            <input type="text" id="filterQ" placeholder="Ad, soyad veya sicil no..." oninput="scheduleReload()">
+          </div>
+
+          <div class="filter-row">
+            <label class="filter-label" for="filterNoteQ">Not İçinde Ara</label>
+            <input type="text" id="filterNoteQ" placeholder="Not metni..." oninput="scheduleReload()">
+          </div>
+
+          <div class="filter-row">
+            <label class="filter-label" for="filterLawyer">Avukat</label>
+            <select id="filterLawyer" onchange="scheduleReload()">
+              <option value="">Tüm Avukatlar</option>
+              {% for lawyer in lawyers %}
+              <option value="{{ lawyer.id }}">{{ lawyer.ad }} {{ lawyer.soyad }} ({{ lawyer.sicil_no }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-row">
+            <label class="filter-label" for="filterIlce">İlçe</label>
+            <select id="filterIlce" onchange="scheduleReload()">
+              <option value="">Tüm İlçeler</option>
+              {% for ilce in ankara_districts %}
+              <option value="{{ ilce }}">{{ ilce }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-row">
+            <label class="filter-label" for="filterStatus">Aday Durumu</label>
+            <select id="filterStatus" onchange="scheduleReload()">
+              <option value="">Tüm Durumlar</option>
+              {% for status in statuses %}
+              <option value="{{ status.key }}">{{ status.label }}</option>
+              {% endfor %}
+              <option value="__none__">Belirsiz (durum yok)</option>
+            </select>
+          </div>
+
+          <div class="filter-row">
+            <label class="filter-label" for="filterTag">Baro Etiketi</label>
+            <select id="filterTag" onchange="scheduleReload()">
+              <option value="">Tüm Baro Kayıtları</option>
+              <option value="blacklist">Kara Liste</option>
+              <option value="whitelist">Beyaz Liste</option>
+              <option value="none">Etiketsiz</option>
+            </select>
+          </div>
+
+          <button class="filter-clear-btn" id="filterClearBtn" onclick="clearFilters()" style="display:none;">
+            <svg style="width:11px;height:11px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+            Tüm Filtreleri Temizle
+          </button>
         </div>
       </div>
 
-      <!-- Layers -->
-      <div>
-        <div class="map-section-title">Katmanlar</div>
-        <div class="map-layers">
-          <label class="map-layer-toggle">
-            <input type="checkbox" id="layerDistricts" checked onchange="toggleLayer('districts')">
-            <span class="layer-dot" style="background:#6b7280; border:2px solid rgba(0,0,0,0.2);"></span>
-            İlçe Özeti
-          </label>
-          <label class="map-layer-toggle">
-            <input type="checkbox" id="layerPersons" checked onchange="toggleLayer('persons')">
-            <span class="layer-dot" style="background:#22c55e;"></span>
-            Adaylar
-          </label>
-          <label class="map-layer-toggle">
-            <input type="checkbox" id="layerBaro" checked onchange="toggleLayer('baro')">
-            <span class="layer-dot" style="background:#3b82f6;"></span>
-            Baro Avukatları
-          </label>
+      <!-- Katmanlar -->
+      <div class="map-section" id="sec-layers">
+        <div class="map-section-head" onclick="toggleSection('sec-layers')">
+          <span class="map-section-title">Katmanlar</span>
+          <span class="section-toggle-icon">▾</span>
+        </div>
+        <div class="map-section-body">
+          <div class="layer-list">
+            <label class="layer-row">
+              <input type="checkbox" id="layerDistricts" checked onchange="toggleLayer('districts')">
+              <span class="layer-dot" style="background:#6b7280;"></span>
+              İlçe Özeti
+              <span class="layer-count" id="lcount-districts">—</span>
+            </label>
+            <label class="layer-row">
+              <input type="checkbox" id="layerPersons" checked onchange="toggleLayer('persons')">
+              <span class="layer-dot" style="background:#22c55e;"></span>
+              Adaylar
+              <span class="layer-count" id="lcount-persons">—</span>
+            </label>
+            <label class="layer-row">
+              <input type="checkbox" id="layerBaro" checked onchange="toggleLayer('baro')">
+              <span class="layer-dot" style="background:#3b82f6;"></span>
+              Baro Avukatları
+              <span class="layer-count" id="lcount-baro">—</span>
+            </label>
+          </div>
         </div>
       </div>
 
-      <!-- Legend -->
-      <div>
-        <div class="map-section-title">Gösterge</div>
-        <div class="map-legend">
-          <div style="font-size:11px;color:var(--text-muted,#9ca3af);font-weight:600;margin-bottom:2px;">Aday Durumu</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#22c55e;"></span> Geliyor</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> Gelmiyor</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Diğer Durum</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#9ca3af;"></span> Belirsiz</div>
-          <div style="font-size:11px;color:var(--text-muted,#9ca3af);font-weight:600;margin-top:8px;margin-bottom:2px;">İlçe Rengi (Oran)</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#10b981;"></span> &gt;60% olumlu</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> 30-60% olumlu</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span> &lt;30% olumlu</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#6b7280;"></span> Veri yok</div>
-          <div style="font-size:11px;color:var(--text-muted,#9ca3af);font-weight:600;margin-top:8px;margin-bottom:2px;">Baro Etiketleri</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;border:2px solid #ef4444;"></span> Kara Liste</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;border:2px solid #22c55e;"></span> Beyaz Liste</div>
-          <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span> Etiketsiz</div>
+      <!-- Gösterge -->
+      <div class="map-section collapsed" id="sec-legend">
+        <div class="map-section-head" onclick="toggleSection('sec-legend')">
+          <span class="map-section-title">Gösterge</span>
+          <span class="section-toggle-icon">▾</span>
+        </div>
+        <div class="map-section-body">
+          <div class="legend-list">
+            <div class="legend-group-title">Aday Durumu</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#22c55e;"></span> Geliyor</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#ef4444;"></span> Gelmiyor</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#f59e0b;"></span> Diğer Durum</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#9ca3af;"></span> Belirsiz</div>
+            <div class="legend-group-title">İlçe Dairesi (Oran)</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#10b981;"></span> &gt;60% olumlu</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#f59e0b;"></span> 30–60% olumlu</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#ef4444;"></span> &lt;30% olumlu</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#6b7280;"></span> Veri yok</div>
+            <div class="legend-group-title">Baro Etiketleri</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#3b82f6;border:2px solid #ef4444;"></span> Kara Liste</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#3b82f6;border:2px solid #22c55e;"></span> Beyaz Liste</div>
+            <div class="legend-row"><span class="legend-dot" style="background:#3b82f6;"></span> Etiketsiz</div>
+          </div>
         </div>
       </div>
 
     </div><!-- /sidebar-body -->
   </aside>
 
-  <!-- Map area -->
+  <!-- ── Harita ─────────────────────────────────────────────────────── -->
   <div class="map-container">
     <div class="map-loading-bar" id="mapLoadingBar"></div>
-    <button class="sidebar-toggle-btn" id="sidebarToggle" onclick="toggleSidebar()">
-      <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <button class="sidebar-toggle-btn" onclick="toggleSidebar()">
+      <svg style="width:15px;height:15px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M4 6h16M4 12h16M4 18h16"/>
       </svg>
       Filtreler
     </button>
     <div id="map"></div>
+    <div class="map-empty-state" id="mapEmptyState">
+      <div class="empty-icon">🔍</div>
+      <p><strong>Sonuç bulunamadı</strong><br>Filtreleri değiştirmeyi deneyin.</p>
+    </div>
+    <div class="map-toast" id="mapToast"></div>
   </div>
 
-</div><!-- /map-page-wrapper -->
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
 <script>
-// ── Map initialization ───────────────────────────────────────────────────────
-const map = L.map('map', {
-  center: [39.9334, 32.8597],
-  zoom: 11,
-  zoomControl: true,
-});
+// ── Map init ───────────────────────────────────────────────────────────────
+const map = L.map('map', { center: [39.9334, 32.8597], zoom: 11 });
 
-// CartoDB Positron — ücretsiz, API key yok, referrer sorunu yok
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   subdomains: 'abcd',
   maxZoom: 20,
 }).addTo(map);
 
-// ── Layer groups ─────────────────────────────────────────────────────────────
+// ── Layer groups ───────────────────────────────────────────────────────────
 let districtsLayer = L.layerGroup().addTo(map);
 let personsCluster = L.markerClusterGroup({ maxClusterRadius: 50 }).addTo(map);
 let baroCluster    = L.markerClusterGroup({ maxClusterRadius: 50 }).addTo(map);
-
-// ── Visibility state ─────────────────────────────────────────────────────────
 const layerVisible = { districts: true, persons: true, baro: true };
 
-function toggleLayer(name) {
-  const checkbox = document.getElementById('layerDistricts');
-  layerVisible[name] = document.getElementById(
-    name === 'districts' ? 'layerDistricts' :
-    name === 'persons'   ? 'layerPersons' : 'layerBaro'
-  ).checked;
-
-  const layerMap = { districts: districtsLayer, persons: personsCluster, baro: baroCluster };
-  if (layerVisible[name]) {
-    map.addLayer(layerMap[name]);
-  } else {
-    map.removeLayer(layerMap[name]);
-  }
+// ── Section toggle ─────────────────────────────────────────────────────────
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('collapsed');
 }
 
-// ── Helper: district circle color ────────────────────────────────────────────
-function districtColor(lp_total, lp_positive) {
-  if (lp_total === 0) return '#6b7280';
-  const ratio = lp_positive / lp_total;
-  if (ratio > 0.6) return '#10b981';
-  if (ratio > 0.3) return '#f59e0b';
+// ── Layer toggle ───────────────────────────────────────────────────────────
+function toggleLayer(name) {
+  const idMap = { districts:'layerDistricts', persons:'layerPersons', baro:'layerBaro' };
+  layerVisible[name] = document.getElementById(idMap[name]).checked;
+  const lMap = { districts: districtsLayer, persons: personsCluster, baro: baroCluster };
+  if (layerVisible[name]) map.addLayer(lMap[name]);
+  else map.removeLayer(lMap[name]);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function districtColor(total, pos) {
+  if (!total) return '#6b7280';
+  const r = pos / total;
+  if (r > 0.6) return '#10b981';
+  if (r > 0.3) return '#f59e0b';
   return '#ef4444';
 }
 
-// ── Helper: status → color ────────────────────────────────────────────────────
-function statusColor(status_key) {
-  if (status_key === 'geliyor')  return '#10b981';
-  if (status_key === 'gelmiyor') return '#ef4444';
-  if (status_key === null || status_key === undefined) return '#9ca3af';
-  return '#f59e0b';
-}
-
-// ── Helper: custom circle divIcon ─────────────────────────────────────────────
-function circleIcon(color, size, borderColor) {
-  size = size || 16;
-  borderColor = borderColor || 'rgba(255,255,255,0.85)';
+function circleIcon(color, size, border) {
+  size   = size   || 14;
+  border = border || 'rgba(255,255,255,0.85)';
   return L.divIcon({
     className: '',
-    html: `<div class="custom-circle-marker" style="width:${size}px;height:${size}px;background:${color};border:2px solid ${borderColor};border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>`,
+    html: `<div style="width:${size}px;height:${size}px;background:${color};border:2px solid ${border};border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.35);"></div>`,
     iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -(size / 2 + 4)],
+    iconAnchor: [size/2, size/2],
+    popupAnchor: [0, -(size/2+4)],
   });
 }
 
-// ── Render districts ──────────────────────────────────────────────────────────
+// ── Render: districts ──────────────────────────────────────────────────────
 function renderDistricts(districts) {
   districtsLayer.clearLayers();
-  districts.forEach(function(d) {
-    const color = districtColor(d.lp_total, d.lp_positive);
-    const radius = Math.max(15, Math.min(60, d.lp_total * 0.8));
+  let activeCount = 0;
+  districts.forEach(d => {
+    if (d.lp_total === 0 && d.baro_total === 0) return;
+    activeCount++;
+    const color  = districtColor(d.lp_total, d.lp_positive);
+    const radius = Math.max(14, Math.min(60, d.lp_total * 0.9 + d.baro_total * 0.1));
     const circle = L.circleMarker([d.lat, d.lng], {
-      radius: radius,
-      fillColor: color,
-      color: 'rgba(255,255,255,0.6)',
-      weight: 1.5,
-      fillOpacity: 0.55,
+      radius, fillColor: color,
+      color: 'rgba(255,255,255,0.5)', weight: 1.5, fillOpacity: 0.55,
     });
-
     const posRatio = d.lp_total > 0 ? Math.round(d.lp_positive / d.lp_total * 100) : 0;
     circle.bindPopup(`
       <div class="map-popup">
         <h4>${d.ilce}</h4>
-        <div class="popup-row">
-          <span class="popup-label">Toplam Aday</span>
-          <span class="popup-val">${d.lp_total}</span>
+        <div class="popup-row"><span class="popup-label">Toplam Aday</span><span class="popup-val">${d.lp_total}</span></div>
+        <div class="popup-row"><span class="popup-label">Geliyor</span><span class="popup-val" style="color:#22c55e">${d.lp_positive}</span></div>
+        <div class="popup-row"><span class="popup-label">Gelmiyor</span><span class="popup-val" style="color:#ef4444">${d.lp_negative}</span></div>
+        <div class="popup-row"><span class="popup-label">Diğer</span><span class="popup-val" style="color:#f59e0b">${d.lp_neutral}</span></div>
+        <div class="popup-row"><span class="popup-label">Belirsiz</span><span class="popup-val" style="color:#9ca3af">${d.lp_unknown}</span></div>
+        <hr class="popup-divider">
+        <div class="popup-row"><span class="popup-label">Olumlu Oran</span><span class="popup-val">${posRatio}%</span></div>
+        <div class="popup-row"><span class="popup-label">Baro Kayıt</span><span class="popup-val" style="color:#3b82f6">${d.baro_total}</span></div>
+        <div style="margin-top:8px;">
+          <a class="popup-btn popup-btn-gmap"
+             href="https://www.google.com/maps/search/${encodeURIComponent(d.ilce+', Ankara')}/@${d.lat},${d.lng},13z"
+             target="_blank" rel="noopener">🗺 Google Maps'te Aç</a>
         </div>
-        <div class="popup-row">
-          <span class="popup-label">Geliyor</span>
-          <span class="popup-val" style="color:#22c55e;">${d.lp_positive}</span>
-        </div>
-        <div class="popup-row">
-          <span class="popup-label">Gelmiyor</span>
-          <span class="popup-val" style="color:#ef4444;">${d.lp_negative}</span>
-        </div>
-        <div class="popup-row">
-          <span class="popup-label">Diğer</span>
-          <span class="popup-val" style="color:#f59e0b;">${d.lp_neutral}</span>
-        </div>
-        <div class="popup-row">
-          <span class="popup-label">Belirsiz</span>
-          <span class="popup-val" style="color:#9ca3af;">${d.lp_unknown}</span>
-        </div>
-        <div class="popup-row" style="margin-top:6px;border-top:1px solid #e5e7eb;padding-top:6px;">
-          <span class="popup-label">Olumlu Oran</span>
-          <span class="popup-val">${posRatio}%</span>
-        </div>
-        <div class="popup-row">
-          <span class="popup-label">Baro Kayıt</span>
-          <span class="popup-val" style="color:#3b82f6;">${d.baro_total}</span>
-        </div>
-        <div style="margin-top:10px;">
-          <a href="https://www.google.com/maps/search/${encodeURIComponent(d.ilce + ', Ankara')}/@${d.lat},${d.lng},13z" target="_blank" rel="noopener"
-             style="display:block;text-align:center;padding:5px 8px;background:#4285F4;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
-            🗺 ${d.ilce} — Google Maps'te Aç
-          </a>
-        </div>
-      </div>
-    `);
+      </div>`);
     districtsLayer.addLayer(circle);
   });
+  document.getElementById('lcount-districts').textContent = activeCount;
 }
 
-// ── Render lawyer persons ─────────────────────────────────────────────────────
+// ── Render: persons ────────────────────────────────────────────────────────
 function renderPersons(persons) {
   personsCluster.clearLayers();
-  persons.forEach(function(p) {
-    const color = p.status_color || statusColor(p.status_key);
-    const marker = L.marker([p.lat, p.lng], {
-      icon: circleIcon(color, 14, 'rgba(255,255,255,0.85)'),
-    });
+  persons.forEach(p => {
+    const color  = p.status_color || '#9ca3af';
+    const marker = L.marker([p.lat, p.lng], { icon: circleIcon(color, 14) });
 
-    const notlarHtml = p.notlar
-      ? `<div class="popup-row" style="margin-top:4px;"><span class="popup-label">Not</span></div><div style="font-size:12px;color:#374151;margin-top:2px;">${p.notlar}</div>`
-      : '';
+    const noteHtml = p.notlar
+      ? `<div class="popup-note">${esc(p.notlar)}</div>` : '';
 
     marker.bindPopup(`
       <div class="map-popup">
-        <h4>${p.full_name}</h4>
+        <h4>${esc(p.full_name)}</h4>
         <div class="popup-row">
           <span class="popup-label">Sicil</span>
-          <span class="popup-val" style="font-family:monospace;">${p.sicil}</span>
+          <span class="popup-val" style="font-family:monospace">${esc(p.sicil)}</span>
         </div>
         <div class="popup-row">
           <span class="popup-label">Durum</span>
-          <span class="popup-badge" style="background:${color};color:#fff;">${p.status_label}</span>
+          <span class="popup-badge" style="background:${color};color:#fff">${esc(p.status_label)}</span>
         </div>
         <div class="popup-row">
           <span class="popup-label">İlçe</span>
-          <span class="popup-val">${p.ilce || '—'}</span>
+          <span class="popup-val">${esc(p.ilce) || '—'}</span>
         </div>
         <div class="popup-row">
           <span class="popup-label">Avukat</span>
-          <span class="popup-val">${p.lawyer_ad}</span>
+          <span class="popup-val">${esc(p.lawyer_ad)}</span>
         </div>
-        ${notlarHtml}
-        <div style="display:flex;gap:6px;margin-top:10px;">
-          <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener"
-             style="flex:1;text-align:center;padding:5px 8px;background:#4285F4;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
-            🗺 Google Maps
-          </a>
-          <a href="https://maps.apple.com/?daddr=${p.lat},${p.lng}" target="_blank" rel="noopener"
-             style="flex:1;text-align:center;padding:5px 8px;background:#000;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
-             Apple Maps
-          </a>
+        ${noteHtml}
+        <div class="popup-actions">
+          <a class="popup-btn popup-btn-detail"
+             href="/ui/unique-people/${encodeURIComponent(p.sicil)}/detail/"
+             target="_blank">Detay</a>
+          <a class="popup-btn popup-btn-gmap"
+             href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}"
+             target="_blank" rel="noopener">🗺 Google</a>
+          <a class="popup-btn popup-btn-apple"
+             href="https://maps.apple.com/?daddr=${p.lat},${p.lng}"
+             target="_blank" rel="noopener"> Apple</a>
         </div>
-      </div>
-    `);
+      </div>`);
     personsCluster.addLayer(marker);
   });
+  document.getElementById('lcount-persons').textContent = persons.length;
 }
 
-// ── Render baro lawyers ───────────────────────────────────────────────────────
+// ── Render: baro ───────────────────────────────────────────────────────────
 function renderBaro(baroLawyers) {
   baroCluster.clearLayers();
-  baroLawyers.forEach(function(b) {
-    let borderColor = 'rgba(255,255,255,0.85)';
-    if (b.tag_type === 'blacklist') borderColor = '#ef4444';
-    else if (b.tag_type === 'whitelist') borderColor = '#22c55e';
+  baroLawyers.forEach(b => {
+    let border = 'rgba(255,255,255,0.85)';
+    if (b.tag_type === 'blacklist') border = '#ef4444';
+    else if (b.tag_type === 'whitelist') border = '#22c55e';
 
-    const marker = L.marker([b.lat, b.lng], {
-      icon: circleIcon('#3b82f6', 11, borderColor),
-    });
+    const marker = L.marker([b.lat, b.lng], { icon: circleIcon('#3b82f6', 11, border) });
 
     const tagHtml = b.tag_type
       ? `<div class="popup-row">
            <span class="popup-label">Etiket</span>
-           <span class="popup-badge" style="background:${b.tag_type === 'blacklist' ? '#ef4444' : '#22c55e'};color:#fff;">
-             ${b.tag_type === 'blacklist' ? 'Kara Liste' : 'Beyaz Liste'}
+           <span class="popup-badge" style="background:${b.tag_type==='blacklist'?'#ef4444':'#22c55e'};color:#fff">
+             ${b.tag_type==='blacklist'?'Kara Liste':'Beyaz Liste'}
            </span>
          </div>
-         ${b.tag_note ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${b.tag_note}</div>` : ''}`
+         ${b.tag_note ? `<div class="popup-note">${esc(b.tag_note)}</div>` : ''}`
       : '';
 
     const inListHtml = b.in_lists
-      ? `<div class="popup-row"><span class="popup-label">Listede</span><span class="popup-val" style="color:#22c55e;">Evet</span></div>`
-      : '';
+      ? `<div class="popup-row"><span class="popup-label">Aday Listesinde</span><span class="popup-val" style="color:#22c55e">Evet</span></div>`
+      : `<div class="popup-row"><span class="popup-label">Aday Listesinde</span><span class="popup-val" style="color:#9ca3af">Hayır</span></div>`;
 
     marker.bindPopup(`
       <div class="map-popup">
-        <h4>${b.full_name}</h4>
+        <h4>${esc(b.full_name)}</h4>
         <div class="popup-row">
           <span class="popup-label">Sicil</span>
-          <span class="popup-val" style="font-family:monospace;">${b.sicil}</span>
+          <span class="popup-val" style="font-family:monospace">${esc(b.sicil)}</span>
         </div>
         <div class="popup-row">
           <span class="popup-label">İlçe</span>
-          <span class="popup-val">${b.ilce || '—'}</span>
+          <span class="popup-val">${esc(b.ilce) || '—'}</span>
         </div>
         ${tagHtml}
         ${inListHtml}
-        <div style="display:flex;gap:6px;margin-top:10px;">
-          <a href="https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}" target="_blank" rel="noopener"
-             style="flex:1;text-align:center;padding:5px 8px;background:#4285F4;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
-            🗺 Google Maps
-          </a>
-          <a href="https://maps.apple.com/?daddr=${b.lat},${b.lng}" target="_blank" rel="noopener"
-             style="flex:1;text-align:center;padding:5px 8px;background:#000;color:#fff;border-radius:5px;font-size:11px;font-weight:600;text-decoration:none;">
-             Apple Maps
-          </a>
+        <div class="popup-actions">
+          <a class="popup-btn popup-btn-detail"
+             href="/ui/baro-lawyers/${encodeURIComponent(b.sicil)}/detail/"
+             target="_blank">Detay</a>
+          <a class="popup-btn popup-btn-gmap"
+             href="https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}"
+             target="_blank" rel="noopener">🗺 Google</a>
+          <a class="popup-btn popup-btn-apple"
+             href="https://maps.apple.com/?daddr=${b.lat},${b.lng}"
+             target="_blank" rel="noopener"> Apple</a>
         </div>
-      </div>
-    `);
+      </div>`);
     baroCluster.addLayer(marker);
+  });
+  document.getElementById('lcount-baro').textContent = baroLawyers.length;
+}
+
+// ── Stats + UI update ──────────────────────────────────────────────────────
+function updateStats(stats, nPersons, nBaro) {
+  document.getElementById('stat-total').textContent    = fmt(stats.total_persons);
+  document.getElementById('stat-positive').textContent = fmt(stats.total_positive);
+  document.getElementById('stat-negative').textContent = fmt(stats.total_negative);
+  document.getElementById('stat-neutral').textContent  = fmt(stats.total_neutral);
+  document.getElementById('stat-unknown').textContent  = fmt(stats.total_unknown);
+  document.getElementById('stat-baro').textContent     = fmt(stats.total_baro);
+
+  // Result chips
+  const bar = document.getElementById('result-bar');
+  const hasFilters = getActiveFilterCount() > 0;
+  if (hasFilters) {
+    bar.style.display = 'flex';
+    document.getElementById('result-persons-chip').textContent = `${fmt(nPersons)} aday`;
+    document.getElementById('result-baro-chip').textContent    = `${fmt(nBaro)} baro`;
+    document.getElementById('result-district-chip').textContent= `${fmt(stats.districts_count)} ilçe`;
+  } else {
+    bar.style.display = 'none';
+  }
+
+  // Empty state
+  const noData = nPersons === 0 && nBaro === 0;
+  document.getElementById('mapEmptyState').style.display = noData ? 'block' : 'none';
+}
+
+function fmt(n) { return (n || 0).toLocaleString('tr-TR'); }
+
+function esc(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ── Active filter tracking ─────────────────────────────────────────────────
+const FILTER_IDS = ['filterQ','filterNoteQ','filterLawyer','filterIlce','filterStatus','filterTag'];
+
+function getActiveFilterCount() {
+  return FILTER_IDS.filter(id => document.getElementById(id).value.trim() !== '').length;
+}
+
+function updateFilterUI() {
+  const count = getActiveFilterCount();
+  const badge = document.getElementById('filter-count-badge');
+  const clearBtn = document.getElementById('filterClearBtn');
+
+  FILTER_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.toggle('active-filter', el.value.trim() !== '');
+  });
+
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline-flex';
+    clearBtn.style.display = 'flex';
+  } else {
+    badge.style.display = 'none';
+    clearBtn.style.display = 'none';
+  }
+}
+
+// ── URL state sync ─────────────────────────────────────────────────────────
+function saveToURL() {
+  const p = new URLSearchParams();
+  FILTER_IDS.forEach(id => {
+    const v = document.getElementById(id).value.trim();
+    if (v) p.set(id.replace('filter','').toLowerCase(), v);
+  });
+  const newUrl = p.toString()
+    ? location.pathname + '?' + p.toString()
+    : location.pathname;
+  history.replaceState(null, '', newUrl);
+}
+
+function restoreFromURL() {
+  const p = new URLSearchParams(location.search);
+  const map_ = {
+    q: 'filterQ', noteq: 'filterNoteQ', lawyer: 'filterLawyer',
+    ilce: 'filterIlce', status: 'filterStatus', tag: 'filterTag',
+  };
+  Object.entries(map_).forEach(([key, id]) => {
+    const v = p.get(key);
+    if (v) document.getElementById(id).value = v;
   });
 }
 
-// ── Update sidebar stats ──────────────────────────────────────────────────────
-function updateStats(stats) {
-  document.getElementById('stat-total').textContent    = (stats.total_persons || 0).toLocaleString('tr-TR');
-  document.getElementById('stat-positive').textContent = (stats.total_positive || 0).toLocaleString('tr-TR');
-  document.getElementById('stat-negative').textContent = (stats.total_negative || 0).toLocaleString('tr-TR');
-  document.getElementById('stat-baro').textContent     = (stats.total_baro || 0).toLocaleString('tr-TR');
-}
-
-// ── Load map data ─────────────────────────────────────────────────────────────
-let _reloadTimer = null;
+// ── Main load ──────────────────────────────────────────────────────────────
+let _timer = null;
 
 function scheduleReload() {
-  clearTimeout(_reloadTimer);
-  _reloadTimer = setTimeout(loadMapData, 300);
+  clearTimeout(_timer);
+  _timer = setTimeout(loadMapData, 300);
+}
+
+function clearFilters() {
+  FILTER_IDS.forEach(id => { document.getElementById(id).value = ''; });
+  loadMapData();
 }
 
 async function loadMapData() {
-  const lawyerId = document.getElementById('filterLawyer').value;
-  const status   = document.getElementById('filterStatus').value;
+  updateFilterUI();
+  saveToURL();
 
-  const params = new URLSearchParams();
-  if (lawyerId) params.set('lawyer_id', lawyerId);
-  if (status)   params.set('status', status);
-  params.set('layer', 'all');
+  const p = new URLSearchParams();
+  const q       = document.getElementById('filterQ').value.trim();
+  const noteQ   = document.getElementById('filterNoteQ').value.trim();
+  const lawyer  = document.getElementById('filterLawyer').value;
+  const ilce    = document.getElementById('filterIlce').value;
+  const status  = document.getElementById('filterStatus').value;
+  const tag     = document.getElementById('filterTag').value;
 
-  // Show loading indicator
-  const loadingBar = document.getElementById('mapLoadingBar');
-  loadingBar.style.display = 'block';
+  if (q)      p.set('q', q);
+  if (noteQ)  p.set('note_q', noteQ);
+  if (lawyer) p.set('lawyer_id', lawyer);
+  if (ilce)   p.set('ilce', ilce);
+  if (status) p.set('status', status);
+  if (tag)    p.set('tag_filter', tag);
+  p.set('layer', 'all');
+
+  const bar = document.getElementById('mapLoadingBar');
+  bar.style.display = 'block';
 
   try {
-    const res = await fetch('/ui/map/data/?' + params.toString());
+    const res = await fetch('/ui/map/data/?' + p.toString());
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
 
     renderDistricts(data.districts || []);
     renderPersons(data.lawyer_persons || []);
     renderBaro(data.baro_lawyers || []);
-    updateStats(data.stats || {});
+    updateStats(data.stats || {}, (data.lawyer_persons||[]).length, (data.baro_lawyers||[]).length);
 
-    // Re-apply layer visibility
+    // Visibility
     if (!layerVisible.districts) map.removeLayer(districtsLayer);
     if (!layerVisible.persons)   map.removeLayer(personsCluster);
     if (!layerVisible.baro)      map.removeLayer(baroCluster);
 
   } catch (err) {
     console.error('Harita verisi yüklenemedi:', err);
+    showToast('Veri yüklenemedi: ' + err.message);
   } finally {
-    loadingBar.style.display = 'none';
+    bar.style.display = 'none';
   }
 }
 
-// ── Mobile sidebar toggle ─────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('mapToast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 4000);
+}
+
 function toggleSidebar() {
   document.getElementById('mapSidebar').classList.toggle('open');
 }
 
-// ── Initial load ──────────────────────────────────────────────────────────────
+// ── Boot ───────────────────────────────────────────────────────────────────
+restoreFromURL();
 loadMapData();
 </script>
 {% endblock %}

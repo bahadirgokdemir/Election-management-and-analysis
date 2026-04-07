@@ -1364,11 +1364,13 @@ def ui_baro_lawyers(request):
 def ui_map(request):
     """Harita sayfası"""
     from app.models import Lawyer, StatusOption
+    from app.services.map_service import ANKARA_DISTRICTS
     lawyers = Lawyer.objects.exclude(sicil_no__in=['_KARALIST_', '_BEYAZLIST_']).order_by('ad', 'soyad')
     statuses = StatusOption.objects.all()
     return render(request, 'app/map.html', {
         'lawyers': lawyers,
         'statuses': statuses,
+        'ankara_districts': sorted(ANKARA_DISTRICTS.keys()),
     })
 
 
@@ -1384,9 +1386,16 @@ def ui_map_data(request):
         except ValueError:
             lawyer_id = None
     status_filter = request.GET.get('status') or None
-    layer = request.GET.get('layer', 'all')  # 'all', 'districts', 'persons', 'baro'
+    layer = request.GET.get('layer', 'all')
+    ilce = request.GET.get('ilce') or None
+    q = request.GET.get('q') or None
+    note_q = request.GET.get('note_q') or None
+    tag_filter = request.GET.get('tag_filter') or None
 
-    data = get_map_data(lawyer_id=lawyer_id, status_filter=status_filter, layer=layer)
+    data = get_map_data(
+        lawyer_id=lawyer_id, status_filter=status_filter, layer=layer,
+        ilce=ilce, q=q, note_q=note_q, tag_filter=tag_filter,
+    )
     return JsonResponse(data)
 
 

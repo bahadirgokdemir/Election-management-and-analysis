@@ -2,7 +2,9 @@
 Harita servisi - İlçe bazlı avukat ve seçmen verisi
 """
 
-from app.models import LawyerPerson, BaroLawyer, StatusOption
+from django.db.models import Count, Q
+
+from app.models import LawyerPerson, BaroLawyer
 
 # Ankara ilçe koordinatları (lat, lng)
 ANKARA_DISTRICTS = {
@@ -49,23 +51,13 @@ def _normalize_district(ilce):
     if not ilce:
         return None
     ilce = ilce.strip()
-    # Doğrudan eşleme
     if ilce in ANKARA_DISTRICTS:
         return ilce
-    # Büyük/küçük harf duyarsız eşleme
     ilce_lower = ilce.lower()
     for district_name in ANKARA_DISTRICTS:
         if district_name.lower() == ilce_lower:
             return district_name
     return None
-
-
-def _get_district_coords(ilce):
-    """İlçe koordinatlarını döndür, bilinmiyorsa Ankara merkezi."""
-    normalized = _normalize_district(ilce)
-    if normalized:
-        return ANKARA_DISTRICTS[normalized]
-    return ANKARA_CENTER
 
 
 def _jitter_coords(sicil_no, lat, lng):
@@ -75,20 +67,25 @@ def _jitter_coords(sicil_no, lat, lng):
     return lat + lat_offset, lng + lng_offset
 
 
-def get_map_data(lawyer_id=None, status_filter=None, layer='all'):
+def get_map_data(lawyer_id=None, status_filter=None, layer='all',
+                 ilce=None, q=None, note_q=None, tag_filter=None):
     """
     Harita sayfası için veri döndür.
 
     Args:
-        lawyer_id: Filtre uygulanacak avukat ID'si (opsiyonel)
-        status_filter: Filtre uygulanacak durum anahtarı (opsiyonel)
-        layer: Hangi katmanların hesaplanacağı: 'all', 'districts', 'persons', 'baro'
+        lawyer_id:     Avukat ID filtresi
+        status_filter: Durum anahtarı filtresi (veya '__none__')
+        layer:         'all' | 'districts' | 'persons' | 'baro'
+        ilce:          İlçe adı filtresi (iexact)
+        q:             Ad/soyad/sicil araması (her iki katmana uygulanır)
+        note_q:        Not alanı araması (sadece LawyerPerson)
+        tag_filter:    Baro etiketi: 'blacklist' | 'whitelist' | 'none'
 
     Returns:
         dict: districts, lawyer_persons, baro_lawyers, stats
     """
 
-    # --- LawyerPerson sorgusu ---
+    # ── LawyerPerson sorgusu ──────────────────────────────────────────────────
     lp_qs = LawyerPerson.objects.select_related('cevap_status', 'lawyer').filter(active=True)
 
     if lawyer_id:
@@ -100,12 +97,44 @@ def get_map_data(lawyer_id=None, status_filter=None, layer='all'):
         else:
             lp_qs = lp_qs.filter(cevap_status__key=status_filter)
 
-    # Tüm LawyerPerson kayıtlarını bir kez çek
+    if ilce:
+        lp_qs = lp_qs.filter(ilce__iexact=ilce)
+
+    if q:
+        lp_qs = lp_qs.filter(
+            Q(ad__icontains=q) | Q(soyad__icontains=q) | Q(kisi_sicilno__icontains=q)
+        )
+
+    if note_q:
+        lp_qs = lp_qs.filter(notlar__icontains=note_q)
+
     all_lp = list(lp_qs)
 
-    # --- İlçe bazlı istatistikler ---
-    # Her ilçe için sayaçlar
-    district_lp_stats = {}  # {normalized_ilce: {total, positive, negative, neutral, unknown}}
+    # ── BaroLawyer sorgusu ────────────────────────────────────────────────────
+    baro_qs = BaroLawyer.objects.select_related('tag').all()
+
+    if ilce:
+        baro_qs = baro_qs.filter(ilce__iexact=ilce)
+
+    if tag_filter == 'blacklist':
+        baro_qs = baro_qs.filter(tag__tag_type='blacklist')
+    elif tag_filter == 'whitelist':
+        baro_qs = baro_qs.filter(tag__tag_type='whitelist')
+    elif tag_filter == 'none':
+        baro_qs = baro_qs.filter(tag__isnull=True)
+
+    if q:
+        baro_qs = baro_qs.filter(
+            Q(ad__icontains=q) | Q(soyad__icontains=q) | Q(sicil_no__icontains=q)
+        )
+
+    # ── in_lists: her zaman tüm aktif LP setine göre (filtreden bağımsız) ────
+    all_lp_sicils = set(
+        LawyerPerson.objects.filter(active=True).values_list('kisi_sicilno', flat=True)
+    )
+
+    # ── İlçe bazlı LP istatistikleri ─────────────────────────────────────────
+    district_lp_stats = {}
 
     for lp in all_lp:
         normalized = _normalize_district(lp.ilce) or '__other__'
@@ -113,74 +142,71 @@ def get_map_data(lawyer_id=None, status_filter=None, layer='all'):
             district_lp_stats[normalized] = {
                 'total': 0, 'positive': 0, 'negative': 0, 'neutral': 0, 'unknown': 0
             }
-        stats_entry = district_lp_stats[normalized]
-        stats_entry['total'] += 1
+        s = district_lp_stats[normalized]
+        s['total'] += 1
         if lp.cevap_status is None:
-            stats_entry['unknown'] += 1
+            s['unknown'] += 1
         elif lp.cevap_status.key == 'geliyor':
-            stats_entry['positive'] += 1
+            s['positive'] += 1
         elif lp.cevap_status.key == 'gelmiyor':
-            stats_entry['negative'] += 1
+            s['negative'] += 1
         else:
-            stats_entry['neutral'] += 1
+            s['neutral'] += 1
 
-    # BaroLawyer ilçe sayıları (tüm katmanlar için, district hesaplamasında kullanılır)
+    # ── İlçe bazlı Baro sayıları (filtrelenmiş) ───────────────────────────────
     baro_ilce_counts = {}
     if layer in ('all', 'districts', 'baro'):
-        from django.db.models import Count
-        baro_counts_qs = BaroLawyer.objects.values('ilce').annotate(count=Count('id'))
+        # Filtrelenmiş baro_qs üzerinden ilçe sayısı
+        baro_counts_qs = baro_qs.values('ilce').annotate(count=Count('id'))
         for row in baro_counts_qs:
-            raw_ilce = row['ilce']
-            normalized = _normalize_district(raw_ilce) or raw_ilce
+            normalized = _normalize_district(row['ilce']) or (row['ilce'] or '__unknown__')
             baro_ilce_counts[normalized] = baro_ilce_counts.get(normalized, 0) + row['count']
 
-    # --- Districts katmanı ---
+    # ── Districts katmanı ─────────────────────────────────────────────────────
     districts = []
-    all_known_districts = set(district_lp_stats.keys()) | set(baro_ilce_counts.keys())
-    # Boş olsa bile tüm ANKARA_DISTRICTS ilçelerini dahil et
-    all_known_districts |= set(ANKARA_DISTRICTS.keys())
-    all_known_districts.discard('__other__')
+    all_known = set(district_lp_stats.keys()) | set(baro_ilce_counts.keys())
+    all_known |= set(ANKARA_DISTRICTS.keys())
+    all_known.discard('__other__')
+    all_known.discard('__unknown__')
 
-    for ilce_name in all_known_districts:
+    for ilce_name in all_known:
         coords = ANKARA_DISTRICTS.get(ilce_name, ANKARA_CENTER)
-        lp_stats = district_lp_stats.get(ilce_name, {'total': 0, 'positive': 0, 'negative': 0, 'neutral': 0, 'unknown': 0})
-        baro_total = baro_ilce_counts.get(ilce_name, 0)
+        lp_s = district_lp_stats.get(ilce_name,
+                                      {'total': 0, 'positive': 0, 'negative': 0, 'neutral': 0, 'unknown': 0})
         districts.append({
             'ilce': ilce_name,
             'lat': coords[0],
             'lng': coords[1],
-            'lp_total': lp_stats['total'],
-            'lp_positive': lp_stats['positive'],
-            'lp_negative': lp_stats['negative'],
-            'lp_neutral': lp_stats['neutral'],
-            'lp_unknown': lp_stats['unknown'],
-            'baro_total': baro_total,
+            'lp_total': lp_s['total'],
+            'lp_positive': lp_s['positive'],
+            'lp_negative': lp_s['negative'],
+            'lp_neutral': lp_s['neutral'],
+            'lp_unknown': lp_s['unknown'],
+            'baro_total': baro_ilce_counts.get(ilce_name, 0),
         })
 
     # Toplam istatistikler
     total_persons = sum(d['lp_total'] for d in districts)
     total_positive = sum(d['lp_positive'] for d in districts)
     total_negative = sum(d['lp_negative'] for d in districts)
-    # __other__ ilçesini de dahil et
+    total_neutral = sum(d['lp_neutral'] for d in districts)
+    total_unknown = sum(d['lp_unknown'] for d in districts)
     if '__other__' in district_lp_stats:
         other = district_lp_stats['__other__']
         total_persons += other['total']
         total_positive += other['positive']
         total_negative += other['negative']
+        total_neutral += other['neutral']
+        total_unknown += other['unknown']
 
-    total_baro = sum(baro_ilce_counts.values()) if baro_ilce_counts else BaroLawyer.objects.count()
     districts_with_data = len([d for d in districts if d['lp_total'] > 0])
 
-    # --- Lawyer Persons katmanı ---
+    # ── Lawyer Persons katmanı ────────────────────────────────────────────────
     lawyer_persons = []
     if layer in ('all', 'persons'):
         for lp in all_lp:
             ilce_normalized = _normalize_district(lp.ilce)
-            if ilce_normalized:
-                coords = ANKARA_DISTRICTS[ilce_normalized]
-            else:
-                coords = ANKARA_CENTER
-
+            coords = ANKARA_DISTRICTS[ilce_normalized] if ilce_normalized else ANKARA_CENTER
             lat, lng = _jitter_coords(lp.kisi_sicilno, coords[0], coords[1])
 
             if lp.cevap_status:
@@ -208,31 +234,18 @@ def get_map_data(lawyer_id=None, status_filter=None, layer='all'):
                 'notlar': lp.notlar or '',
             })
 
-    # --- Baro Lawyers katmanı ---
+    # ── Baro Lawyers katmanı ──────────────────────────────────────────────────
     baro_lawyers = []
+    total_baro = 0
     if layer in ('all', 'baro'):
-        # Verimli in_lists kontrolü için LawyerPerson sicil setini oluştur
-        lp_sicil_set = {lp.kisi_sicilno for lp in all_lp}
-        # Eğer lawyer_id filtresi yoksa tüm LP sicillerini al (daha geniş kontrol)
-        if lawyer_id or status_filter:
-            all_lp_sicils = set(
-                LawyerPerson.objects.filter(active=True).values_list('kisi_sicilno', flat=True)
-            )
-        else:
-            all_lp_sicils = lp_sicil_set
+        all_baro = list(baro_qs)
+        total_baro = len(all_baro)
 
-        baro_qs = BaroLawyer.objects.select_related('tag').all()
-
-        for bl in baro_qs:
+        for bl in all_baro:
             ilce_normalized = _normalize_district(bl.ilce)
-            if ilce_normalized:
-                coords = ANKARA_DISTRICTS[ilce_normalized]
-            else:
-                coords = ANKARA_CENTER
-
+            coords = ANKARA_DISTRICTS[ilce_normalized] if ilce_normalized else ANKARA_CENTER
             lat, lng = _jitter_coords(bl.sicil_no, coords[0], coords[1])
 
-            # Tag bilgisi
             tag_type = None
             tag_note = ''
             try:
@@ -254,6 +267,9 @@ def get_map_data(lawyer_id=None, status_filter=None, layer='all'):
                 'tag_note': tag_note,
                 'in_lists': bl.sicil_no in all_lp_sicils,
             })
+    else:
+        # districts katmanı için baro count
+        total_baro = sum(baro_ilce_counts.values())
 
     return {
         'districts': districts,
@@ -263,6 +279,8 @@ def get_map_data(lawyer_id=None, status_filter=None, layer='all'):
             'total_persons': total_persons,
             'total_positive': total_positive,
             'total_negative': total_negative,
+            'total_neutral': total_neutral,
+            'total_unknown': total_unknown,
             'total_baro': total_baro,
             'districts_count': districts_with_data,
         },
